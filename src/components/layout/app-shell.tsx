@@ -3,80 +3,16 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BookOpen, LayoutDashboard, GraduationCap, MessageSquare, CalendarDays, LibraryBig, ClipboardCheck, Users, Bell, Menu, LogOut, Settings2, FlaskConical, ListChecks, type LucideIcon } from 'lucide-react';
-import type { Role } from '@/models';
-import { useApp } from '@/components/providers';
+import { Bell, Menu, LogOut, FlaskConical } from 'lucide-react';
+import { type Role } from '@/models';
+import { useApp } from '@/providers/app-context';
 import { Avatar, Button, Dialog, Select, Skeleton, ErrorState } from '@/components/ui';
 import { cn, roleLabels } from '@/lib/utils';
 import { useMockQuery } from '@/hooks/use-mock-query';
 import { simulateNextFailure } from '@/mocks/api';
-const nav: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  staff?: boolean;
-  admin?: boolean;
-}[] = [{
-  href: '/',
-  label: 'Meu painel',
-  icon: LayoutDashboard
-}, {
-  href: '/disciplinas',
-  label: 'Minhas disciplinas',
-  icon: BookOpen
-}, {
-  href: '/questionarios',
-  label: 'Questionários',
-  icon: ClipboardCheck
-}, {
-  href: '/questoes',
-  label: 'Banco de questões',
-  icon: LibraryBig
-}, {
-  href: '/forum',
-  label: 'Fórum de dúvidas',
-  icon: MessageSquare
-}, {
-  href: '/calendario',
-  label: 'Calendário',
-  icon: CalendarDays
-}, {
-  href: '/avisos',
-  label: 'Mural de avisos',
-  icon: Bell
-}, {
-  href: '/turmas',
-  label: 'Turmas',
-  icon: GraduationCap,
-  staff: true
-}, {
-  href: '/alunos',
-  label: 'Alunos',
-  icon: Users,
-  staff: true
-}, {
-  href: '/frequencia',
-  label: 'Frequência',
-  icon: ListChecks,
-  staff: true
-}, {
-  href: '/usuarios',
-  label: 'Usuários e cargos',
-  icon: Settings2,
-  admin: true
-}];
-export function Logo({
-  inverted = false,
-  symbolOnly = false
-}: {
-  inverted?: boolean;
-  symbolOnly?: boolean;
-}) {
-  return <Link href="/" className="inline-flex items-center gap-2.5" aria-label="AJA Digital — início">
-    <img src="/brand/aja-symbol.svg" alt="" width={48} height={48} className="size-12 shrink-0" />
-    <span aria-hidden={symbolOnly} className={cn('app-sidebar-label flex shrink-0 flex-col', symbolOnly && 'opacity-0')}><span className={cn('flex items-baseline gap-2', inverted ? 'text-white' : 'text-brand-900')}><span className="aja-wordmark">AJA</span><span className="text-sm font-medium tracking-wide">digital</span></span><span className={cn('mt-1 text-[10px] tracking-[.08em]', inverted ? 'text-brand-100' : 'text-slate-500')}></span></span>
-  </Link>;
-}
+import { nav } from './navigation';
+import { Logo } from '@/components/shared/logo';
+
 export function AppShell({
   children
 }: {

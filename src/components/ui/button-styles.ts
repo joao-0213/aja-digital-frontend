@@ -1,0 +1,1 @@
+export const buttonStyles = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50';

@@ -11,6 +11,7 @@
     "build": "next build",
     "preview": "node scripts/preview.mjs",
     "typecheck": "next typegen && tsc --noEmit",
+    "check:architecture": "node scripts/check-architecture.mjs",
     "test": "node --experimental-strip-types --test tests/domain.test.ts tests/api.test.ts tests/subject-updates.test.ts"
   },
   "dependencies": {

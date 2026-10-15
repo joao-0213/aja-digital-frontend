@@ -1,8 +1,9 @@
-import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
+import { type Metadata } from 'next';
+import { type ReactNode } from 'react';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { AppShell } from '@/components/layout/app-shell';
+
 export const metadata: Metadata = {
   title: {
     default: 'AJA Digital · Portal acadêmico',
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
     icon: '/favicon.svg'
   }
 };
+
 export default function RootLayout({
   children
 }: {

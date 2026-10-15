@@ -39,6 +39,7 @@ Gere o build novamente após alterar o código.
 ```sh
 npm test
 npm run typecheck
+npm run check:architecture
 npm run build
 ```
 
@@ -47,11 +48,15 @@ Os testes usam `node:test`. A checagem de tipos gera os tipos do Next.js antes d
 ## Estrutura
 
 - `src/app/`: rotas, layouts e estilos globais.
-- `src/components/`: telas, componentes compartilhados e navegação.
+- `src/features/`: módulos por domínio, com componentes, hooks locais e entradas públicas.
+- `src/components/`: elementos de UI, composições genéricas e navegação.
+- `src/providers/`: contrato do estado compartilhado e persistência da demonstração no navegador.
 - `src/models/`, `src/hooks/`, `src/lib/` e `src/mocks/`: tipos, hooks, regras e dados de demonstração.
 - `public/`: assets estáticos e identidade visual.
 - `tests/`: testes de regras e transporte simulado.
 - `scripts/preview.mjs`: servidor da versão compilada.
+
+Consulte [ARQUITETURA.md](ARQUITETURA.md) para localizar cada domínio, entender as fronteiras entre módulos e validar mudanças estruturais.
 
 ## Demonstração
 
