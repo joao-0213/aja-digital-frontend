@@ -18,6 +18,25 @@ O projeto organiza a interface em três camadas: elementos genéricos de UI, mó
 | Regras puras e infraestrutura compartilhada | `src/lib/` |
 | Consulta simulada e integração com ferramentas de estudo | `src/hooks/` |
 
+## Tipos compartilhados
+
+Os modelos ficam separados por assunto em `src/models/`. `index.ts` mantém a entrada pública existente com `export type`, permitindo continuar usando `import type { User, Subject } from '@/models'`.
+
+| Arquivo | Tipos |
+| --- | --- |
+| `user.ts` | `Role`, `User`, `DocumentStatus` e `StudentDocument` |
+| `academic.ts` | `SchoolClass`, `Subject`, `SubjectIcon` e `TrailModule` |
+| `materials.ts` | `Material`, `MaterialKind` e `Progress` |
+| `questions.ts` | `Question` e `Difficulty` |
+| `assessments.ts` | `Assessment` e `Attempt` |
+| `forum.ts` | `ForumTopic` e `ForumReply` |
+| `announcements.ts` | `Announcement` |
+| `calendar.ts` | `CalendarEvent` |
+| `attendance.ts` | `Attendance` |
+| `database.ts` | `MockDatabase`, que compõe os modelos dos outros arquivos |
+
+Esses arquivos contêm somente tipos. Dependências entre modelos usam `import type` diretamente do arquivo responsável, mantendo a composição do banco em `database.ts` e evitando referências de volta ao índice público. Tipos específicos de apresentação continuam próximos dos componentes que os utilizam.
+
 ## Domínios
 
 Cada módulo em `src/features/` expõe seus componentes compartilhados e entradas de tela por `index.ts`. Componentes e hooks internos ficam próximos do uso.
