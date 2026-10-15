@@ -1,0 +1,48 @@
+# Dependências, builds e caches
+node_modules/
+.npm-cache/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+coverage/
+.coverage
+htmlcov/
+
+# Ferramentas locais, sessões de navegador e resultados temporários
+.agents/
+skills-lock.json
+.sites-runtime/
+.playwright/
+.playwright-cli/
+tmp/
+*.log
+
+# Documentação interna e experimentos locais
+/AGENTS.md
+/VALIDACAO.md
+/docs/
+/tools/
+/public/brand/README.md
+
+# Configuração privada e credenciais
+.env*
+!.env.example
+ngrok.yml
+ngrok.yaml
+.ngrok*/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
