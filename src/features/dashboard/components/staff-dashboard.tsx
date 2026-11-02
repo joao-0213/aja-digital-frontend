@@ -7,6 +7,7 @@ import { Card, LinkButton } from '@/components/ui';
 import { dateLabel } from '@/lib/utils';
 import { DEMO_DATE } from '@/mocks/database';
 import { SubjectCard } from '@/features/subjects';
+import { calendarEntries } from '@/lib/announcement-calendar';
 
 export function StaffDashboard() {
   const { db, user, role } = useApp();
@@ -16,7 +17,7 @@ export function StaffDashboard() {
   const assessments = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId));
   const pending = assessments
     .sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const events = db.events.filter(e => e.date >= DEMO_DATE && (!e.subjectId || subjects.some(s => s.id === e.subjectId)))
+  const events = calendarEntries(db, user).filter(e => e.announcementId && e.date >= DEMO_DATE)
     .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
   const announcement = db.announcements.filter(a => classes.some(c => c.id === a.classId))
@@ -69,7 +70,7 @@ export function StaffDashboard() {
         {<section className="px-1" aria-labelledby="events-title">
           <h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros</h2>
           <div className="divide-y divide-slate-200">
-            {events.map(e => <Link href="/calendario" key={e.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
+            {events.map(e => <Link href={`/avisos#aviso-${e.announcementId}`} key={e.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
               <div className="w-11 shrink-0 text-center"><span className="block text-xl font-semibold tabular-nums">{e.date.slice(-2)}</span><span className="text-xs text-slate-500">{dateLabel(e.date, { month: 'short' })}</span></div>
               <div><h3 className="text-sm font-medium leading-6">{e.title}</h3><p className="mt-1 text-xs text-slate-500">{e.time} · {e.kind === 'exam' ? 'Simulado' : e.kind === 'class' ? 'Aula' : 'Evento'}</p></div>
             </Link>)}

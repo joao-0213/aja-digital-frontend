@@ -48,7 +48,7 @@ test('invalid date, destination and revoked permissions reject atomically', () =
   for (const occurrence of [{ date: '2026-02-30', time: '18:30' }, { date: '2026-11-10' }, { date: '2026-11-10', time: '25:00' }]) {
     assert.throws(() => applyDemoMutation(db, 'u3', d => { Object.assign(d.announcements[0], { occurrence }); }), /data|horário/);
   }
-  assert.throws(() => applyDemoMutation(db, 'u3', d => { d.announcements[0].classId = ''; }), /turma/);
+  assert.throws(() => applyDemoMutation(db, 'u3', d => { d.announcements[0].classId = ''; }), /turma|Sem permiss/);
   const revoked = structuredClone(db);
   revoked.subjects.find(s => s.id === 's1')!.teacherIds = [];
   assert.throws(() => applyDemoMutation(revoked, 'u2', d => { d.announcements.find(a => a.subjectId === 's1')!.body = 'Sem acesso'; }), /permissão/);
@@ -62,4 +62,53 @@ test('calendar scopes notices and published deadlines; no dates invented', () =>
   const entries = calendarEntries(db, db.users.find(u => u.id === 'u1')!);
   assert.ok(!entries.some(e => e.announcementId === 'other' || e.assessmentId === db.assessments[0].id));
   assert.ok(entries.every(e => e.announcementId || e.assessmentId));
+});
+
+test('two teachers share notices, stale edits and revoked enrollment preserve latest content', () => {
+  const db = migrateDatabase(seed);
+  db.users.push({ id: 't2', role: 'teacher', name: 'Outro docente', email: 'outro@example.org' });
+  db.subjects[0].teacherIds.push('t2');
+  const first = applyDemoMutation(db, 'u2', d => { d.announcements[0].body = 'Primeira mudança'; }, { expected: [{ collection: 'announcements', id: 'n2', revision: 0 }] });
+  assert.throws(() => applyDemoMutation(first, 't2', d => { d.announcements[0].body = 'Texto local'; }, { expected: [{ collection: 'announcements', id: 'n2', revision: 0 }] }), /alterado/);
+  const reviewed = applyDemoMutation(first, 't2', d => { d.announcements[0].body = 'Texto conferido'; }, { expected: [{ collection: 'announcements', id: 'n2', revision: 1 }] });
+  assert.equal(reviewed.announcements[0].authorId, 'u2');
+  assert.equal(reviewed.announcements[0].updatedBy, 't2');
+  reviewed.classes[0].studentIds = [];
+  assert.deepEqual(calendarEntries(reviewed, reviewed.users[0]), []);
+  assert.equal(first.announcements[0].body, 'Primeira mudança');
+});
+
+test('both activity kinds and requirements derive deadlines without extra notices', () => {
+  const db = migrateDatabase(seed);
+  for (const kind of ['quiz', 'work'] as const) for (const required of [true, false]) {
+    const id = `${kind}-${required}`;
+    db.assessments.push({ ...db.assessments[0], id, kind, required });
+  }
+  const count = db.announcements.length;
+  assert.equal(calendarEntries(db, db.users[0]).filter(e => e.assessmentId).length, 5);
+  db.assessments[0].deadline = '2026-12-02T19:00';
+  assert.equal(calendarEntries(db, db.users[0]).find(e => e.assessmentId === 'q1')!.date, '2026-12-02');
+  db.assessments[0].deletedAt = '2026-11-02';
+  assert.ok(!calendarEntries(db, db.users[0]).some(e => e.assessmentId === 'q1'));
+  assert.equal(db.announcements.length, count);
+});
+
+test('simple notices, whitespace and duplicate operations never create phantom commitments', () => {
+  const db = migrateDatabase(seed);
+  assert.ok(!calendarEntries(db, db.users[0]).some(e => e.announcementId === 'n2'));
+  assert.throws(() => applyDemoMutation(db, 'u3', d => { d.announcements[0].title = '  '; }), /título/);
+  assert.throws(() => applyDemoMutation(db, 'u3', d => { d.announcements.push(structuredClone(d.announcements[0])); }), /já existe/);
+  assert.throws(() => applyDemoMutation(db, 'u3', d => { d.events.push({ id: 'new', title: 'Evento', description: '', date: '2026-12-01', time: '18:00', kind: 'event' }); }), /aviso/);
+});
+
+test('migration joins known sample notice and never widens an unavailable subject audience', () => {
+  const db = structuredClone(seed);
+  db.events[0].title = 'Plantão de Matemática';
+  db.events.push({ ...db.events[0], id: 'orphan', subjectId: 'missing' });
+  const migrated = migrateDatabase(db);
+  assert.equal(migrated.announcements.length, 1);
+  assert.equal(migrated.announcements[0].legacyEventId, 'e1');
+  assert.equal(migrated.announcements[0].createdAt, db.announcements[0].createdAt);
+  assert.equal(migrated.events.find(e => e.id === 'orphan')!.deletedAt, undefined);
+  assert.deepEqual(migrateDatabase(migrated), migrated);
 });

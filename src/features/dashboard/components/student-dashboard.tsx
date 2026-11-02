@@ -10,6 +10,7 @@ import { SubjectCard } from '@/features/subjects';
 import { DEMO_DATE } from '@/mocks/database';
 import { EnrollmentStatus } from '@/features/students';
 import { isAssessmentAssigned } from '@/lib/enrollment';
+import { calendarEntries } from '@/lib/announcement-calendar';
 import { hasSubmitted } from '@/lib/activities';
 
 export function StudentDashboard() {
@@ -21,7 +22,7 @@ export function StudentDashboard() {
   const notices = db.announcements.filter(a => classes.some(c => c.id === a.classId) && (!a.subjectId || subjects.some(s => s.id === a.subjectId))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
   const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && !hasSubmitted(db, a.id, user.id)).sort((a, b) => a.deadline.localeCompare(b.deadline));
   const resume = lastAccessedMaterial(user.id, materials, db.progress);
-  const events = db.events.filter(e => e.date >= DEMO_DATE && (!e.subjectId || subjects.some(s => s.id === e.subjectId))).sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
+  const events = calendarEntries(db, user).filter(e => e.announcementId && e.date >= DEMO_DATE).slice(0, 3);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
 
   return <>
@@ -38,7 +39,7 @@ export function StudentDashboard() {
         </section>
         <section aria-labelledby="student-notices">
           <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-notices" className="text-lg font-semibold">Avisos recentes</h2><Link href="/avisos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todos<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-          <div className="divide-y divide-brand-200 rounded-xl bg-brand-50 px-5">{notices.map(a => <article key={a.id} className="py-5"><p className="mb-2 text-xs text-brand-700">{a.subjectId ? subjects.find(s => s.id === a.subjectId)?.name : db.classes.find(c => c.id === a.classId)?.name} · <time dateTime={a.createdAt}>{dateLabel(a.createdAt)}</time></p><h3 className="font-semibold leading-6">{a.title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{a.body}</p><Link href={a.subjectId ? `/disciplinas/detalhes?id=${a.subjectId}` : '/avisos'} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700">Ler aviso<ChevronRight aria-hidden="true" className="size-4" /></Link></article>)}{!notices.length && <p className="py-5 text-sm text-slate-600">Nenhum aviso publicado.</p>}</div>
+          <div className="divide-y divide-brand-200 rounded-xl bg-brand-50 px-5">{notices.map(a => <article key={a.id} className="py-5"><p className="mb-2 text-xs text-brand-700">{a.subjectId ? subjects.find(s => s.id === a.subjectId)?.name : db.classes.find(c => c.id === a.classId)?.name} · <time dateTime={a.createdAt}>{dateLabel(a.createdAt)}</time></p><h3 className="font-semibold leading-6">{a.title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{a.body}</p><Link href={`/avisos#aviso-${a.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700">Ler aviso<ChevronRight aria-hidden="true" className="size-4" /></Link></article>)}{!notices.length && <p className="py-5 text-sm text-slate-600">Nenhum aviso publicado.</p>}</div>
         </section>
       </div>
       <section aria-labelledby="student-deadlines" className="mt-8 border-t border-slate-200 pt-5">
@@ -47,7 +48,7 @@ export function StudentDashboard() {
       </section>
       {resume && <Link href={`/materiais?id=${resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
       <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
-        {<section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros</h2>{events.map(e => <Link key={e.id} href="/calendario" className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(e.date)}</span><span>{e.title}<span className="ml-2 text-xs text-slate-500">{e.time}</span></span></Link>)}{!events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro agendado.</p>}</section>}
+        {<section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros</h2>{events.map(e => <Link key={e.id} href={`/avisos#aviso-${e.announcementId}`} className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(e.date)}</span><span>{e.title}<span className="ml-2 text-xs text-slate-500">{e.time}</span></span></Link>)}{!events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro agendado.</p>}</section>}
         {<section aria-labelledby="student-forum"><h2 id="student-forum" className="mb-2 font-semibold">Dúvidas da turma</h2>{topics.map(t => <Link key={t.id} href={`/forum/topico?id=${t.id}`} className="block rounded-lg py-3 text-sm hover:bg-white">{t.title}<span className="mt-1 block text-xs text-slate-500">{t.replies.length} respostas</span></Link>)}{!topics.length && <p className="py-3 text-sm text-slate-500">Nenhuma dúvida publicada.</p>}</section>}
       </div>
       <Link href="/questoes" className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Acessar banco de questões<ChevronRight aria-hidden="true" className="size-4" /></Link>

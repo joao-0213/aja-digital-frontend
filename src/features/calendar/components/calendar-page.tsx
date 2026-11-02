@@ -5,12 +5,7 @@ import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Dialog, LinkButton, PageHeading } from '@/components/ui';
 import { cn, dateLabel } from '@/lib/utils';
-import { type CalendarEvent } from '@/models';
-import { isAssessmentAssigned } from '@/lib/enrollment';
-
-type Entry = CalendarEvent & {
-  assessmentId?: string;
-};
+import { calendarEntries } from '@/lib/announcement-calendar';
 
 export function CalendarPage() {
   const {
@@ -19,16 +14,9 @@ export function CalendarPage() {
   const [month, setMonth] = useState(9);
   const [year, setYear] = useState(2026);
   const [filter, setFilter] = useState('all');
-  const [selected, setSelected] = useState<Entry | null>(null);
-  const entries: Entry[] = [...db.events, ...db.assessments.filter(a => a.status === 'published' && a.deadline && (role !== 'student' || isAssessmentAssigned(db, a, user.id))).map(a => ({
-    id: a.id,
-    assessmentId: a.id,
-    title: `${a.title} · ${a.required === false ? 'Opcional' : 'Obrigatória'}`,
-    kind: 'exam' as const,
-    date: a.deadline.slice(0, 10),
-    time: a.deadline.slice(11),
-    description: a.description
-  }))];
+  const [selectedId, setSelected] = useState<string | null>(null);
+  const entries = calendarEntries(db, user);
+  const selected = entries.find(e => e.id === selectedId);
   const visible = entries.filter(e => (filter === 'all' || e.kind === filter) && Number(e.date.slice(0, 4)) === year && Number(e.date.slice(5, 7)) === month + 1).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const start = new Date(year, month, 1).getDay();
   const total = new Date(year, month + 1, 0).getDate();
@@ -44,7 +32,7 @@ export function CalendarPage() {
     event: 'bg-brand-50 text-brand-700 border-brand-100'
   };
   return <>
-    <PageHeading title="Calendário" description="Consulte as datas das aulas, atividades e avaliações." />
+    <PageHeading title="Calendário" description="Acontecimentos dos avisos e prazos das atividades, no horário de Brasília." />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <Button variant="secondary" aria-label="Mês anterior" onClick={() => change(-1)}>
@@ -65,7 +53,7 @@ export function CalendarPage() {
         }}>Mês de exemplo</Button>
       </div>
       <div className="flex flex-wrap gap-2">
-        {[['all', 'Tudo'], ['class', 'Aulas'], ['exam', 'Atividades e simulados'], ['event', 'Eventos']].map(([id, label]) => <Button key={id} variant={filter === id ? 'primary' : 'secondary'} aria-pressed={filter === id} onClick={() => setFilter(id)}>
+        {[['all', 'Tudo'], ['exam', 'Prazos de atividades'], ['event', 'Acontecimentos']].map(([id, label]) => <Button key={id} variant={filter === id ? 'primary' : 'secondary'} aria-pressed={filter === id} onClick={() => setFilter(id)}>
           {label}
         </Button>)}
       </div>
@@ -90,7 +78,7 @@ export function CalendarPage() {
                 {day}
               </span>
               <div className="space-y-1">
-                {visible.filter(e => e.date === date).map(e => <button key={e.id} onClick={() => setSelected(e)} className={cn('block w-full rounded border p-1.5 text-left text-xs leading-4', colors[e.kind])}>
+                {visible.filter(e => e.date === date).map(e => <button key={e.id} onClick={() => setSelected(e.id)} className={cn('block w-full rounded border p-1.5 text-left text-xs leading-4', colors[e.kind])}>
                   <span className="block font-semibold">
                     {e.time}
                   </span>
@@ -108,7 +96,7 @@ export function CalendarPage() {
         <Card>
           <h2 className="mb-5 text-lg font-semibold">Neste mês</h2>
           <div className="space-y-3">
-            {visible.map(e => <button key={e.id} onClick={() => setSelected(e)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left hover:bg-slate-50">
+            {visible.map(e => <button key={e.id} onClick={() => setSelected(e.id)} className="flex w-full items-start gap-3 rounded-xl p-2 text-left hover:bg-slate-50">
               <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-lg text-lg font-bold', colors[e.kind])}>
                 {e.date.slice(-2)}
               </span>
@@ -138,6 +126,8 @@ export function CalendarPage() {
         <p className="mb-6 leading-7 text-slate-600">
           {selected.description}
         </p>
+        <p className="mb-4 text-sm font-semibold">{db.classes.find(c => c.id === selected.classId)?.name} · {db.subjects.find(s => s.id === selected.subjectId)?.name ?? 'Toda a turma'}</p>
+        {selected.announcementId && <LinkButton href={`/avisos#aviso-${selected.announcementId}`}>Ler aviso de origem</LinkButton>}
         {selected.assessmentId && <LinkButton href={`/questionarios/responder?id=${selected.assessmentId}`}>{role === 'student' ? 'Abrir atividade' : 'Acompanhar atividade'}</LinkButton>}
       </>}
     </Dialog>
