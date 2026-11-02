@@ -8,7 +8,7 @@ import { saveAttemptAnswers, submitAttempt } from '../src/lib/assessment-attempt
 
 function fixture(): MockDatabase {
   return {
-    version: 1, audit: [],
+    version: 1, audit: [], enrollments: [],
     users: [
       { id: 'a', name: 'Admin', email: 'admin@exemplo.com', role: 'admin' },
       { id: 't1', name: 'Docente Um', email: 'um@exemplo.com', role: 'teacher' },

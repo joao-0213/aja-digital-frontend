@@ -61,7 +61,7 @@ test('legacy duplicate selections produce one removable unavailable choice', () 
 for (const action of ['inactivate', 'delete'] as const) {
   test(`a shared editor recovers after teacher ${action}, preserving local text and requiring the current revision`, () => {
     const db: MockDatabase = {
-      version: 1, audit: [],
+      version: 1, audit: [], enrollments: [],
       users: [{ id: 'admin', name: 'Admin', email: 'admin@exemplo.com', role: 'admin' }, ...teachers()],
       classes: [{ id: 'class', name: 'Turma', code: 'T1', year: 2026, shift: 'Noite', active: true, studentIds: [] }],
       subjects: [{ id: 'subject', classId: 'class', name: 'Título anterior', description: '', teacherIds: ['first', 'second'], color: 'blue' }],

@@ -9,6 +9,8 @@ export interface Assessment extends RecordMeta {
   description: string;
   questionIds: string[];
   deadline: string;
+  required?: boolean;
+  allowLate?: boolean;
   status: 'draft' | 'published';
 }
 

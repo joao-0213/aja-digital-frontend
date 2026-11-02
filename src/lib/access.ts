@@ -1,4 +1,5 @@
 import type { MockDatabase, Subject, User } from '@/models';
+import { activeEnrollment, enrolledForLesson } from './enrollment.ts';
 
 export function isActiveUser(user: User | undefined): user is User {
   return !!user && user.active !== false && !user.deletedAt;
@@ -12,7 +13,7 @@ export function canAccessSubject(db: MockDatabase, user: User, subjectId: string
   if (!schoolClass) return false;
   if (user.role === 'admin') return true;
   if (user.role === 'teacher') return subject.teacherIds.includes(user.id);
-  return schoolClass.active && schoolClass.studentIds.includes(user.id);
+  return user.emailConfirmedAt !== null && schoolClass.active && schoolClass.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === schoolClass.id) || !!activeEnrollment(db, user.id, schoolClass.id));
 }
 
 export function canManageSubject(db: MockDatabase, user: User, subjectId: string): boolean {
@@ -28,13 +29,13 @@ export function visibleClasses(db: MockDatabase, user: User) {
   if (!isActiveUser(user)) return [];
   if (user.role === 'admin') return db.classes.filter(c => !c.deletedAt);
   const subjects = visibleSubjects(db, user);
-  return db.classes.filter(c => !c.deletedAt && (user.role === 'teacher' ? subjects.some(s => s.classId === c.id) : c.active && c.studentIds.includes(user.id)));
+  return db.classes.filter(c => !c.deletedAt && (user.role === 'teacher' ? subjects.some(s => s.classId === c.id) : user.emailConfirmedAt !== null && c.active && c.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === c.id) || !!activeEnrollment(db, user.id, c.id))));
 }
 
 export function canAccessStudent(db: MockDatabase, user: User, studentId: string): boolean {
   if (!isActiveUser(user)) return false;
   if (user.role === 'admin' || user.id === studentId) return true;
-  return user.role === 'teacher' && visibleClasses(db, user).some(c => c.studentIds.includes(studentId));
+  return user.role === 'teacher' && visibleClasses(db, user).some(c => c.studentIds.includes(studentId) || db.enrollments?.some(e => e.classId === c.id && e.studentId === studentId && e.enrolledAt));
 }
 
 /** A projection for UI queries. The demo still stores fictitious data locally, not server authorization. */
@@ -62,13 +63,14 @@ export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
   return {
     ...db,
     audit: admin ? db.audit : [],
+    enrollments: (db.enrollments ?? []).filter(e => admin || active && (user.role === 'student' ? e.studentId === user.id || e.status === 'pending' && e.email === user.email.trim().toLowerCase() : !!e.studentId && !!e.enrolledAt && classIds.has(e.classId))),
     users: db.users.filter(person => admin || person.id === user.id || active && (authors.has(person.id) || user.role === 'teacher' && person.role === 'student' && canAccessStudent(db, user, person.id))).map(person => ({ ...person, email: admin || active && (person.id === user.id || user.role === 'teacher' && person.role === 'student' && canAccessStudent(db, user, person.id)) ? person.email : '' })),
     classes: classes.map(c => user.role === 'student' ? { ...c, studentIds: c.studentIds.filter(id => id === user.id) } : c),
     subjects, modules, materials, assessments,
     questions: active ? db.questions.filter(q => !q.deletedAt) : [],
     attempts: db.attempts.filter(a => !a.deletedAt && assessmentIds.has(a.assessmentId) && (user.role === 'student' ? a.userId === user.id : !!a.submittedAt)),
     progress: db.progress.filter(p => materialIds.has(p.materialId) && p.userId === user.id),
-    attendance: db.attendance.filter(a => !a.deletedAt && subjectIds.has(a.subjectId)).map(a => user.role === 'student' ? { ...a, records: Object.fromEntries(Object.entries(a.records).filter(([id]) => id === user.id)) } : a),
+    attendance: db.attendance.filter(a => !a.deletedAt && subjectIds.has(a.subjectId)).map(a => user.role === 'student' ? { ...a, records: Object.fromEntries(Object.entries(a.records).filter(([id]) => id === user.id && enrolledForLesson(db, db.subjects.find(s => s.id === a.subjectId)!.classId, id, a.date))) } : a),
     announcements, topics,
     events: db.events.filter(e => !e.deletedAt && (e.subjectId ? subjectIds.has(e.subjectId) : active && classes.length > 0))
   };

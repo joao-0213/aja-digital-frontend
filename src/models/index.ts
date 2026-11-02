@@ -9,3 +9,4 @@ export type { CalendarEvent } from './calendar';
 export type { Attendance } from './attendance';
 export type { MockDatabase } from './database';
 export type { RecordMeta, AuditEvent } from './audit';
+export type { Enrollment } from './enrollment';
