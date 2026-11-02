@@ -1,10 +1,14 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Check, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
+import { canManageSubject } from '@/lib/access';
+import { useRecordRevision } from '@/hooks/use-record-revision';
+import { RecordConflict } from '@/components/shared/record-conflict';
+import { compareAttendanceRecords, recordAttendance } from '@/lib/attendance';
 
 export function AttendancePage() {
   const {
@@ -15,23 +19,29 @@ export function AttendancePage() {
     busy
   } = useApp();
   const params = useSearchParams();
-  const allowedSubjects = db.subjects.filter(s => role === 'admin' || s.teacherId === user.id);
+  const allowedSubjects = db.subjects.filter(s => canManageSubject(db, user, s.id));
   const requestedSubject = params.get('disciplina');
   const [subject, setSubject] = useState(allowedSubjects.find(s => s.id === requestedSubject)?.id ?? allowedSubjects[0]?.id ?? '');
   const [date, setDate] = useState('2026-10-05');
   const [time, setTime] = useState('19:00');
   const [records, setRecords] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+  const [openedId, setOpenedId] = useState<string | undefined>();
   const [confirm, setConfirm] = useState(false);
   const s = db.subjects.find(s => s.id === subject);
   const c = db.classes.find(c => c.id === s?.classId);
-  const students = db.users.filter(u => c?.studentIds.includes(u.id));
+  const students = db.users.filter(u => u.role === 'student' && u.active !== false && !u.deletedAt && c?.studentIds.includes(u.id));
   const existing = db.attendance.find(a => a.subjectId === subject && a.date === date && a.time === time);
+  const revision = useRecordRevision('attendance', existing);
   if (role === 'student') return <Empty title="Registro de frequência" description="Esta tela está disponível para professores e administradores." />;
+  if (!allowedSubjects.length || requestedSubject && !allowedSubjects.some(s => s.id === requestedSubject)) return <Empty title="Disciplina indisponível para chamada" description="A frequência pode ser registrada apenas nas disciplinas atribuídas a você. Consulte a equipe administrativa para regularizar o acesso." />;
   const load = () => {
     setRecords(existing?.records ?? Object.fromEntries(students.map(u => [u.id, true])));
+    revision.capture(existing);
+    setOpenedId(existing?.id);
     setLoaded(true);
   };
+  const markLabel = (mark: boolean | undefined) => mark === undefined ? 'Sem registro' : mark ? 'Presente' : 'Ausente';
   return <>
     <PageHeading eyebrow="Gestão acadêmica" title="Registro de frequência" description="Uma chamada por aula, com histórico preservado." />
     <Card className="mb-6">
@@ -54,6 +64,20 @@ export function AttendancePage() {
       </div>
     </Card>
     {loaded ? <Card>
+      {revision.conflict && existing && <RecordConflict key={existing.revision} author={db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={existing.updatedAt} onReviewed={() => { revision.acknowledge(); setOpenedId(existing.id); }}>
+        <p>Chamada atual: {Object.values(existing.records).filter(Boolean).length} presenças em {dateLabel(existing.date)} às {existing.time}.</p>
+        <p>Compare as marcações salvas com seu preenchimento. Os controles abaixo continuam com suas alterações; ajuste-os antes de salvar.</p>
+        <ul aria-label="Comparação da frequência por aluno" className="divide-y divide-amber-200 whitespace-normal">
+          {compareAttendanceRecords(existing.records, records, db.users).map(row => <li key={row.studentId} className="py-3">
+            <p className="font-semibold">{row.name}</p>
+            <dl className="mt-2 grid grid-cols-2 gap-3 text-xs sm:text-sm">
+              <div><dt className="font-medium">Versão salva</dt><dd>{markLabel(row.saved)}</dd></div>
+              <div><dt className="font-medium">Seu preenchimento</dt><dd>{markLabel(row.local)}</dd></div>
+            </dl>
+            {row.changed && <p className="mt-1 text-xs font-semibold">Marcação diferente</p>}
+          </li>)}
+        </ul>
+      </RecordConflict>}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold">{c?.name} · {dateLabel(date)}</h2>
         <Badge tone="purple">{Object.values(records).filter(Boolean).length} presentes / {students.length} alunos</Badge>
@@ -76,7 +100,7 @@ export function AttendancePage() {
       </div>
       {!students.length && <p className="py-8 text-sm text-slate-500">Esta turma ainda não tem alunos.</p>}
       <div className="mt-5 flex justify-end">
-        <Button disabled={!students.length} onClick={() => setConfirm(true)}>
+        <Button disabled={!students.length || revision.conflict || !canManageSubject(db, user, subject)} onClick={() => setConfirm(true)}>
           {existing ? 'Atualizar chamada' : 'Salvar chamada'}
         </Button>
       </div>
@@ -85,17 +109,17 @@ export function AttendancePage() {
       <p className="mb-5 text-sm leading-6 text-slate-500">Salvar {Object.values(records).filter(Boolean).length} presenças e {Object.values(records).filter(v => !v).length} ausências em {dateLabel(date)} às {time}?</p>
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={() => setConfirm(false)}>Revisar</Button>
-        <Button loading={busy} onClick={async () => {
+        <Button loading={busy} disabled={revision.conflict} onClick={async () => {
+          if (revision.conflict) return;
           if (await mutate(d => {
-            const item = d.attendance.find(a => a.subjectId === subject && a.date === date && a.time === time);
-            if (item) item.records = records;else d.attendance.push({
-              id: uid('attendance'),
+            recordAttendance(d, {
+              id: existing?.id ?? uid('attendance'),
               subjectId: subject,
               date,
               time,
               records
-            });
-          }, 'Frequência salva.')) setConfirm(false);
+            }, openedId);
+          }, 'Frequência salva.', revision.expected)) { setConfirm(false); setLoaded(false); }
         }}>Confirmar</Button>
       </div>
     </Dialog>
