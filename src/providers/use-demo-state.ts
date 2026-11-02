@@ -19,7 +19,7 @@ const ids: Record<Role, string> = {
 
 // Cliente: mantém os dados e a sessão da demonstração no navegador.
 export function useDemoState(notify: AppContextValue['notify']): Omit<AppContextValue, 'notify'> {
-  const [db, setDb] = useState<MockDatabase>(seed);
+  const [db, setDb] = useState<MockDatabase>(() => migrateDatabase(seed));
   const current = useRef(db);
   const [role, setRoleState] = useState<Role>('student');
   const [activeId, setActiveId] = useState('u1');
@@ -148,7 +148,7 @@ export function useDemoState(notify: AppContextValue['notify']): Omit<AppContext
   };
   const reset = () => {
     void removeMaterialFiles().catch(() => notify('Os dados foram restaurados, mas não foi possível remover os PDFs locais.', true));
-    const fresh = structuredClone(seed);
+    const fresh = migrateDatabase(seed);
     current.current = fresh;
     setDb(fresh);
     const next = fresh.users.find(u => u.id === actorId.current) ?? fresh.users.find(u => u.role === role)!;

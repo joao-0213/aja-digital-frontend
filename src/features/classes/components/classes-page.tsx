@@ -109,6 +109,7 @@ export function ClassesPage() {
         <div className="my-5 flex items-center gap-2 text-sm text-slate-500"><Users className="size-4" />{c.studentIds.length} alunos matriculados</div>
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
           <LinkButton secondary href={`/disciplinas?turma=${c.id}`}>Ver disciplinas</LinkButton>
+          <LinkButton secondary href={`/alunos?turma=${c.id}`}>Ver matrículas</LinkButton>
           {role === 'admin' && <>
             <Button variant="ghost" aria-label={`Editar ${c.name}`} onClick={() => edit(c)}>
               <Pencil className="size-4" />
@@ -143,7 +144,7 @@ export function ClassesPage() {
       </form>
     </Dialog>
     <Dialog open={!!archive} onClose={() => setArchive(null)} title={archive?.active ? 'Inativar turma?' : 'Reativar turma?'}>
-      <p className="mb-6 text-sm leading-6 text-slate-500">O histórico de {archive?.name} será preservado. Turmas inativas não aceitam novas matrículas e o acesso dos alunos à turma é encerrado.</p>
+      <p className="mb-6 text-sm leading-6 text-slate-500">O histórico de {archive?.name} será preservado. Inativar encerra os vínculos e cancela as matrículas pendentes; alunos perdem acesso à turma. Reativar a turma não restaura vínculos ou pendências encerrados.</p>
       {archiveConflict && <div role="alert" className="mb-4 space-y-3 rounded-lg bg-amber-50 p-4 text-sm leading-6"><p>A turma mudou. {currentArchive?.name} está {currentArchive?.active ? 'ativa' : 'inativa'}. Última alteração: {db.users.find(item => item.id === currentArchive?.updatedBy)?.name ?? 'Equipe administrativa'} · {currentArchive?.updatedAt ? new Date(currentArchive.updatedAt).toLocaleString('pt-BR') : 'data não registrada'}.</p>{currentArchive && !currentArchive.deletedAt && <Button variant="secondary" onClick={() => setArchive(currentArchive)}>Conferi a versão atual</Button>}</div>}
       <Button loading={busy} disabled={archiveConflict} onClick={async () => {
         if (!archive || archiveConflict) return;

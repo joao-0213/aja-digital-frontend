@@ -7,6 +7,7 @@ import { PublicationDate } from '@/components/ui/publication-date';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Button, Dialog, Empty, Input, Select, Textarea } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
+import { isAssessmentAssigned } from '@/lib/enrollment';
 import { DEMO_DATE } from '@/mocks/database';
 
 export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: string; canEdit: boolean; onUpload: (moduleId: string) => void }) {
@@ -25,7 +26,7 @@ export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: strin
     ...notices.map(a => ({ key: `notice-${a.id}`, kind: 'notice' as const, title: a.title, body: a.body, date: a.createdAt, author: a.authorId, detail: a.subjectId ? 'Aviso da disciplina' : 'Aviso da turma', href: '', moduleId: '', fileLabel: '' })),
     ...materials.map(m => ({ key: `material-${m.id}`, kind: 'material' as const, title: m.title, body: m.content, date: m.createdAt ?? '', author: m.authorId, detail: modules.find(mod => mod.id === m.moduleId)!.title, href: `/materiais?id=${m.id}`, moduleId: m.moduleId, fileLabel: m.fileName ?? (m.kind === 'pdf' ? 'Documento PDF' : m.kind === 'video' ? 'Vídeo de apoio' : 'Texto de apoio') }))
   ].filter(item => filter === 'all' || item.kind === filter).sort((a, b) => b.date.localeCompare(a.date));
-  const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && a.deadline >= `${DEMO_DATE}T00:00` && (canEdit || !db.attempts.some(t => t.assessmentId === a.id && t.userId === user.id && t.submittedAt))).sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && (!a.deadline || a.deadline >= `${DEMO_DATE}T00:00`) && (canEdit || a.required !== false && isAssessmentAssigned(db, a, user.id) && !db.attempts.some(t => t.assessmentId === a.id && t.userId === user.id && t.submittedAt))).sort((a, b) => a.deadline.localeCompare(b.deadline));
 
   return <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
     <section aria-label="Publicações da disciplina" className="min-w-0 space-y-4">
@@ -54,7 +55,7 @@ export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: strin
       })}
       {!entries.length && <Empty title="Nenhuma publicação" description="Os avisos e materiais publicados aparecerão aqui." />}
     </section>
-    <aside className="rounded-xl border border-slate-200 bg-white p-5 xl:sticky xl:top-6" aria-label="Prazos da disciplina"><h2 className="font-semibold">Próximas entregas</h2><div className="divide-y divide-slate-100">{deadlines.slice(0, 3).map(a => <Link key={a.id} href={canEdit ? '/questionarios' : `/questionarios/responder?id=${a.id}`} className="block py-4 text-sm hover:text-brand-700"><span className="mb-1 block text-xs text-slate-500">Até {dateLabel(a.deadline)}</span>{a.title}</Link>)}</div>{!deadlines.length && <p className="mt-3 text-sm text-slate-500">Nenhuma entrega pendente.</p>}</aside>
+    <aside className="rounded-xl border border-slate-200 bg-white p-5 xl:sticky xl:top-6" aria-label="Prazos da disciplina"><h2 className="font-semibold">Próximas entregas</h2><div className="divide-y divide-slate-100">{deadlines.slice(0, 3).map(a => <Link key={a.id} href={`/questionarios/responder?id=${a.id}`} className="block py-4 text-sm hover:text-brand-700"><span className="mb-1 block text-xs text-slate-500">{a.deadline ? `Até ${dateLabel(a.deadline)}` : 'Sem prazo'}{a.required === false ? ' · Opcional' : ' · Obrigatória'}</span>{a.title}</Link>)}</div>{!deadlines.length && <p className="mt-3 text-sm text-slate-500">Nenhuma entrega obrigatória pendente.</p>}</aside>
     <Dialog open={choosingModule} onClose={() => setChoosingModule(false)} title="Enviar materiais"><form className="space-y-5" onSubmit={e => { e.preventDefault(); if (moduleId) { setChoosingModule(false); setFilter('all'); onUpload(moduleId); } }}><Select label="Módulo de destino" value={moduleId} onChange={e => setModuleId(e.target.value)} required><option value="">Selecione o módulo</option>{modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</Select>{!modules.length && <p className="text-sm text-slate-600">Crie um módulo na aba Materiais e atividades antes de enviar arquivos.</p>}<Button type="submit" disabled={!moduleId}><BookOpen aria-hidden="true" className="size-4" />Continuar</Button></form></Dialog>
   </div>;
 }

@@ -12,7 +12,7 @@ export function StudentDetails() {
   const student = db.users.find(u => u.id === id && u.role === 'student');
   if (role === 'student') return <Empty title="Acesso reservado à equipe pedagógica" />;
   if (!student || !canAccessStudent(db, user, id)) return <Empty title="Aluno indisponível neste contexto" description="Consulte somente alunos das disciplinas atribuídas a você." />;
-  const classes = db.classes.filter(c => c.studentIds.includes(id));
+  const enrollments = db.enrollments.filter(e => e.studentId === id && e.enrolledAt);
   return <>
     <Link href="/alunos" className="mb-5 inline-block text-sm font-semibold text-brand-600">Alunos / Perfil</Link>
     <PageHeading title={student.name} description="Dados cadastrais e matrículas do aluno." />
@@ -24,8 +24,8 @@ export function StudentDetails() {
       </Card>
       <Card>
         <h2 className="mb-5 font-semibold">Matrículas</h2>
-        {classes.map(c => <p key={c.id} className="py-2 text-sm text-slate-600">{c.name}{!c.active && ' (inativa)'}</p>)}
-        {!classes.length && <p className="text-sm text-slate-500">Nenhuma matrícula nesta demonstração.</p>}
+        {enrollments.map(e => <p key={e.id} className="py-2 text-sm leading-6 text-slate-600">{db.classes.find(c => c.id === e.classId)?.name ?? 'Turma indisponível'} · {e.status === 'active' ? 'Ativo' : 'Encerrado'}<br />{e.legacy ? 'Matrícula anterior — data não registrada' : `Efetivada em ${new Date(e.enrolledAt!).toLocaleString('pt-BR')}`}{e.endedAt && ` · Encerrada em ${new Date(e.endedAt).toLocaleString('pt-BR')}`}</p>)}
+        {!enrollments.length && <p className="text-sm text-slate-500">Nenhuma matrícula neste contexto.</p>}
       </Card>
     </div>
   </>;

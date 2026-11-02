@@ -9,6 +9,7 @@ import { Button, Input, Check } from '@/components/ui';
 import { useApp } from '@/providers/app-context';
 import { mockRequest } from '@/mocks/api';
 import { uid } from '@/lib/utils';
+import { PrivacyNotice } from '@/features/privacy';
 
 export function AuthPage({
   mode
@@ -16,11 +17,10 @@ export function AuthPage({
   mode: 'login' | 'register' | 'recover';
 }) {
   const {
-    db,
     lookupAccount,
     mutate,
     signIn,
-    notify
+    busy: appBusy
   } = useApp();
   const router = useRouter();
   const [name, setName] = useState('');
@@ -43,6 +43,7 @@ export function AuthPage({
   }, [mode]);
   const title = mode === 'login' ? 'Entrar no AJA Digital' : mode === 'register' ? 'Criar conta' : 'Recuperar acesso';
   const submit = async () => {
+    if (busy || appBusy) return;
     setError('');
     setBusy(true);
     try {
@@ -59,18 +60,12 @@ export function AuthPage({
         } catch {}
         router.push('/');
       } else {
-        if (!terms) throw new Error('Aceite os termos da demonstração.');
+        if (!terms) throw new Error('Confirme que usará somente dados fictícios nesta demonstração.');
         if (password.length < 8 || !/[0-9]/.test(password) || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[\W_]/.test(password)) throw new Error('Use 8 caracteres, maiúscula, minúscula, número e símbolo.');
-        if (db.users.some(u => u.email.toLowerCase() === email.trim().toLowerCase())) throw new Error('Este e-mail já está cadastrado.');
-        const ok = await mutate(d => {
-          d.users.push({
-            id: uid('user'),
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            role: 'student'
-          });
-        }, 'Cadastro simulado criado. Entre com a senha de teste Aja@2026.');
-        if (ok) router.push('/login');
+        const id = uid('user');
+        const ok = await mutate(() => {}, 'Conta criada. Continue na confirmação simulada do e-mail.', { enrollment: { type: 'register', id, name, email } });
+        if (ok) { signIn(id, 'student'); router.push('/'); }
+        else setError('Não foi possível criar a conta. Confira a mensagem apresentada e tente novamente. Seus dados foram mantidos.');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Tente novamente.');
@@ -112,7 +107,7 @@ export function AuthPage({
             <Link href="/recuperar-senha" className="text-sm font-medium text-brand-600">Esqueci minha senha</Link>
           </div>}
           {mode === 'register' && <>
-            <p className="text-xs leading-5 text-slate-500">Use 8 caracteres, maiúscula, minúscula, número e símbolo. Por segurança, a senha digitada não é armazenada. Após cadastrar, use Aja@2026.</p>
+            <p className="text-xs leading-5 text-slate-500">Use 8 caracteres, maiúscula, minúscula, número e símbolo. A senha digitada não é armazenada. Para entrar novamente e retomar a confirmação, use Aja@2026. Criar conta não garante matrícula.</p>
             <Check label="Entendo que esta é uma demonstração local e não usarei dados reais." checked={terms} onChange={setTerms} />
           </>}
           {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
@@ -125,6 +120,7 @@ export function AuthPage({
         <p className="mt-6 text-center text-sm text-slate-500">
           {mode === 'login' ? <>Ainda não tem uma conta? <Link href="/cadastro" className="font-semibold text-brand-600">Cadastre-se</Link></> : <Link href="/login" className="font-semibold text-brand-600">Voltar para o login</Link>}
         </p>
+        <div className="mt-4 flex justify-center"><PrivacyNotice /></div>
         <div className="mt-8 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600"><p className="mb-2 flex items-center gap-2 font-semibold text-slate-700"><FlaskConical aria-hidden="true" className="size-4" />Contas de demonstração</p>Aluno: fernando@exemplo.com<br />Professora: mariana@exemplo.com<br />Admin: rafael@exemplo.com<br />Senha de teste: <span className="font-semibold">Aja@2026</span>. Não use dados reais.</div>
         <Link href="/" className="mt-5 block text-center text-sm text-slate-500 underline underline-offset-4">Explorar a demonstração sem login</Link>
       </div>

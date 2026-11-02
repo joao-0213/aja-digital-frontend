@@ -8,6 +8,8 @@ import { dateLabel } from '@/lib/utils';
 import { lastAccessedMaterial } from '@/lib/study-order';
 import { SubjectCard } from '@/features/subjects';
 import { DEMO_DATE } from '@/mocks/database';
+import { EnrollmentStatus } from '@/features/students';
+import { isAssessmentAssigned } from '@/lib/enrollment';
 
 export function StudentDashboard() {
   const { db, user } = useApp();
@@ -16,7 +18,7 @@ export function StudentDashboard() {
   const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
   const materials = db.materials.filter(m => modules.some(mod => mod.id === m.moduleId));
   const notices = db.announcements.filter(a => classes.some(c => c.id === a.classId) && (!a.subjectId || subjects.some(s => s.id === a.subjectId))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
-  const pending = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && a.deadline >= `${DEMO_DATE}T00:00` && !db.attempts.some(t => t.userId === user.id && t.assessmentId === a.id && t.submittedAt)).sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && (!a.deadline || a.deadline >= `${DEMO_DATE}T00:00`) && !db.attempts.some(t => t.userId === user.id && t.assessmentId === a.id && t.submittedAt)).sort((a, b) => a.deadline.localeCompare(b.deadline));
   const resume = lastAccessedMaterial(user.id, materials, db.progress);
   const events = db.events.filter(e => e.date >= DEMO_DATE && (!e.subjectId || subjects.some(s => s.id === e.subjectId))).sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
@@ -25,7 +27,8 @@ export function StudentDashboard() {
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
       <div><p className="mb-1 text-sm text-slate-500">Olá, {user.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight">Meu painel</h1><p className="mt-2 text-sm text-slate-600">Materiais e avisos das suas turmas.</p></div>
     </header>
-    {!classes.length ? <Empty title="Você ainda não tem uma turma" description="Na demonstração, um administrador pode realizar sua matrícula pela tela Alunos." action={<LinkButton href="/perfil">Completar meu perfil</LinkButton>} /> : <>
+    <EnrollmentStatus />
+    {!classes.length ? null : <>
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section aria-labelledby="student-subjects">
           <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-subjects" className="text-lg font-semibold">Minhas disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todas<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
@@ -39,7 +42,7 @@ export function StudentDashboard() {
       </div>
       <section aria-labelledby="student-deadlines" className="mt-8 border-t border-slate-200 pt-5">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h2 id="student-deadlines" className="text-lg font-semibold">Próximas entregas</h2><Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-        <div className="grid gap-x-6 sm:grid-cols-3">{pending.slice(0, 3).map(a => <Link key={a.id} href={`/questionarios/responder?id=${a.id}`} className="rounded-lg py-3 hover:bg-white"><p className="text-xs font-medium text-brand-700">Até {dateLabel(a.deadline)} · {a.deadline.slice(11, 16)}</p><h3 className="mt-1 text-sm font-semibold leading-6">{a.title}</h3></Link>)}</div>{!pending.length && <p className="py-3 text-sm text-slate-500">Nenhuma entrega pendente.</p>}
+        <div className="grid gap-x-6 sm:grid-cols-3">{pending.slice(0, 3).map(a => <Link key={a.id} href={`/questionarios/responder?id=${a.id}`} className="rounded-lg py-3 hover:bg-white"><p className="text-xs font-medium text-brand-700">{a.deadline ? `Até ${dateLabel(a.deadline)} · ${a.deadline.slice(11, 16)}` : 'Sem prazo'} · Obrigatória</p><h3 className="mt-1 text-sm font-semibold leading-6">{a.title}</h3></Link>)}</div>{!pending.length && <p className="py-3 text-sm text-slate-500">Nenhuma entrega obrigatória pendente. Práticas opcionais estão em Questionários.</p>}
       </section>
       {resume && <Link href={`/materiais?id=${resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
       <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
