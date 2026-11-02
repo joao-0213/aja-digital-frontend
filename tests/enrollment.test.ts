@@ -8,7 +8,7 @@ import type { MockDatabase } from '../src/models/database.ts';
 const now = '2026-11-02T12:00:00.000Z';
 function fixture(): MockDatabase {
   return migrateDatabase({
-    version: 1, audit: [],
+    version: 1, audit: [], enrollments: [],
     users: [
       { id: 'admin', name: 'Admin fictício', email: 'admin@exemplo.com', role: 'admin' },
       { id: 'teacher', name: 'Docente fictício', email: 'docente@exemplo.com', role: 'teacher' },

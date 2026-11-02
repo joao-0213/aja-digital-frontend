@@ -3,7 +3,7 @@ import { questions } from './questions';
 export const DEMO_DATE = '2026-10-05';
 export const seed: MockDatabase = {
   version: 1,
-  audit: [],
+  audit: [], enrollments: [],
   users: [{
     id: 'u1',
     name: 'Fernando Santos',

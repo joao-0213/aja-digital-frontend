@@ -8,10 +8,12 @@ import type { ForumTopic } from './forum';
 import type { Announcement } from './announcements';
 import type { CalendarEvent } from './calendar';
 import type { Attendance } from './attendance';
+import type { Enrollment } from './enrollment';
 
 export interface MockDatabase {
   version: 1;
   audit: AuditEvent[];
+  enrollments: Enrollment[];
   users: User[];
   classes: SchoolClass[];
   subjects: Subject[];

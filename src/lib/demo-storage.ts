@@ -41,15 +41,24 @@ export function isDatabase(value: unknown): value is MockDatabase {
 /** PP01: keep compatible records and historical attempt order, discard retired data. */
 export function migrateDatabase(value: MockDatabase): MockDatabase {
   const db = structuredClone(value);
-  db.users = db.users.map(({ id, name, email, role, active, deletedAt, revision, updatedAt, updatedBy }) => ({
+  db.users = db.users.map(({ id, name, email, role, active, emailConfirmedAt, deletedAt, revision, updatedAt, updatedBy }) => ({
     id, name, email, role,
     ...(active !== undefined && { active }),
+    ...(emailConfirmedAt !== undefined && { emailConfirmedAt }),
     ...(deletedAt !== undefined && { deletedAt }),
     ...(revision !== undefined && { revision }),
     ...(updatedAt !== undefined && { updatedAt }),
     ...(updatedBy !== undefined && { updatedBy })
   }));
   db.audit ??= [];
+  db.enrollments ??= [];
+  for (const schoolClass of db.classes) {
+    for (const studentId of schoolClass.studentIds) {
+      const student = db.users.find(u => u.id === studentId);
+      if (!student || db.enrollments.some(e => e.classId === schoolClass.id && e.studentId === studentId)) continue;
+      db.enrollments.push({ id: `legacy-${schoolClass.id}-${studentId}`, classId: schoolClass.id, studentId, email: student.email.trim().toLowerCase(), status: schoolClass.active && !schoolClass.deletedAt ? 'active' : 'ended', createdAt: '1970-01-01T00:00:00.000Z', createdBy: 'legacy', enrolledAt: '1970-01-01T00:00:00.000Z', legacy: true, unassignedAssessmentIds: [] });
+    }
+  }
   db.subjects = db.subjects.map(subject => {
     const record = subject as typeof subject & { teacherId?: string };
     record.teacherIds = [...new Set(Array.isArray(record.teacherIds) ? record.teacherIds : record.teacherId ? [record.teacherId] : [])];

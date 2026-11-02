@@ -1,13 +1,15 @@
 import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
+import { enrolledForLesson, executeEnrollmentCommand, isAssessmentAssigned, reconcileEnrollments, type EnrollmentCommand } from './enrollment.ts';
 
 export interface MutationOptions {
   expected?: { collection: string; id: string; revision: number }[];
+  enrollment?: EnrollmentCommand;
 }
 
 type Row = Record<string, unknown> & RecordMeta & { id?: string };
 type Collection = Exclude<keyof MockDatabase, 'version' | 'audit'>;
-const collections: Collection[] = ['users', 'classes', 'subjects', 'modules', 'materials', 'questions', 'assessments', 'attempts', 'topics', 'announcements', 'events', 'attendance', 'progress'];
+const collections: Collection[] = ['users', 'classes', 'subjects', 'modules', 'materials', 'questions', 'assessments', 'attempts', 'topics', 'announcements', 'events', 'attendance', 'progress', 'enrollments'];
 const key = (row: Row) => row.id ?? `${row.userId}:${row.materialId}`;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const denied = () => { throw new Error('Sem permissão para alterar este registro. Confira seu acesso e sua atribuição.'); };
@@ -38,6 +40,7 @@ function validateStudent(db: MockDatabase, actor: User, collection: Collection, 
   if (collection === 'attempts' && row.userId === actor.id) {
     const assessment = db.assessments.find(a => a.id === row.assessmentId && a.status === 'published' && !a.deletedAt);
     if (!assessment) return denied();
+    if (!isAssessmentAssigned(db, assessment, actor.id)) throw new Error('Disponível apenas para consulta: o prazo terminou antes da sua matrícula.');
     if (before?.submittedAt || db.attempts.some(a => a.id !== row.id && a.assessmentId === row.assessmentId && a.userId === actor.id && a.submittedAt)) throw new Error('Este questionário já foi enviado. Consulte o resultado individual.');
     if (!before || onlyFields(before, row, ['answers', 'submittedAt'])) return;
   }
@@ -79,11 +82,15 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
   }
   const draft = structuredClone(current);
   recipe(draft);
+  if (options.enrollment) {
+    if (!equal(current, draft)) return denied();
+    executeEnrollmentCommand(draft, actor, options.enrollment, now);
+  }
   if (!equal(current.audit, draft.audit) || draft.version !== current.version) return denied();
   const changes: { collection: Collection; before?: Row; after: Row }[] = [];
   for (const collection of collections) {
-    const previous = current[collection] as unknown as Row[];
-    const next = draft[collection] as unknown as Row[];
+    const previous = (current[collection] ?? []) as unknown as Row[];
+    const next = (draft[collection] ?? []) as unknown as Row[];
     if (previous.some(row => !next.some(item => key(item) === key(row)))) throw new Error('Use exclusão lógica; o histórico deve ser preservado.');
     if (new Set(next.map(key)).size !== next.length) throw new Error('Este registro já existe. Recarregue e confira os dados.');
     for (const row of next) {
@@ -91,7 +98,10 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (before && equal(before, row)) continue;
       if (before?.deletedAt) throw new Error('Registro excluído indisponível. Não há restauração pela interface.');
       if (before && ['revision', 'updatedAt', 'updatedBy'].some(field => !equal(before[field], row[field]))) return denied();
-      if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
+      if (!options.enrollment && collection === 'enrollments') return denied();
+      if (!options.enrollment && collection === 'users' && before && !equal(before.emailConfirmedAt, row.emailConfirmedAt)) throw new Error('Use a confirmação simulada na própria conta.');
+      if (options.enrollment) { /* typed commands validate their own complete, atomic effect */ }
+      else if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
         // Public, local demo self-registration never grants a role or class membership.
       } else if (actor.role === 'student') validateStudent(current, actor, collection, before, row);
       else if (actor.role === 'teacher') {
@@ -111,7 +121,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (collection === 'attendance') {
         const subject = draft.subjects.find(s => s.id === row.subjectId && !s.deletedAt);
         const schoolClass = draft.classes.find(c => c.id === subject?.classId && !c.deletedAt);
-        if (!schoolClass || Object.keys(row.records as object).some(id => !schoolClass.studentIds.includes(id))) throw new Error('A chamada só pode registrar alunos vinculados à turma da disciplina.');
+        if (!schoolClass || Object.keys(row.records as object).some(id => !enrolledForLesson(draft, schoolClass.id, id, String(row.date)))) throw new Error('A chamada só pode registrar alunos vinculados na data da aula, sem faltas anteriores à matrícula.');
       }
       if (collection === 'assessments' && before && current.attempts.some(a => a.assessmentId === row.id && a.submittedAt) && !onlyFields(before, row, ['title', 'description', 'deadline', 'deletedAt'])) throw new Error('Já existe uma entrega. Apenas título, instruções e prazo podem mudar.');
       changes.push({ collection, before, after: row });
@@ -122,6 +132,18 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
   if (new Set(emails).size !== emails.length) throw new Error('Este e-mail já está cadastrado.');
   if (draft.users.some(u => !u.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.email))) throw new Error('Informe nome e e-mail válidos.');
   if (draft.users.some(u => !['student', 'teacher', 'admin'].includes(u.role) || u.active !== undefined && typeof u.active !== 'boolean')) throw new Error('Informe um papel global e um estado de conta válidos.');
+  for (const person of draft.users) {
+    const before = current.users.find(u => u.id === person.id);
+    if (before && before.email !== person.email) person.emailConfirmedAt = null;
+  }
+  reconcileEnrollments(current, draft, actor, now);
+  // Lifecycle effects are derived after permission checks and audited like explicit changes.
+  for (const collection of ['enrollments', 'classes'] as const) {
+    for (const row of draft[collection] ?? []) {
+      const before = current[collection]?.find(item => item.id === row.id);
+      if (!equal(before, row) && !changes.some(c => c.collection === collection && c.after.id === row.id)) changes.push({ collection, before: before as unknown as Row, after: row as unknown as Row });
+    }
+  }
   // Removing a role or account ends its assignments while leaving authored records intact.
   for (const subject of draft.subjects) {
     const before = current.subjects.find(s => s.id === subject.id);

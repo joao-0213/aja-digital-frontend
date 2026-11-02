@@ -8,4 +8,6 @@ export interface User extends RecordMeta {
   email: string;
   role: Role;
   active?: boolean;
+  /** null requires the explicitly labelled local confirmation step. */
+  emailConfirmedAt?: string | null;
 }

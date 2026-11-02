@@ -10,7 +10,7 @@ const assessment: Assessment = { id: 'activity', title: 'Publicado', description
 const original: Question = { id: 'local', statement: 'Questão local', options: ['A', 'B'], correct: 0, explanation: 'Explicação', subject: 'Matemática', topic: 'Tema', difficulty: 'easy', institution: 'AJA', year: 2026 };
 const localDraft = () => ({ title: 'Título em edição', description: 'Meu texto preservado', deadline: '2026-12-12T20:00', moduleId: 'm2', questionIds: ['q2'], originals: [original] });
 const fixture = (): MockDatabase => ({
-  version: 1, audit: [],
+  version: 1, audit: [], enrollments: [],
   users: [{ id: 'admin', name: 'Admin', email: 'admin@exemplo.com', role: 'admin' }, { id: 'teacher', name: 'Docente', email: 'docente@exemplo.com', role: 'teacher' }, { id: 'student', name: 'Aluno', email: 'aluno@exemplo.com', role: 'student' }],
   classes: [{ id: 'class', name: 'Turma', code: 'T1', year: 2026, shift: 'Noite', active: true, studentIds: ['student'] }],
   subjects: [{ id: 'subject', classId: 'class', name: 'Disciplina', teacherIds: ['teacher'], color: 'blue', description: '' }],
