@@ -9,9 +9,7 @@ import { Avatar, Button, Dialog, Skeleton, ErrorState } from '@/components/ui';
 import { cn, roleLabels } from '@/lib/utils';
 import { nav } from './navigation';
 import { Logo } from '@/components/shared/logo';
-
-// Each domain issue adds routes only after its HTTP slice is available.
-export const httpRoutes = new Set(['/perfil', '/usuarios', '/turmas', '/alunos', '/alunos/perfil', '/disciplinas', '/disciplinas/detalhes', '/materiais', '/questoes']);
+import { httpRoutes } from '@/lib/http-routes';
 const publicRoutes = new Set(['/login', '/cadastro', '/recuperar-senha']);
 
 export function AppShell({ children }: { children: ReactNode }) {

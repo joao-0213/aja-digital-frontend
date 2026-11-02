@@ -103,16 +103,16 @@ Concluída a partir de `25c823f`: 254/254 testes, tipos, arquitetura (171 módul
 
 Concluída a partir de `2898cf0`: 257/257 testes, tipos, arquitetura (175 módulos), build padrão com API desligada, OpenAPI e navegador estático aprovados. Revisão Sol independente APPROVE, sem achados pendentes. Evidências e limites em [validation-AJA-09.md](docs/http/validation-AJA-09.md).
 
-**Em andamento:** implementação e evidências em [validation-AJA-09.md](docs/http/validation-AJA-09.md); revisão independente e validação final pendentes.
-
 - [x] Expor pesquisa, filtros, paginação, detalhe e resolução de prática em `/questions`. Conectar lista, diálogo, link copiado e seletor compartilhado com o construtor. Questões autorais restritas à atividade ficam fora dos resultados do acervo.
 - [x] **Aceite** filtros combinados e paginação retornam total e itens coerentes. Recarga de `/questoes?id=…`, volta à busca, imagem com descrição, resolução e ID retirado funcionam. A resposta de prática e a de uma tentativa avaliativa têm contratos distintos.
 
 ### AJA-10 · Migrar a autoria e a publicação de atividades
 **Depende de** AJA-07, AJA-09. **Entrada** `assessments-page.tsx`, `assessment-builder.tsx` e `lib/assessment-editor.ts` na feature `assessments`.
 
-- [ ] Implementar lista/detalhe em `/assessments` e comandos de salvar rascunho, editar e publicar quiz ou trabalho. Conservar obrigatoriedade, prazo, tolerância a atraso, módulo, ordem, questões do banco e autorais. Salvar cópias das questões no ato previsto pelas regras atuais.
-- [ ] **Aceite** docente prepara, fecha, reabre e publica. Aluno recebe apenas atividades visíveis. Alterar o acervo depois não reescreve uma avaliação anterior. Testar conflito entre professores, vínculo revogado, duplicata, gabarito inválido e bloqueio de mudança estrutural após primeiro envio. As abas da disciplina refletem a publicação.
+Concluída a partir de `a7ff570`: 271/271 testes, tipos, arquitetura (178 módulos), build padrão com API desligada, OpenAPI (830 exemplos sem erros) e navegador estático aprovados. Revisão Sol independente APPROVE, sem achados pendentes. Evidências e limites em [validation-AJA-10.md](docs/http/validation-AJA-10.md).
+
+- [x] Implementar lista/detalhe em `/assessments` e comandos de salvar rascunho, editar e publicar quiz ou trabalho. Conservar obrigatoriedade, prazo, tolerância a atraso, módulo, ordem, questões do banco e autorais. Salvar cópias das questões no ato previsto pelas regras atuais.
+- [x] **Aceite** docente prepara, fecha, reabre e publica. Aluno recebe apenas atividades visíveis. Alterar o acervo depois não reescreve uma avaliação anterior. Testar conflito entre professores, vínculo revogado, duplicata, gabarito inválido e bloqueio de mudança estrutural após primeiro envio. As abas da disciplina refletem a publicação.
 
 ### AJA-11 · Migrar tentativas, retomada e resultado individual
 **Depende de** AJA-10. **Entrada** `quiz-session.tsx`, `answer-assessment.tsx`, `assessment-result.tsx`, `src/lib/assessment-attempts.ts`.

@@ -6,6 +6,7 @@ import { createSubjectService } from './subject-service.mjs';
 import { createFileService } from './file-service.mjs';
 import { createMaterialService } from './material-service.mjs';
 import { createQuestionService } from './question-service.mjs';
+import { createAssessmentService } from './assessment-service.mjs';
 
 export function createApp(config) {
   const { origins, store } = config;
@@ -15,6 +16,7 @@ export function createApp(config) {
   const files = auth && createFileService(config, auth);
   const materials = auth && createMaterialService(config, auth, files);
   const questions = auth && createQuestionService(config, auth);
+  const assessments = auth && createAssessmentService(config, auth);
   const routes = new Map([
     ['/api/v1/health', { GET: 'health' }],
     ...['register', 'login', 'logout', 'email-confirmation-requests', 'email-confirmations', 'password-reset-requests', 'password-resets'].map(route => [`/api/v1/auth/${route}`, { POST: route }]),
@@ -32,7 +34,7 @@ export function createApp(config) {
     if (origin && !origins.includes(origin)) return error(403, 'FORBIDDEN', 'Origem não permitida.');
     // Deliberately no defaults(), static(), router mounting, JSONP or rewrite middleware.
     const path = req.url.split('?')[0];
-    const administrative = path.startsWith('/api/v1/') && (administration?.resolve(path.slice('/api/v1'.length)) ?? subjects?.resolve(path.slice('/api/v1'.length)) ?? files?.resolve(path.slice('/api/v1'.length)) ?? materials?.resolve(path.slice('/api/v1'.length)) ?? questions?.resolve(path.slice('/api/v1'.length)));
+    const administrative = path.startsWith('/api/v1/') && (administration?.resolve(path.slice('/api/v1'.length)) ?? subjects?.resolve(path.slice('/api/v1'.length)) ?? files?.resolve(path.slice('/api/v1'.length)) ?? materials?.resolve(path.slice('/api/v1'.length)) ?? questions?.resolve(path.slice('/api/v1'.length)) ?? assessments?.resolve(path.slice('/api/v1'.length)));
     const methods = routes.get(path) ?? administrative?.methods;
     if (!methods) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
     if (origin) {

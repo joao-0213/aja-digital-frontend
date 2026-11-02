@@ -66,7 +66,16 @@ export function visibleFile(state, actor, id, timestamp) {
       if (actor.role === 'student' ? submission.userId !== actor.id : !submission.submittedAt) missingMaterial();
     } else if (file.purpose === 'question') {
       const question = state.questions.find(q => q.id === file.parentId && !q.deletedAt && q.origin !== 'author');
-      if (!question || question.image?.src !== `/api/v1/files/${encodeURIComponent(file.id)}/content`) missingMaterial();
+      const source = `/api/v1/files/${encodeURIComponent(file.id)}/content`;
+      const currentQuestionImage = question?.image?.src === source;
+      const assessmentSnapshotImage = state.assessments.some(assessment => {
+        if (assessment.deletedAt || actor.role === 'student' && assessment.status !== 'published') return false;
+        if (!(assessment.questions ?? []).some(snapshot => snapshot.id === file.parentId && snapshot.origin !== 'author' && snapshot.image?.src === source)) return false;
+        const module = state.modules.find(row => row.id === assessment.moduleId && !row.deletedAt);
+        const subject = state.subjects.find(row => row.id === module?.subjectId && !row.deletedAt);
+        return !!subject && canAccessSubject(state, actor, subject.id);
+      });
+      if (!currentQuestionImage && !assessmentSnapshotImage) missingMaterial();
     } else {
       const topic = state.topics.find(t => t.id === file.parentId && !t.deletedAt);
       if (!topic || topic.attachment?.id !== id || !state.subjects.some(s => s.id === topic.subjectId && s.classId === topic.classId && !s.deletedAt) || !canAccessSubject(state, actor, topic.subjectId)) missingMaterial();

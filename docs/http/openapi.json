@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.5",
-    "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
+    "version": "1.0.8",
+    "description": "Contrato alvo fixado em AJA-01. Implementação e evidência de cada fatia ficam registradas no backlog e nas notas de validação; OpenAPI não comprova disponibilidade por si só. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
     {
@@ -4778,24 +4778,80 @@
                   "$ref": "#/components/schemas/AssessmentStaff"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Conteúdo",
-                  "description": "Conteúdo",
+                  "id": "assessment-example-1",
+                  "revision": 2,
+                  "createdAt": "2026-11-02T23:00:00.000Z",
+                  "updatedAt": "2026-11-02T23:00:00.000Z",
+                  "updatedBy": "teacher-a",
+                  "moduleId": "m1",
+                  "title": "Questionário de proporções",
+                  "description": "Resolva as questões na ordem apresentada.",
                   "kind": "quiz",
-                  "maxGrade": 10,
-                  "deadline": "2026-11-02T14:00:00Z",
+                  "maxGrade": null,
+                  "deadline": "2026-11-02T23:00:00.000Z",
                   "required": true,
-                  "allowLate": true,
+                  "allowLate": false,
+                  "questionIds": [
+                    "q1",
+                    "author-123",
+                    "q2"
+                  ],
+                  "questions": [
+                    {
+                      "id": "q1",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Qual é a razão entre 4 e 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 0,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "author-123",
+                      "origin": "author",
+                      "subject": "Matemática",
+                      "topic": "Álgebra",
+                      "difficulty": "easy",
+                      "institution": "AJA",
+                      "year": 2026,
+                      "statement": "Quanto é 1 + 1?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "q2",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Quanto é o dobro de 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    }
+                  ],
+                  "hasSubmissions": false,
                   "status": "draft",
-                  "publishedAt": "2026-11-02T14:00:00Z",
-                  "questionIds": [],
-                  "questions": [],
-                  "hasSubmissions": true
+                  "publishedAt": null
                 }
               }
             }
@@ -4835,14 +4891,14 @@
                 "$ref": "#/components/schemas/AssessmentCreate"
               },
               "example": {
-                "moduleId": "s1",
-                "title": "Conteúdo",
-                "description": "Conteúdo",
+                "moduleId": "m1",
+                "title": "Questionário de proporções",
+                "description": "Resolva as questões na ordem apresentada.",
                 "kind": "quiz",
-                "maxGrade": 10,
-                "deadline": null,
+                "maxGrade": null,
+                "deadline": "2026-11-02T20:00:00-03:00",
                 "required": true,
-                "allowLate": true,
+                "allowLate": false,
                 "questions": [
                   {
                     "source": "bank",
@@ -4850,7 +4906,7 @@
                   },
                   {
                     "source": "authored",
-                    "clientKey": "nova-1",
+                    "clientKey": "author-new-1",
                     "questionId": null,
                     "question": {
                       "subject": "Matemática",
@@ -4965,7 +5021,7 @@
         "tags": [
           "AJA-10"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Respeita autorização, escopo e invariantes de contract.md. Após a primeira entrega, apenas título, orientações e a data civil de um prazo já existente podem mudar; presença e hora completa HH:mm:ss.SSS em America/Sao_Paulo, modalidade, módulo, condições e composição ficam bloqueados (409). Compare o formulário completo contra os snapshots canonizados.",
         "x-roles": [
           "teacher",
           "admin"
@@ -4979,24 +5035,80 @@
                   "$ref": "#/components/schemas/AssessmentStaff"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Conteúdo",
-                  "description": "Conteúdo",
+                  "id": "assessment-example-1",
+                  "revision": 2,
+                  "createdAt": "2026-11-02T23:00:00.000Z",
+                  "updatedAt": "2026-11-02T23:00:00.000Z",
+                  "updatedBy": "teacher-a",
+                  "moduleId": "m1",
+                  "title": "Questionário de proporções",
+                  "description": "Resolva as questões na ordem apresentada.",
                   "kind": "quiz",
-                  "maxGrade": 10,
-                  "deadline": "2026-11-02T14:00:00Z",
+                  "maxGrade": null,
+                  "deadline": "2026-11-02T23:00:00.000Z",
                   "required": true,
-                  "allowLate": true,
+                  "allowLate": false,
+                  "questionIds": [
+                    "q1",
+                    "author-123",
+                    "q2"
+                  ],
+                  "questions": [
+                    {
+                      "id": "q1",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Qual é a razão entre 4 e 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 0,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "author-123",
+                      "origin": "author",
+                      "subject": "Matemática",
+                      "topic": "Álgebra",
+                      "difficulty": "easy",
+                      "institution": "AJA",
+                      "year": 2026,
+                      "statement": "Quanto é 1 + 1?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "q2",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Quanto é o dobro de 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    }
+                  ],
+                  "hasSubmissions": false,
                   "status": "draft",
-                  "publishedAt": "2026-11-02T14:00:00Z",
-                  "questionIds": [],
-                  "questions": [],
-                  "hasSubmissions": true
+                  "publishedAt": null
                 }
               }
             }
@@ -5074,121 +5186,80 @@
                   "$ref": "#/components/schemas/AssessmentStaff"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Conteúdo",
-                  "description": "Conteúdo",
+                  "id": "assessment-example-1",
+                  "revision": 2,
+                  "createdAt": "2026-11-02T23:00:00.000Z",
+                  "updatedAt": "2026-11-02T23:00:00.000Z",
+                  "updatedBy": "teacher-a",
+                  "moduleId": "m1",
+                  "title": "Questionário de proporções",
+                  "description": "Resolva as questões na ordem apresentada.",
                   "kind": "quiz",
-                  "maxGrade": 10,
-                  "deadline": "2026-11-02T14:00:00Z",
+                  "maxGrade": null,
+                  "deadline": "2026-11-02T23:00:00.000Z",
                   "required": true,
-                  "allowLate": true,
-                  "status": "draft",
-                  "publishedAt": "2026-11-02T14:00:00Z",
-                  "questionIds": [],
-                  "questions": [],
-                  "hasSubmissions": true
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Error401"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error403"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error404"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error409"
-          },
-          "422": {
-            "$ref": "#/components/responses/Error422"
-          },
-          "500": {
-            "$ref": "#/components/responses/Error500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Error503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "s1",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/Idempotency"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionCommand"
-              },
-              "example": {
-                "expectedRevision": 1
-              }
-            }
-          }
-        }
-      }
-    },
-    "/assessments/{id}/withdraw": {
-      "post": {
-        "operationId": "withdrawAssessment",
-        "summary": "withdrawAssessment",
-        "tags": [
-          "AJA-10"
-        ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
-        "x-roles": [
-          "teacher",
-          "admin"
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação concluída.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssessmentStaff"
-                },
-                "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Conteúdo",
-                  "description": "Conteúdo",
-                  "kind": "quiz",
-                  "maxGrade": 10,
-                  "deadline": "2026-11-02T14:00:00Z",
-                  "required": true,
-                  "allowLate": true,
-                  "status": "draft",
-                  "publishedAt": "2026-11-02T14:00:00Z",
-                  "questionIds": [],
-                  "questions": [],
-                  "hasSubmissions": true
+                  "allowLate": false,
+                  "questionIds": [
+                    "q1",
+                    "author-123",
+                    "q2"
+                  ],
+                  "questions": [
+                    {
+                      "id": "q1",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Qual é a razão entre 4 e 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 0,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "author-123",
+                      "origin": "author",
+                      "subject": "Matemática",
+                      "topic": "Álgebra",
+                      "difficulty": "easy",
+                      "institution": "AJA",
+                      "year": 2026,
+                      "statement": "Quanto é 1 + 1?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    },
+                    {
+                      "id": "q2",
+                      "origin": "bank",
+                      "subject": "Matemática",
+                      "topic": "Proporção",
+                      "difficulty": "easy",
+                      "institution": "Acervo AJA",
+                      "year": 2026,
+                      "statement": "Quanto é o dobro de 2?",
+                      "options": [
+                        "1",
+                        "2"
+                      ],
+                      "image": null,
+                      "correct": 1,
+                      "explanation": "A resposta correta está indicada no índice."
+                    }
+                  ],
+                  "hasSubmissions": false,
+                  "status": "published",
+                  "publishedAt": "2026-11-02T23:00:00.000Z"
                 }
               }
             }
@@ -11054,7 +11125,8 @@
               "type": "string",
               "example": "Alternativa"
             },
-            "minItems": 2
+            "minItems": 2,
+            "maxItems": 20
           },
           "image": {
             "anyOf": [
@@ -11064,8 +11136,8 @@
                 "properties": {
                   "src": {
                     "type": "string",
-                    "example": "https://example.test/material",
-                    "format": "uri"
+                    "example": "/questions/transport.svg",
+                    "pattern": "^/questions/[A-Za-z0-9_-]+\\.(?:svg|png|jpe?g|webp)$"
                   },
                   "alt": {
                     "type": "string",
@@ -11366,7 +11438,7 @@
           "questions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionResolved"
+              "$ref": "#/components/schemas/AssessmentQuestionSnapshot"
             }
           },
           "hasSubmissions": {
@@ -11426,8 +11498,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0,
-                "example": 10
+                "example": 10,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "null"
@@ -11510,8 +11582,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0,
-                "example": 10
+                "example": 10,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "null"
@@ -14554,6 +14626,114 @@
         },
         "required": [
           "id",
+          "subject",
+          "topic",
+          "difficulty",
+          "institution",
+          "year",
+          "statement",
+          "options",
+          "image",
+          "correct",
+          "explanation"
+        ]
+      },
+      "AssessmentQuestionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "author-123",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "bank",
+              "author"
+            ],
+            "example": "author"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Matemática"
+          },
+          "topic": {
+            "type": "string",
+            "example": "Álgebra"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "example": "easy"
+          },
+          "institution": {
+            "type": "string",
+            "example": "AJA"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2026
+          },
+          "statement": {
+            "type": "string",
+            "example": "Quanto é 1 + 1?"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "Alternativa"
+            },
+            "minItems": 2,
+            "maxItems": 20
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "example": "/questions/transport.svg"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "example": "Descrição da imagem"
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "explanation": {
+            "type": "string",
+            "example": "A soma é 2."
+          }
+        },
+        "required": [
+          "id",
+          "origin",
           "subject",
           "topic",
           "difficulty",
