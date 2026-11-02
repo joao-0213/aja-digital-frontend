@@ -19,9 +19,15 @@ export function Dialog({
   const id = useId();
   useEffect(() => {
     const node = ref.current;
+    const opener = open && document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (open && !node?.open) node?.showModal();else if (!open && node?.open) node.close();
     return () => {
       if (node?.open) node.close();
+      if (opener) requestAnimationFrame(() => {
+        const focusedDialog = document.activeElement?.closest('dialog:modal');
+        const activeDialog = focusedDialog ?? Array.from(document.querySelectorAll('dialog:modal')).at(-1);
+        if (opener.isConnected && (!activeDialog || activeDialog.contains(opener))) opener.focus({ preventScroll: true });
+      });
     };
   }, [open]);
   return <dialog ref={ref} aria-labelledby={id} onCancel={event => {
