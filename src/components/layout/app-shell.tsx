@@ -12,6 +12,7 @@ import { useMockQuery } from '@/hooks/use-mock-query';
 import { simulateNextFailure } from '@/mocks/api';
 import { nav } from './navigation';
 import { Logo } from '@/components/shared/logo';
+import { isActiveUser } from '@/lib/access';
 
 export function AppShell({
   children
@@ -42,8 +43,8 @@ export function AppShell({
   if (auth) return <>
     {children}
   </>;
-  const recentNotices = db.announcements.filter(a => role === 'admin' || db.classes.some(c => c.id === a.classId && (role === 'student' ? c.studentIds.includes(user.id) : db.subjects.some(s => s.classId === c.id && s.teacherId === user.id)))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-  const isStaff = role !== 'student';
+  const recentNotices = [...db.announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
+  const isStaff = isActiveUser(user) && role !== 'student';
   const navigation = (compact = false, desktop = false) => <>
     <div className="mb-8 shrink-0 px-4">
       <Logo symbolOnly={compact} />
@@ -68,7 +69,7 @@ export function AppShell({
     <div className="mt-auto shrink-0 px-4 pt-8">
       <button aria-label={`Demonstração: ${roleLabels[role]}. Alterar perfil e opções`} title={compact ? `Demonstração · ${roleLabels[role]}` : undefined} onClick={() => { setMobile(false); setSettings(true); }} className={cn('min-h-11 w-full items-center rounded-lg text-xs text-slate-500 hover:bg-slate-100', desktop ? 'grid grid-cols-[48px_minmax(0,1fr)] gap-3 text-left' : 'flex gap-2')}><FlaskConical aria-hidden="true" className={cn('size-4 shrink-0', desktop && 'justify-self-center')} /><span aria-hidden={desktop && compact} className={cn('min-w-0 overflow-hidden whitespace-nowrap', desktop && 'app-sidebar-label')}>Demonstração · {roleLabels[role]}</span></button>
       <Link href="/perfil" aria-label={`${user.name} · Ver perfil`} title={compact ? `${user.name} · Ver perfil` : undefined} onClick={() => setMobile(false)} className={cn('items-center gap-3 border-t border-slate-100 py-5', desktop ? 'grid grid-cols-[48px_minmax(0,1fr)]' : 'flex')}>
-        <span className={desktop ? 'flex justify-center' : undefined}><Avatar name={user.name} src={user.avatar} /></span>
+        <span className={desktop ? 'flex justify-center' : undefined}><Avatar name={user.name} /></span>
         <div aria-hidden={desktop && compact} className={cn('min-w-0 overflow-hidden whitespace-nowrap', desktop && 'app-sidebar-label')}>
           <p className="truncate text-sm font-semibold">
             {user.name}
@@ -104,7 +105,7 @@ export function AppShell({
       <Button variant="secondary" className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))] z-20 bg-white shadow-md lg:absolute lg:left-4 lg:top-4 lg:z-20 lg:hidden" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
       <button aria-label="Notificações" aria-haspopup="dialog" onClick={() => setNotifications(true)} className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-20 flex size-12 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-700 shadow-md hover:bg-brand-50 lg:fixed lg:bottom-5 lg:right-5 lg:top-auto"><Bell aria-hidden="true" className="size-5" /></button>
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-7 pt-20 sm:px-8 lg:py-9 xl:px-10">
-        {!ready || query.loading ? <Skeleton /> : query.error ? <ErrorState message={query.error} retry={query.retry} /> : children}
+        {!ready || query.loading ? <Skeleton /> : query.error ? <ErrorState message={query.error} retry={query.retry} /> : !isActiveUser(user) ? <section className="rounded-xl border border-slate-200 bg-white p-6"><h1 className="text-xl font-semibold">Conta indisponível</h1><p className="mt-3 text-sm leading-6 text-slate-600">Sua conta foi inativada ou excluída. Solicite a regularização à administração. O histórico de suas publicações permanece preservado para a equipe autorizada.</p><Link href="/login" className="mt-5 inline-flex min-h-11 items-center font-semibold text-brand-700">Voltar ao login da demonstração</Link></section> : children}
       </main>
       <footer className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 pb-24 pt-3 text-xs text-slate-500 sm:px-8 xl:px-10">
         <span>AJA Digital · Ambiente de demonstração</span>

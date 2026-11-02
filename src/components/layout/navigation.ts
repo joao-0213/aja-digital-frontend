@@ -38,7 +38,7 @@ export const nav: {
   href: '/turmas',
   label: 'Turmas',
   icon: GraduationCap,
-  staff: true
+  admin: true
 }, {
   href: '/alunos',
   label: 'Alunos',

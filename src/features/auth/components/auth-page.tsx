@@ -17,6 +17,7 @@ export function AuthPage({
 }) {
   const {
     db,
+    lookupAccount,
     mutate,
     signIn,
     notify
@@ -50,7 +51,7 @@ export function AuthPage({
         setSent(true);
       } else if (mode === 'login') {
         await mockRequest(() => true);
-        const person = db.users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+        const person = lookupAccount(email);
         if (!person || password !== 'Aja@2026') throw new Error('Use um e-mail cadastrado na demonstração e a senha de teste Aja@2026.');
         signIn(person.id, person.role);
         try {
@@ -66,11 +67,7 @@ export function AuthPage({
             id: uid('user'),
             name: name.trim(),
             email: email.trim().toLowerCase(),
-            role: 'student',
-            course: '',
-            institution: '',
-            quota: 'none',
-            bio: ''
+            role: 'student'
           });
         }, 'Cadastro simulado criado. Entre com a senha de teste Aja@2026.');
         if (ok) router.push('/login');

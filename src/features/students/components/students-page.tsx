@@ -6,20 +6,22 @@ import { Plus } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
 import { percent, textMatch } from '@/lib/utils';
+import { canAccessStudent } from '@/lib/access';
 
 export function StudentsPage() {
   const {
     db,
+    user,
     role,
     mutate,
     busy
   } = useApp();
-  const [classId, setClassId] = useState('c1');
+  const [classId, setClassId] = useState(db.classes[0]?.id ?? '');
   const [search, setSearch] = useState('');
   const [enroll, setEnroll] = useState(false);
   const [target, setTarget] = useState('');
   const schoolClass = db.classes.find(c => c.id === classId);
-  const students = db.users.filter(u => u.role === 'student' && schoolClass?.studentIds.includes(u.id) && textMatch(u.name + ' ' + u.email, search));
+  const students = db.users.filter(u => u.role === 'student' && canAccessStudent(db, user, u.id) && u.active !== false && !u.deletedAt && schoolClass?.studentIds.includes(u.id) && textMatch(u.name + ' ' + u.email, search));
   if (role === 'student') return <Empty title="Área da equipe pedagógica" description="Selecione o perfil de professor ou administrador para conhecer esta tela." />;
   return <>
     <PageHeading eyebrow="Acompanhamento acadêmico" title="Alunos" description="Consulte as matrículas e os dados acadêmicos dos alunos." action={role === 'admin' && <Button disabled={!schoolClass?.active} onClick={() => {
@@ -42,7 +44,6 @@ export function StudentsPage() {
           <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
             <tr>
               <th className="p-5 font-medium">Aluno</th>
-              <th className="p-5 font-medium">Objetivo</th>
               <th className="p-5 font-medium">Frequência</th>
               <th className="p-5">
                 <span className="sr-only">Ação</span>
@@ -65,14 +66,6 @@ export function StudentsPage() {
                     </p>
                   </div>
                 </div>
-              </td>
-              <td className="p-5">
-                <p>
-                  {u.course || 'Não informado'}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {u.institution}
-                </p>
               </td>
               <td className="p-5">
                 <Badge tone="green">
@@ -100,7 +93,7 @@ export function StudentsPage() {
       }}>
         <Select label="Aluno cadastrado" value={target} onChange={e => setTarget(e.target.value)} required>
           <option value="">Selecione um aluno</option>
-          {db.users.filter(u => u.role === 'student' && !schoolClass?.studentIds.includes(u.id)).map(u => <option key={u.id} value={u.id}>
+          {db.users.filter(u => u.role === 'student' && u.active !== false && !u.deletedAt && !schoolClass?.studentIds.includes(u.id)).map(u => <option key={u.id} value={u.id}>
             {u.name}
           </option>)}
         </Select>
