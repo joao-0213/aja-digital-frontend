@@ -1,4 +1,5 @@
 import type { MockDatabase, Role } from '@/models';
+import { assessmentQuestions, attemptQuestions } from './question-composition.ts';
 
 // Preserve the persisted demo contract across internal reorganizations.
 export const DEMO_DATABASE_KEY = 'aja-digital-demo-v1';
@@ -66,6 +67,11 @@ export function migrateDatabase(value: MockDatabase): MockDatabase {
     return record;
   });
   delete (db as MockDatabase & { documents?: unknown }).documents;
+  // Legacy builder generated these IDs and this topic for questionnaire-only originals.
+  for (const q of db.questions) if (q.id.startsWith('question-') && q.topic === 'Questão original') q.origin = 'author';
+  for (const a of db.assessments) a.questions ??= structuredClone(assessmentQuestions(db, a));
+  for (const t of db.attempts) t.questions ??= structuredClone(attemptQuestions(db, t));
+  db.questions = db.questions.filter(q => q.origin !== 'author');
   db.assessments = db.assessments.map(assessment => {
     const record = assessment as typeof assessment & { shuffle?: unknown; attempts?: unknown };
     delete record.shuffle;

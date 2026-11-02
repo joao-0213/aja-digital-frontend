@@ -26,7 +26,8 @@ test('migration removes retired personal data and documents without losing accou
   assert.deepEqual(after.users, [{ id: 'u', name: 'Aluno Exemplo', email: 'aluno@exemplo.com', role: 'student' }]);
   assert.equal('documents' in after, false);
   assert.deepEqual(after.classes, before.classes);
-  assert.deepEqual(after.attempts, before.attempts);
+  assert.deepEqual(after.attempts.map(({ questions, ...attempt }) => attempt), before.attempts);
+  assert.equal(after.attempts[0].questions?.[0].id, 'q1');
   assert.deepEqual(after.progress, before.progress);
   assert.equal(after.questions[0].institution, 'Origem');
   assert.equal('quota' in before.users[0], true, 'migration does not mutate its input');

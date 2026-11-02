@@ -1,4 +1,5 @@
 import type { MockDatabase } from '@/models';
+import { assessmentQuestions } from './question-composition.ts';
 
 export function beginAttempt(db: MockDatabase, assessmentId: string, userId: string, id: string, startedAt: string) {
   const assessment = db.assessments.find(a => a.id === assessmentId && a.status === 'published');
@@ -6,7 +7,7 @@ export function beginAttempt(db: MockDatabase, assessmentId: string, userId: str
   const previous = db.attempts.filter(t => t.assessmentId === assessmentId && t.userId === userId);
   if (previous.some(t => t.submittedAt)) throw new Error('Este questionário já foi enviado.');
   if (previous.some(t => !t.submittedAt)) return;
-  db.attempts.push({ id, assessmentId, userId, startedAt, answers: {}, questionOrder: [...assessment.questionIds] });
+  db.attempts.push({ id, assessmentId, userId, startedAt, answers: {}, questionOrder: [...assessment.questionIds], questions: structuredClone(assessmentQuestions(db, assessment)) });
 }
 
 /** Draft autosaves may overlap; only a changed question set invalidates their answers. */

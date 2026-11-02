@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2 } from 'lucide-react';
+import { attemptQuestions } from '@/lib/question-composition';
 import { useApp } from '@/providers/app-context';
-import { Badge, Button, Card, Dialog, PageHeading, ProgressBar } from '@/components/ui';
+import { Badge, Button, Card, Dialog, Empty, LinkButton, PageHeading, ProgressBar } from '@/components/ui';
 import { cn, percent } from '@/lib/utils';
 import { saveAttemptAnswers, submitAttempt } from '@/lib/assessment-attempts';
 import { type Attempt } from '@/models';
@@ -31,7 +32,7 @@ export function QuizSession({
       if (raw) {
         const value: unknown = JSON.parse(raw);
         if (value && typeof value === 'object' && !Array.isArray(value)) {
-          const entries = Object.entries(value).filter(([id, index]) => attempt.questionOrder.includes(id) && typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < (db.questions.find(q => q.id === id)?.options.length ?? 0));
+          const entries = Object.entries(value).filter(([id, index]) => attempt.questionOrder.includes(id) && typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < (attemptQuestions(db, attempt).find(q => q.id === id)?.options.length ?? 0));
           return Object.fromEntries(entries) as Record<string, number>;
         }
       }
@@ -43,7 +44,7 @@ export function QuizSession({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [retry, setRetry] = useState(0);
   const a = db.assessments.find(a => a.id === attempt.assessmentId)!;
-  const question = db.questions.find(q => q.id === attempt.questionOrder[index])!;
+  const question = attemptQuestions(db, attempt).find(q => q.id === attempt.questionOrder[index])!;
   useEffect(() => {
     try {
       sessionStorage.setItem(recoveryKey, JSON.stringify(answers));
@@ -63,6 +64,7 @@ export function QuizSession({
       clearTimeout(timer);
     };
   }, [answers, attempt.id, mutate, retry, recoveryKey]);
+  if (!question) return <Empty title="Questão indisponível" description="O conteúdo desta tentativa antiga está incompleto. As respostas foram preservadas; consulte a equipe responsável." action={<LinkButton href="/questionarios">Voltar às atividades</LinkButton>} />;
   const submit = async () => {
     const ok = await mutate(d => {
       submitAttempt(d, attempt.id, answers, new Date().toISOString(), attempt.questionsUpdatedAt);
@@ -99,6 +101,7 @@ export function QuizSession({
       <h2 className="mb-7 mt-5 text-lg font-semibold leading-8">
         {question.statement}
       </h2>
+      {question.image && <img src={question.image.src} alt={question.image.alt} className="my-4 max-h-80 max-w-full" />}
       <fieldset className="space-y-3">
         <legend className="sr-only">Escolha uma alternativa</legend>
         {question.options.map((option, i) => <label key={i} className={cn('flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition hover:border-brand-200', answers[question.id] === i ? 'border-brand-500 bg-brand-50' : 'border-slate-200')}>

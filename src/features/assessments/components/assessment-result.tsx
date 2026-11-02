@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Trophy } from 'lucide-react';
+import { attemptQuestions } from '@/lib/question-composition';
 import { useApp } from '@/providers/app-context';
 import { Badge, Card, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { percent } from '@/lib/utils';
@@ -19,7 +20,7 @@ export function AssessmentResult() {
   const a = db.assessments.find(a => a.id === attempt.assessmentId)!;
   const {
     correct
-  } = gradeAttempt(attempt.questionOrder, attempt.answers, db.questions);
+  } = gradeAttempt(attempt.questionOrder, attempt.answers, attemptQuestions(db, attempt));
   return <div className="mx-auto max-w-3xl">
     <PageHeading eyebrow="Questionário" title="Resultado" description={`${a.title}${role !== 'student' ? ` · ${db.users.find(u => u.id === attempt.userId)?.name ?? 'Aluno'}` : ''}`} />
     <Card className="mb-6 text-center">
@@ -38,7 +39,8 @@ export function AssessmentResult() {
     <h2 className="mb-4 text-lg font-semibold">Vamos revisar?</h2>
     <div className="space-y-4">
       {attempt.questionOrder.map((id, index) => {
-        const q = db.questions.find(q => q.id === id)!;
+        const q = attemptQuestions(db, attempt).find(q => q.id === id)!;
+        if (!q) return <Card key={id}><p>Questão {index + 1}: conteúdo histórico indisponível. A resposta enviada foi preservada.</p></Card>;
         const right = attempt.answers[id] === q.correct;
         return <Card key={id}>
         <div className="mb-4 flex items-center justify-between">
@@ -50,6 +52,7 @@ export function AssessmentResult() {
         <p className="leading-7">
           {q.statement}
         </p>
+        {q.image && <img src={q.image.src} alt={q.image.alt} className="my-4 max-h-80 max-w-full" />}
         <p className="mt-4 text-sm text-slate-500">Sua resposta: {attempt.answers[id] === undefined ? 'Não respondida' : q.options[attempt.answers[id]]}</p>
         <p className="mt-2 text-sm font-semibold text-emerald-700">Resposta correta: {q.options[q.correct]}</p>
         <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">

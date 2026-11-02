@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { assessmentQuestions } from '@/lib/question-composition';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
@@ -37,7 +38,7 @@ export function AnswerAssessment() {
     <PageHeading eyebrow="Consulta de atividade" title={a.title} description={a.description} />
     <Card><p role="status" className="text-sm leading-6 text-slate-700">Disponível apenas para consulta: o prazo terminou antes da sua matrícula. Esta atividade não foi atribuída a você e não gera pendência ou entrega atrasada.</p><p className="mt-3 text-sm text-slate-500">{a.required === false ? 'Opcional' : 'Obrigatória'} · {a.deadline ? `Prazo original: ${dateLabel(a.deadline)}` : 'Sem prazo'}</p></Card>
     {a.questionIds.map((questionId, index) => {
-      const question = db.questions.find(q => q.id === questionId);
+      const question = assessmentQuestions(db, a).find(q => q.id === questionId);
       return question && <Card key={questionId} className="mt-4"><h2 className="font-semibold">Questão {index + 1}</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{question.statement}</p><ol className="mt-4 list-inside list-[upper-alpha] space-y-3 text-sm">{question.options.map((option, i) => <li key={i}>{option}</li>)}</ol></Card>;
     })}
     <div className="mt-5"><LinkButton secondary href="/questionarios">Voltar às atividades</LinkButton></div>

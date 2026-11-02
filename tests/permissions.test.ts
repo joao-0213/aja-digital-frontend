@@ -178,6 +178,7 @@ test('registration and edit commands reject escalation, mismatched context and i
 
 test('question edits reset unfinished drafts and submitted content blocks structural edits', () => {
   const db = fixture();
+  db.questions = [{ id: 'different', subject: 'Matemática', topic: 'Funções', difficulty: 'easy', institution: 'AJA', year: 2026, statement: 'Enunciado', options: ['A', 'B'], correct: 0, explanation: 'Resolução' }];
   db.attempts[0].answers = { old: 0 };
   const updated = applyDemoMutation(db, 't2', d => { d.assessments[0].questionIds = ['different']; });
   assert.deepEqual(updated.attempts[0].answers, {});
@@ -299,6 +300,7 @@ test('consecutive autosaves use the question version and preserve the most recen
 
 test('a question update resets every old draft and rejects stale autosave and submit payloads', () => {
   const db = fixture();
+  db.questions = ['new1', 'new2'].map(id => ({ id, subject: 'Matemática', topic: 'Funções', difficulty: 'easy', institution: 'AJA', year: 2026, statement: 'Enunciado', options: ['A', 'B'], correct: 0, explanation: 'Resolução' }));
   db.attempts[0].answers = { old: 0 };
   db.attempts.push({ ...structuredClone(db.attempts[0]), id: 'other-draft', userId: 's2', answers: { old: 1 } });
   const originalStarts = db.attempts.map(a => a.startedAt);
