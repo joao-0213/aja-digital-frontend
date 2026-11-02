@@ -109,3 +109,15 @@ test('equal assigned teachers can resolve and retire replies; votes toggle witho
   assert.equal(deleted.topics[0].replies[0].accepted, false);
   assert.equal(deleted.topics[0].replies[0].body, 'Resposta');
 });
+test('archived class history allows staff read markers but refuses interaction and student access', () => {
+  const db = seed(); db.classes[0].active = false;
+  for (const actor of ['p', 'a']) {
+    const next = applyDemoMutation(db, actor, d => { d.topics[0].readBy.push(actor); });
+    assert.ok(next.topics[0].readBy.includes(actor));
+    assert.throws(() => applyDemoMutation(next, actor, d => { d.topics[0].replies[0].accepted = true; }));
+    assert.throws(() => applyDemoMutation(next, actor, d => { d.topics[0].deletedAt = '2026-11-02'; }));
+    assert.equal(scopeDatabase(next, next.users.find(u => u.id === actor)!).topics.length, 1);
+  }
+  assert.equal(scopeDatabase(db, db.users.find(u => u.id === 's')!).topics.length, 0);
+  assert.throws(() => applyDemoMutation(db, 's', d => { d.topics[0].readBy = ['s']; }));
+});
