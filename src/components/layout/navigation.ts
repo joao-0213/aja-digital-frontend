@@ -16,7 +16,7 @@ export const nav: {
   icon: BookOpen
 }, {
   href: '/questionarios',
-  label: 'Questionários',
+  label: 'Atividades',
   icon: ClipboardCheck
 }, {
   href: '/questoes',

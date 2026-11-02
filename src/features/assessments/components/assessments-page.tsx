@@ -17,9 +17,9 @@ export function AssessmentsPage() {
   const [filter, setFilter] = useState('all');
   const items = db.assessments.filter(a => (role !== 'student' || a.status === 'published') && (filter === 'all' || (filter === 'done' ? db.attempts.some(t => t.assessmentId === a.id && t.userId === user.id && t.submittedAt) : isAssessmentAssigned(db, a, user.id) && !db.attempts.some(t => t.assessmentId === a.id && t.userId === user.id && t.submittedAt))));
   return <>
-    <PageHeading title="Questionários" description="Consulte os prazos, responda às atividades e veja seus resultados." action={role !== 'student' && <LinkButton href="/questionarios/criar"><Plus className="size-4" />Criar questionário</LinkButton>} />
-    {role === 'student' && <div role="group" aria-label="Filtrar questionários" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-      {[['all', 'Todos'], ['pending', 'Para fazer'], ['done', 'Respondidos']].map(([id, label]) => <Button key={id} variant="ghost" aria-pressed={filter === id} className={filter === id ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(id)}>
+    <PageHeading title="Atividades" description="Consulte as práticas complementares das disciplinas, seus prazos e envios." action={role !== 'student' && <LinkButton href="/questionarios/criar"><Plus className="size-4" />Criar questionário</LinkButton>} />
+    {role === 'student' && <div role="group" aria-label="Filtrar atividades" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+      {[['all', 'Todas'], ['pending', 'Para fazer'], ['done', 'Entregues']].map(([id, label]) => <Button key={id} variant="ghost" aria-pressed={filter === id} className={filter === id ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(id)}>
         {label}
       </Button>)}
     </div>}
@@ -32,9 +32,9 @@ export function AssessmentsPage() {
         const consultOnly = role === 'student' && !isAssessmentAssigned(db, a, user.id);
         return <Card key={a.id} className="flex flex-col">
         <div className="mb-5 flex items-center justify-between">
-          <ClipboardCheck aria-hidden="true" className="size-5 text-slate-500" />
+          <span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />Questionário</span>
           <Badge tone={a.status === 'draft' ? 'neutral' : last ? 'green' : 'amber'}>
-            {a.status === 'draft' ? 'Rascunho' : consultOnly ? 'Somente consulta' : last ? 'Respondido' : 'Disponível'}
+            {a.status === 'draft' ? 'Rascunho' : consultOnly ? 'Somente consulta' : last ? 'Entregue' : 'Disponível'}
           </Badge>
         </div>
         <p className="text-xs text-slate-400">{sub?.name} · Módulo {mod?.order}</p>
@@ -60,6 +60,6 @@ export function AssessmentsPage() {
       </Card>;
       })}
     </div>
-    {!items.length && <Empty title="Nenhum questionário nesta lista" description="Suas atividades aparecerão aqui quando estiverem disponíveis." />}
+    {!items.length && <Empty title="Nenhuma atividade nesta lista" description="Suas atividades aparecerão aqui quando estiverem disponíveis." />}
   </>;
 }

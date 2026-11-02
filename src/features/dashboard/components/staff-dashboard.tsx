@@ -64,7 +64,7 @@ export function StaffDashboard() {
             </Link>)}
             {!pending.length && <p className="py-4 text-sm leading-6 text-slate-600">Nenhuma entrega pendente.</p>}
           </div>
-          <Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ver questionários<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link>
+          <Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ver atividades<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link>
         </Card>
         {<section className="px-1" aria-labelledby="events-title">
           <h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros</h2>
