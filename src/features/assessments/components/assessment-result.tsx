@@ -16,7 +16,7 @@ export function AssessmentResult() {
   } = useApp();
   const id = useSearchParams().get('id');
   const attempt = db.attempts.find(t => t.id === id && (role !== 'student' || t.userId === user.id) && t.submittedAt);
-  if (!attempt) return <Empty title="Resultado não encontrado" description="Conclua um questionário para ver seu desempenho." action={<LinkButton href="/questionarios">Ver questionários</LinkButton>} />;
+  if (!attempt) return <Empty title="Resultado não encontrado" description="Conclua um questionário para ver seu desempenho." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
   const a = db.assessments.find(a => a.id === attempt.assessmentId)!;
   const {
     correct

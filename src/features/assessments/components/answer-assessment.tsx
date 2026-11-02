@@ -23,14 +23,14 @@ export function AnswerAssessment() {
   const a = db.assessments.find(item => item.id === id);
   const attempts = db.attempts.filter(t => t.assessmentId === id && t.userId === user.id);
   const active = attempts.find(t => !t.submittedAt);
-  if (!a || a.status !== 'published') return <Empty title="Questionário indisponível" action={<LinkButton href="/questionarios">Ver questionários</LinkButton>} />;
+  if (!a || a.status !== 'published') return <Empty title="Questionário indisponível" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
   if (role !== 'student') {
     const submissions = db.attempts.filter(t => t.assessmentId === id && t.submittedAt);
     return <>
       <PageHeading eyebrow="Consulta individual" title={a.title} description="Consulte cada envio da disciplina. Respostas e resultados são privados para a equipe autorizada." action={<LinkButton secondary href={`/questionarios/criar?id=${a.id}`}>Editar atividade</LinkButton>} />
       <Card><h2 className="mb-4 font-semibold">Envios dos alunos</h2><div className="divide-y divide-slate-100">{submissions.map(t => <Link key={t.id} href={`/questionarios/resultado?id=${t.id}`} className="flex min-h-14 flex-wrap items-center justify-between gap-3 py-3 text-sm"><span>{db.users.find(u => u.id === t.userId)?.name ?? 'Aluno'} · {new Date(t.submittedAt!).toLocaleString('pt-BR')}</span><span className="font-semibold text-brand-700">Consultar envio</span></Link>)}</div>{!submissions.length && <p className="text-sm text-slate-500">Ainda não há envios. Os rascunhos de resposta pertencem a cada aluno.</p>}</Card>
       <Card className="mt-5"><h2 className="mb-3 font-semibold">Situação por aluno</h2><ul className="divide-y divide-slate-100">{db.users.filter(u => u.role === 'student' && db.classes.some(c => c.studentIds.includes(u.id) && db.subjects.some(s => s.classId === c.id && db.modules.some(m => m.id === a.moduleId && m.subjectId === s.id)))).map(u => <li key={u.id} className="py-3 text-sm leading-6">{u.name} · {submissions.some(t => t.userId === u.id) ? 'Entregue' : !isAssessmentAssigned(db, a, u.id) ? 'Não atribuída — matrícula posterior ao prazo' : a.required === false ? 'Prática opcional — sem envio' : 'Não entregue'}</li>)}</ul></Card>
-      <div className="mt-5"><LinkButton secondary href="/questionarios">Ver questionários</LinkButton></div>
+      <div className="mt-5"><LinkButton secondary href="/questionarios">Ver atividades</LinkButton></div>
     </>;
   }
   const completed = attempts.filter(t => t.submittedAt);
