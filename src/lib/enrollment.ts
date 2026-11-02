@@ -117,7 +117,7 @@ export function reconcileEnrollments(current: MockDatabase, draft: MockDatabase,
       const student = draft.users.find(u => u.id === studentId);
       if (!student || !available(student) || student.role !== 'student') throw new Error('A matrícula exige uma conta de aluno ativa.');
       if (!schoolClass.active || schoolClass.deletedAt) continue;
-      if (student.emailConfirmedAt === null) throw new Error('Confirme o e-mail em etapa simulada antes de acessar a turma.');
+      if (student.emailConfirmedAt === null && !previous?.studentIds.includes(studentId)) throw new Error('Confirme o e-mail em etapa simulada antes de acessar a turma.');
       if (draft.classes.some(c => c.id !== schoolClass.id && c.active && !c.deletedAt && c.studentIds.includes(studentId))) throw new Error('O aluno já tem outra turma ativa. Regularize o vínculo; não há transferência automática.');
       if (!activeEnrollment(draft, studentId, schoolClass.id) && !previous?.studentIds.includes(studentId)) {
         if (draft.enrollments.some(e => e.classId === schoolClass.id && (e.studentId === studentId || e.email === normalizeEmail(student.email)) && e.deletedAt)) throw new Error('Vínculo excluído: não há restauração pela interface.');

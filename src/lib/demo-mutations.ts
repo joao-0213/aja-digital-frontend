@@ -68,7 +68,7 @@ function validateStudent(db: MockDatabase, actor: User, collection: Collection, 
 
 /** Revalidate permissions and revisions against the latest database, not a component's stale copy. */
 export function applyDemoMutation(current: MockDatabase, actorId: string, recipe: (draft: MockDatabase) => void, options: MutationOptions = {}, now = new Date().toISOString()): MockDatabase {
-  const actor = current.users.find(u => u.id === actorId);
+  const actor = options.enrollment?.type === 'register' ? { id: actorId, name: 'Cadastro público da demo', email: '', role: 'student' as const } : current.users.find(u => u.id === actorId);
   if (!isActiveUser(actor)) throw new Error('Sua conta está inativa ou foi excluída. Solicite a regularização à administração.');
   for (const expected of options.expected ?? []) {
     if (!collections.includes(expected.collection as Collection)) throw new Error('Registro indisponível para edição.');
@@ -103,6 +103,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (options.enrollment) { /* typed commands validate their own complete, atomic effect */ }
       else if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
         // Public, local demo self-registration never grants a role or class membership.
+        row.emailConfirmedAt = null;
       } else if (actor.role === 'student') validateStudent(current, actor, collection, before, row);
       else if (actor.role === 'teacher') {
         if (collection === 'users' && before?.id === actor.id && onlyFields(before, row, ['name'])) { /* own minimal profile */ }
