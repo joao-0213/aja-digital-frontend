@@ -18,6 +18,8 @@ export function QuestionBank() {
   const params = useSearchParams();
   const router = useRouter();
   const [filters, setFilters] = useState({ ...emptyQuestionFilters, search: params.get('busca') ?? '' });
+  const queryText = params.get('busca') ?? '';
+  useEffect(() => { setFilters(previous => ({ ...previous, search: queryText })); setPage(1); }, [queryText]);
   const questionId = params.get('id');
   const selected = db.questions.find(q => q.id === questionId) ?? null;
   const [showAnswer, setShowAnswer] = useState(false);

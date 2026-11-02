@@ -4,6 +4,7 @@ import type { MockDatabase } from '../src/models/database.ts';
 import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
 import { migrateDatabase } from '../src/lib/demo-storage.ts';
 import { beginAttempt, submitAttempt } from '../src/lib/assessment-attempts.ts';
+import { assessmentQuestions } from '../src/lib/question-composition.ts';
 function fixture(): MockDatabase {
   return {
     version: 1, audit: [], enrollments: [],
@@ -33,6 +34,21 @@ function fixture(): MockDatabase {
 
 const question = { id: 'bank', subject: 'Matem?tica', topic: 'Fun??es', difficulty: 'easy' as const, institution: 'AJA', year: 2026, statement: 'Quanto?', options: ['Um', 'Dois'], correct: 0, explanation: 'Um.' };
 function prepared() { const db = fixture(); db.questions = [structuredClone(question)]; db.assessments[0].questionIds = ['bank']; db.attempts = []; return db; }
+
+test('review: migration preserves historical questions no longer selected in the activity', () => {
+  const db = prepared();
+  db.questions.push({ ...question, id: 'question-historical', topic: 'Questão original' });
+  db.attempts.push({ id: 'historical', assessmentId: 'q1', userId: 's1', startedAt: '2026-10-01', submittedAt: '2026-10-02', answers: { 'question-historical': 0 }, questionOrder: ['question-historical', 'bank'] });
+  const migrated = migrateDatabase(db);
+  assert.deepEqual(migrated.attempts[0].questions?.map(q => q.id), ['question-historical', 'bank']);
+  assert.equal(migrated.questions.some(q => q.id === 'question-historical'), false);
+  assert.deepEqual(migrateDatabase(migrated), migrated);
+});
+
+test('review: an incomplete snapshot never borrows later content from the live bank', () => {
+  const db = prepared(); db.assessments[0].questions = [];
+  assert.deepEqual(assessmentQuestions(db, db.assessments[0]), []);
+});
 
 test('PP05: starting and submitting preserves content despite later bank changes', () => {
   const db = prepared(); beginAttempt(db, 'q1', 's1', 'try', '2026-11-02');
