@@ -4,6 +4,7 @@ import { applyDemoMutation, type MutationOptions } from '../src/lib/demo-mutatio
 import { migrateDatabase } from '../src/lib/demo-storage.ts';
 import { canAccessSubject, scopeDatabase } from '../src/lib/access.ts';
 import type { MockDatabase } from '../src/models/database.ts';
+import { enrolledForLesson, isAssessmentAssigned } from '../src/lib/enrollment.ts';
 
 const now = '2026-11-02T12:00:00.000Z';
 function fixture(): MockDatabase {
@@ -185,4 +186,53 @@ test('pending emails and audit are private and confirmation cannot change anothe
   assert.deepEqual(scopeDatabase(db, db.users[1]).enrollments, []);
   assert.deepEqual(scopeDatabase(db, db.users[2]).enrollments, []);
   assert.throws(() => applyDemoMutation(db, 'student', d => { d.users[1].emailConfirmedAt = now; }), /permiss|confirma/i);
+});
+
+test('all self-registration paths require confirmation and public registration survives an unavailable demo persona', () => {
+  const db = fixture();
+  const registered = applyDemoMutation(db, 'student', d => { d.users.push({ id: 'new', name: 'Aluno novo', email: 'novo@exemplo.com', role: 'student' }); });
+  assert.equal(registered.users.find(u => u.id === 'new')!.emailConfirmedAt, null);
+  db.users[2].active = false;
+  const retried = command(db, { type: 'register', id: 'public', name: 'Cadastro público', email: 'publico@exemplo.com' }, 'student');
+  assert.equal(retried.users.find(u => u.id === 'public')!.emailConfirmedAt, null);
+});
+
+test('late assignment snapshot survives deadline changes and excludes stale draft submissions', () => {
+  const db = command(fixture(), add());
+  const extended = applyDemoMutation(db, 'teacher', d => { d.assessments[0].deadline = '2026-12-01'; });
+  assert.equal(isAssessmentAssigned(extended, extended.assessments[0], 'student'), false);
+  assert.equal(isAssessmentAssigned(extended, extended.assessments[1], 'student'), true);
+  extended.attempts.push({ id: 'stale', assessmentId: 'expired', userId: 'student', answers: { x: 0 }, questionOrder: [], startedAt: now });
+  assert.throws(() => applyDemoMutation(extended, 'student', d => { d.attempts[0].submittedAt = now; }), /consulta|matrícula/i);
+});
+
+test('email changes require reconfirmation without automatically consuming another reservation', () => {
+  const db = command(command(fixture(), add()), add('alterado@exemplo.com', 'c2'));
+  const changed = applyDemoMutation(db, 'admin', d => { d.users[2].email = 'alterado@exemplo.com'; });
+  assert.equal(changed.users[2].emailConfirmedAt, null);
+  assert.equal(canAccessSubject(changed, changed.users[2], 's1'), false);
+  assert.equal(changed.enrollments[1].status, 'pending');
+  assert.throws(() => command(changed, { type: 'confirm' }, 'student'), /turma|vínculo/i);
+  assert.equal(changed.users[2].emailConfirmedAt, null);
+});
+
+test('closed membership admits historical lesson review but excludes lessons before entry and after exit', () => {
+  const db = command(fixture(), add());
+  const ended = command(db, { type: 'end', id: db.enrollments[0].id }, 'admin', '2026-11-04T12:00:00Z');
+  assert.equal(enrolledForLesson(ended, 'c1', 'student', '2026-11-01'), false);
+  assert.equal(enrolledForLesson(ended, 'c1', 'student', '2026-11-03'), true);
+  assert.equal(enrolledForLesson(ended, 'c1', 'student', '2026-11-05'), false);
+  const saved = applyDemoMutation(ended, 'teacher', d => { d.attendance.push({ id: 'past', subjectId: 's1', date: '2026-11-03', time: '19:00', records: { student: true } }); });
+  assert.equal(saved.attendance[0].records.student, true);
+});
+
+test('invalid registration, unavailable commands and stale cancellation fail without changing the source', () => {
+  const db = fixture();
+  for (const input of [{ name: 'A', email: 'ok@exemplo.com' }, { name: 'Aluno', email: 'invalid' }]) assert.throws(() => command(db, { type: 'register', id: 'new', ...input }), /válid/i);
+  assert.throws(() => command(db, { type: 'confirm' }), /conta de aluno/i);
+  assert.throws(() => command(db, { type: 'cancel', id: 'missing' }), /indisponível/i);
+  const linked = command(db, add());
+  assert.throws(() => command(linked, { type: 'cancel', id: linked.enrollments[0].id }), /mudou/i);
+  assert.throws(() => applyDemoMutation(linked, 'admin', () => {}, { enrollment: { type: 'end', id: linked.enrollments[0].id }, expected: [{ collection: 'enrollments', id: linked.enrollments[0].id, revision: 0 }] }), /alterad/i);
+  assert.deepEqual(db.classes[0].studentIds, []);
 });
