@@ -9,4 +9,6 @@ export interface Announcement extends RecordMeta {
   body: string;
   createdAt: string;
   notify: boolean;
+  occurrence?: { date: string; time?: string; allDay?: boolean };
+  legacyEventId?: string;
 }

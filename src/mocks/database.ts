@@ -279,6 +279,7 @@ export const seed: MockDatabase = {
   }],
   announcements: [{
     id: 'n1',
+    occurrence: { date: '2026-10-10', time: '13:30' },
     classId: 'c1',
     authorId: 'u3',
     title: 'Simulado presencial: prepare seu material',
@@ -287,6 +288,7 @@ export const seed: MockDatabase = {
     notify: true
   }, {
     id: 'n2',
+    occurrence: { date: '2026-10-07', time: '18:30' },
     classId: 'c1',
     subjectId: 's1',
     authorId: 'u2',
@@ -294,30 +296,13 @@ export const seed: MockDatabase = {
     body: 'Nesta quarta, teremos um encontro para revisar funções e resolver exercícios juntos. Separe suas dúvidas e participe!',
     createdAt: '2026-10-03T16:30:00',
     notify: true
-  }],
-  events: [{
-    id: 'e1',
-    title: 'Plantão de Matemática',
-    kind: 'class',
-    date: '2026-10-07',
-    time: '18:30',
-    description: 'Revisão de funções com a professora Mariana. Sala 02.',
-    subjectId: 's1'
   }, {
-    id: 'e2',
-    title: 'Simulado presencial AJA',
-    kind: 'exam',
-    date: '2026-10-10',
-    time: '13:30',
-    description: 'Traga documento, caneta preta e água. Duração prevista: 4 horas.'
-  }, {
-    id: 'e3',
-    title: 'Roda de conversa: vida na universidade',
-    kind: 'event',
-    date: '2026-10-16',
-    time: '19:00',
-    description: 'Estudantes da UFPR compartilham experiências e respondem perguntas.'
+    id: 'n3', classId: 'c1', authorId: 'u3', title: 'Roda de conversa: vida na universidade',
+    body: 'Estudantes da UFPR compartilham experiências e respondem perguntas.',
+    createdAt: '2026-10-01T12:00:00-03:00', notify: false,
+    occurrence: { date: '2026-10-16', time: '19:00' }
   }],
+  events: [],
   attendance: [{
     id: 'att1',
     subjectId: 's1',

@@ -54,6 +54,27 @@ export function migrateDatabase(value: MockDatabase): MockDatabase {
   db.audit ??= [];
   db.enrollments ??= [];
   db.submissions ??= [];
+  // Retire manual event sources without losing dates or their original evidence.
+  for (const event of db.events.filter(e => !e.deletedAt)) {
+    const subject = db.subjects.find(s => s.id === event.subjectId);
+    const destinations = event.subjectId ? subject ? [subject.classId] : [] : db.classes.filter(c => c.active && !c.deletedAt).map(c => c.id);
+    for (const classId of destinations) {
+      const seedNoticeId = event.id === 'e1' && event.title === 'Plantão de Matemática' ? 'n2' : event.id === 'e2' && event.title === 'Simulado presencial AJA' ? 'n1' : undefined;
+      const seedNotice = db.announcements.find(a => a.id === seedNoticeId && a.classId === classId && !a.deletedAt);
+      if (seedNotice) {
+        seedNotice.occurrence ??= { date: event.date, ...(event.time ? { time: event.time } : { allDay: true }) };
+        seedNotice.legacyEventId = event.id;
+        continue;
+      }
+      const id = `legacy-event-${event.id}-${classId}`;
+      if (db.announcements.some(a => a.id === id || a.legacyEventId === event.id && a.classId === classId)) continue;
+      db.announcements.push({ id, classId, subjectId: event.subjectId, legacyEventId: event.id,
+        authorId: subject?.teacherIds?.[0] ?? db.users.find(u => u.role === 'admin')?.id ?? 'legacy',
+        title: event.title, body: event.description, createdAt: event.updatedAt ?? '2026-10-01T12:00:00-03:00', notify: false,
+        occurrence: { date: event.date, ...(event.time ? { time: event.time } : { allDay: true }) } });
+    }
+    if (destinations.length) event.deletedAt = '2026-11-02T00:00:00-03:00';
+  }
   for (const schoolClass of db.classes) {
     for (const studentId of schoolClass.studentIds) {
       const student = db.users.find(u => u.id === studentId);

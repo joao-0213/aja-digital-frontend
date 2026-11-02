@@ -5,16 +5,15 @@ import Link from 'next/link';
 import { Bell, BookOpen, FileText, Upload } from 'lucide-react';
 import { PublicationDate } from '@/components/ui/publication-date';
 import { useApp } from '@/providers/app-context';
-import { Avatar, Button, Dialog, Empty, Input, Select, Textarea } from '@/components/ui';
-import { dateLabel, uid } from '@/lib/utils';
+import { Avatar, Button, Dialog, Empty, Select } from '@/components/ui';
+import { dateLabel } from '@/lib/utils';
 import { isAssessmentAssigned } from '@/lib/enrollment';
+import { AnnouncementComposer } from '@/features/announcements';
 import { hasSubmitted } from '@/lib/activities';
 
 export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: string; canEdit: boolean; onUpload: (moduleId: string) => void }) {
-  const { db, user, role, mutate, busy } = useApp();
+  const { db, user, role } = useApp();
   const [composing, setComposing] = useState(false);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
   const [choosingModule, setChoosingModule] = useState(false);
   const [moduleId, setModuleId] = useState('');
   const [filter, setFilter] = useState('all');
@@ -23,27 +22,23 @@ export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: strin
   const materials = db.materials.filter(m => modules.some(mod => mod.id === m.moduleId));
   const notices = db.announcements.filter(a => a.classId === subject.classId && (!a.subjectId || a.subjectId === subjectId));
   const entries = [
-    ...notices.map(a => ({ key: `notice-${a.id}`, kind: 'notice' as const, title: a.title, body: a.body, date: a.createdAt, author: a.authorId, detail: a.subjectId ? 'Aviso da disciplina' : 'Aviso da turma', href: '', moduleId: '', fileLabel: '' })),
-    ...materials.map(m => ({ key: `material-${m.id}`, kind: 'material' as const, title: m.title, body: m.content, date: m.createdAt ?? '', author: m.authorId, detail: modules.find(mod => mod.id === m.moduleId)!.title, href: `/materiais?id=${m.id}`, moduleId: m.moduleId, fileLabel: m.fileName ?? (m.kind === 'pdf' ? 'Documento PDF' : m.kind === 'video' ? 'Vídeo de apoio' : 'Texto de apoio') }))
+    ...notices.map(a => ({ key: `notice-${a.id}`, kind: 'notice' as const, title: a.title, body: a.body, date: a.createdAt, author: a.authorId, detail: a.subjectId ? 'Aviso da disciplina' : 'Aviso da turma', href: '', moduleId: '', fileLabel: '', occurrence: a.occurrence })),
+    ...materials.map(m => ({ key: `material-${m.id}`, kind: 'material' as const, title: m.title, body: m.content, date: m.createdAt ?? '', author: m.authorId, detail: modules.find(mod => mod.id === m.moduleId)!.title, occurrence: undefined, href: `/materiais?id=${m.id}`, moduleId: m.moduleId, fileLabel: m.fileName ?? (m.kind === 'pdf' ? 'Documento PDF' : m.kind === 'video' ? 'Vídeo de apoio' : 'Texto de apoio') }))
   ].filter(item => filter === 'all' || item.kind === filter).sort((a, b) => b.date.localeCompare(a.date));
   const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && (canEdit || a.required !== false && isAssessmentAssigned(db, a, user.id) && !hasSubmitted(db, a.id, user.id))).sort((a, b) => a.deadline.localeCompare(b.deadline));
 
   return <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
     <section aria-label="Publicações da disciplina" className="min-w-0 space-y-4">
       {canEdit && <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-        <div className="flex flex-wrap gap-2"><Button onClick={() => { if (!composing || !title && !body || window.confirm('Descartar o aviso não publicado?')) setComposing(!composing); }} aria-expanded={composing}><Bell aria-hidden="true" className="size-4" />Publicar aviso</Button><Button variant="secondary" onClick={() => setChoosingModule(true)}><Upload aria-hidden="true" className="size-4" />Enviar materiais</Button></div>
-        {composing && <form className="mt-5 space-y-4 border-t border-slate-100 pt-5" onSubmit={async event => {
-          event.preventDefault();
-          if (!title.trim() || !body.trim()) return;
-          const ok = await mutate(d => { d.announcements.unshift({ id: uid('notice'), classId: subject.classId, subjectId, authorId: user.id, title: title.trim(), body: body.trim(), createdAt: new Date().toISOString(), notify: true }); }, 'Aviso publicado.');
-          if (ok) { setTitle(''); setBody(''); setComposing(false); setFilter('all'); }
-        }}><Input label="Título do aviso" value={title} onChange={e => setTitle(e.target.value)} required maxLength={150} disabled={busy} /><Textarea label="Mensagem" value={body} onChange={e => setBody(e.target.value)} required disabled={busy} /><div className="flex justify-end gap-2"><Button variant="ghost" disabled={busy} onClick={() => { if (!title && !body || window.confirm('Descartar o aviso não publicado?')) setComposing(false); }}>Cancelar</Button><Button type="submit" loading={busy}>Publicar</Button></div></form>}
+        <div className="flex flex-wrap gap-2"><Button onClick={() => setComposing(true)} aria-expanded={composing}><Bell aria-hidden="true" className="size-4" />Publicar aviso</Button><Button variant="secondary" onClick={() => setChoosingModule(true)}><Upload aria-hidden="true" className="size-4" />Enviar materiais</Button></div>
+        {composing && <AnnouncementComposer subjectId={subjectId} onClose={() => { setComposing(false); setFilter('all'); }} />}
       </div>}
       <div className="flex flex-wrap items-center gap-2" aria-label="Filtrar publicações">{[{ value: 'all', label: 'Tudo' }, { value: 'notice', label: 'Avisos' }, { value: 'material', label: 'Materiais' }].map(item => <Button key={item.value} variant={filter === item.value ? 'secondary' : 'ghost'} aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>{item.label}</Button>)}</div>
       {entries.map(item => {
         const author = db.users.find(u => u.id === item.author);
         return <article key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-3"><Avatar name={author?.name ?? 'Equipe AJA'} size="sm" /><div className="min-w-0"><p className="text-sm font-semibold">{author?.name ?? 'Equipe AJA'}</p><p className="mt-1 text-xs text-slate-500">{item.kind === 'notice' ? item.detail : 'Material da disciplina'}{!item.date && <> · <PublicationDate /></>}{item.date && <> · <time dateTime={item.date}>{dateLabel(item.date)} · {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time></>}</p></div></div>
+          {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
           <h2 className="text-lg font-semibold">{item.title}</h2>
           {canEdit && item.kind === 'notice' && (role === 'admin' || item.detail === 'Aviso da disciplina') && <Link href="/avisos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Gerenciar avisos</Link>}
           {item.body && <p className={`mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-600 ${item.kind === 'material' ? 'line-clamp-3' : ''}`}>{item.body}</p>}

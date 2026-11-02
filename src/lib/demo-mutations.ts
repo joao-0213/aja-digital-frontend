@@ -1,5 +1,6 @@
 import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
+import { validateAnnouncement } from './announcement-calendar.ts';
 import { videoSource } from './material-video.ts';
 import { assessmentQuestions, validateComposition } from './question-composition.ts';
 import { activityClosed, deadlineTime, hasDelivery, hasSubmitted, validateAttachments } from './activities.ts';
@@ -147,6 +148,11 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
         else return denied();
       }
       if (before && before.authorId !== row.authorId) throw new Error('A autoria original deve ser preservada.');
+      if (collection === 'events') throw new Error('Publique um aviso com acontecimento opcional.');
+      if (collection === 'announcements') {
+        if (before && !onlyFields(before, row, ['title', 'body', 'notify', 'occurrence', 'deletedAt'])) return denied();
+        if (!row.deletedAt) validateAnnouncement(row as unknown as import('../models/announcements.ts').Announcement, draft);
+      }
       if (!before && ['materials', 'assessments', 'announcements', 'topics'].includes(collection)) row.authorId = actor.id;
       if (collection === 'attempts' && before?.submittedAt) throw new Error('Este questionário já foi enviado. O conteúdo e a data devem ser preservados.');
       if (collection === 'submissions') {
