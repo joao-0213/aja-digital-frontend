@@ -20,4 +20,10 @@ Coordenador executou typecheck PASS, arquitetura PASS (152 módulos) e build pad
 
 ## Aceite final
 
+Commit principal: `d51327e`. Na checagem do índice, o Git inicialmente classificou o PDF como texto e `git diff --cached --check` apontou espaços obrigatórios/gerados no formato PDF. O comando de commit foi executado na mesma sequência PowerShell e prosseguiu; esse resultado não foi um PASS de whitespace. Os bytes foram preservados, pois remover espaços pode invalidar offsets do PDF. Correção subsequente: `.gitattributes` declara `*.pdf binary`; revisão e nova checagem registradas abaixo.
+
+A revisão da correção detectou a substituição acidental da linha global de normalização. A versão final preserva `* text=auto eol=lf` e acrescenta a regra PDF depois dela. `git diff --check` e a checagem do commit principal com os atributos corrigidos retornaram saída 0; nenhum byte de fixture foi alterado.
+
+Revisão complementar `review_aja01`: **APPROVE**, sem achados pendentes, confirmando preservação da regra LF e dos bytes do PDF. Sem nova suíte comportamental, pois a correção só declara atributos Git e registra a evidência.
+
 Revisão independente `review_aja01`: **APPROVE**, zero achados pendentes. O revisor inspecionou todo o diff desde `88b40db` e executou seed+servidor 10/10, além de `git diff --check`. Correções de cronologia e metadados conferidas; nenhum achado descartado. Coordenador reexecutou `npm.cmd test` após as correções: **141/141**, zero falhas, cancelados ou ignorados. Graphify atualizado localmente pelo implementador (716 nós/2704 arestas), sem artefatos no commit. AJA-03 concluída, respeitados os limites de infraestrutura e jornadas futuras descritos acima.
