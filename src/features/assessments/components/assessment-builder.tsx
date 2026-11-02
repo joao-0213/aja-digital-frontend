@@ -6,7 +6,8 @@ import { Plus, Trash2, ChevronUp } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Dialog, Empty, Input, LinkButton, PageHeading, Select, Textarea } from '@/components/ui';
 import { cn, uid } from '@/lib/utils';
-import { DEMO_DATE } from '@/mocks/database';
+import { hasDelivery } from '@/lib/activities';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { assessmentQuestions } from '@/lib/question-composition';
 import { QuestionFilters, filterQuestions, emptyQuestionFilters } from '@/features/questions';
 import { type Question } from '@/models';
@@ -32,6 +33,13 @@ export function AssessmentBuilder() {
   const [description, setDescription] = useState(existing?.description ?? '');
   const [module, setModule] = useState(existing?.moduleId ?? params.get('modulo') ?? availableModules[0]?.id ?? '');
   const [deadline, setDeadline] = useState(existing?.deadline ?? '2026-10-20T23:59');
+  const [kind, setKind] = useState<'quiz' | 'work'>(existing?.kind ?? 'quiz');
+  const [hasDeadline, setHasDeadline] = useState(!!existing?.deadline);
+  const [required, setRequired] = useState(existing?.required !== false);
+  const [allowLate, setAllowLate] = useState(existing?.allowLate ?? false);
+  const [graded, setGraded] = useState(existing?.maxGrade !== undefined);
+  const [maxGrade, setMaxGrade] = useState(String(existing?.maxGrade ?? 10));
+  const [review, setReview] = useState(false);
   const [ids, setIds] = useState<string[]>(existing?.questionIds ?? []);
   const [bank, setBank] = useState(false);
   const [original, setOriginal] = useState(false);
@@ -43,30 +51,34 @@ export function AssessmentBuilder() {
   const [error, setError] = useState('');
   const [filters, setFilters] = useState(emptyQuestionFilters);
   const [inspectedStructure, setInspectedStructure] = useState('');
-  const hasDeliveries = !!existing && db.attempts.some(a => a.assessmentId === existing.id && !!a.submittedAt);
+  const hasDeliveries = !!existing && hasDelivery(db, existing.id);
   const structuralLocked = hasDeliveries;
-  const needsStructureRecovery = needsAssessmentStructureRecovery(existing, { moduleId: module, questionIds: ids, originals }, hasDeliveries);
+  const needsStructureRecovery = needsAssessmentStructureRecovery(existing, { moduleId: module, questionIds: ids, originals }, hasDeliveries) || !!existing && hasDeliveries && (kind !== (existing.kind ?? 'quiz') || required !== (existing.required !== false) || hasDeadline !== !!existing.deadline || allowLate !== !!existing.allowLate || graded !== (existing.maxGrade !== undefined) || graded && Number(maxGrade) !== existing.maxGrade);
   const structureSignature = existing ? JSON.stringify([existing.id, existing.revision ?? 0, existing.moduleId, existing.questionIds]) : '';
-  if (role === 'student') return <Empty title="Criação de questionários" description="Escolha o perfil de professor ou administrador para acessar esta área." />;
+  const formSignature = JSON.stringify([title, description, module, deadline, kind, hasDeadline, required, allowLate, graded, maxGrade, ids, originals, statement, options, correct, explanation]);
+  const [openedSignature] = useState(formSignature);
+  useUnsavedChanges(formSignature !== openedSignature);
+  if (role === 'student') return <Empty title="Criação de atividades" description="Esta área está disponível para a equipe autorizada." />;
   if (params.get('id') && !existing || params.get('modulo') && !availableModules.some(m => m.id === params.get('modulo')) || !availableModules.length) return <Empty title="Atividade indisponível" description="Seu vínculo ou atribuição não permite editar este contexto, ou o conteúdo foi retirado." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
   const all = [...(existing ? assessmentQuestions(db, existing) : []), ...db.questions, ...originals];
   const save = async (status: 'draft' | 'published') => {
     setError('');
     if (revision.conflict) { setError('Confira a versão atual antes de salvar.'); return; }
     if (needsStructureRecovery) { setError('Consulte e use a estrutura atual para manter seu texto e salvar os campos permitidos.'); return; }
-    if (!title.trim() || !module || !deadline) {
-      setError('Preencha título, módulo e prazo.');
+    if (!title.trim() || !module || hasDeadline && !deadline) {
+      setError('Preencha título, módulo e a data quando houver prazo.');
       return;
     }
-    if (!ids.length) {
+    if (kind === 'quiz' && !ids.length) {
       setError('Adicione pelo menos uma questão.');
       return;
     }
-    if (deadline < `${DEMO_DATE}T00:00`) {
-      setError('O prazo deve ser posterior à data de referência da demonstração: 05/10/2026.');
+    if (kind === 'work' && graded && (!Number.isFinite(Number(maxGrade)) || Number(maxGrade) <= 0)) {
+      setError('Informe um máximo positivo para a nota opcional.');
       return;
     }
-    if (existing && JSON.stringify(existing.questionIds) !== JSON.stringify(ids) && !window.confirm('Alterar as questões reinicia todas as respostas em rascunho desta atividade. Os alunos serão informados ao retomar. Deseja confirmar essa alteração?')) return;
+    if (status === 'published' && !review) { setReview(true); return; }
+    if (existing && JSON.stringify(existing.questionIds) !== JSON.stringify(kind === 'quiz' ? ids : []) && !window.confirm('Alterar as questões reinicia todas as respostas em rascunho desta atividade. Os alunos serão informados ao retomar. Deseja confirmar essa alteração?')) return;
     if (await mutate(d => {
       const current = d.assessments.find(a => a.id === existing?.id);
       if (current && d.attempts.some(a => a.assessmentId === current.id && a.submittedAt) && (current.moduleId !== module || JSON.stringify(current.questionIds) !== JSON.stringify(ids))) throw new Error('Já há uma entrega nesta atividade. Preserve as questões e o módulo; você pode corrigir título, orientações e prazo.');
@@ -77,17 +89,21 @@ export function AssessmentBuilder() {
         title: title.trim(),
         description,
         moduleId: module,
-        deadline,
-        questionIds: ids,
-        questions: ids.map(id => all.find(q => q.id === id)!),
+        deadline: hasDeadline ? deadline : '',
+        kind: structuralLocked ? current?.kind : kind,
+        required: structuralLocked ? current?.required : required,
+        allowLate: structuralLocked ? current?.allowLate : hasDeadline && allowLate,
+        maxGrade: structuralLocked ? current?.maxGrade : kind === 'work' && graded ? Number(maxGrade) : undefined,
+        questionIds: kind === 'quiz' ? ids : [],
+        questions: kind === 'quiz' ? ids.map(id => all.find(q => q.id === id)!) : [],
         status: current?.status === 'published' ? 'published' as const : status,
         authorId: current ? current.authorId : user.id
       };
       if (existing) d.assessments[d.assessments.findIndex(a => a.id === existing.id)] = record;else d.assessments.push(record);
-    }, existing?.status === 'published' ? 'Questionário atualizado.' : status === 'published' ? 'Questionário publicado.' : 'Rascunho salvo.', existing ? revision.expected : undefined)) router.push('/questionarios');
+    }, existing?.status === 'published' ? 'Atividade atualizada.' : status === 'published' ? 'Atividade publicada.' : 'Rascunho salvo.', existing ? revision.expected : undefined)) router.push('/questionarios');
   };
   return <>
-    <PageHeading eyebrow="Ensino e avaliação" title={existing ? 'Editar questionário' : 'Criar questionário'} description="Selecione as questões na ordem desejada e configure o prazo." />
+    <PageHeading eyebrow="Prática complementar" title={existing ? 'Editar atividade' : 'Criar atividade'} description="Escolha a modalidade, o destino e as condições de entrega." />
     {existing?.updatedAt && <p className="mb-4 text-xs text-slate-500">Última alteração: {db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} · {new Date(existing.updatedAt).toLocaleString('pt-BR')}</p>}
     {revision.conflict && existing && <div className="mb-6"><RecordConflict key={existing.revision} author={db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={existing.updatedAt} onReviewed={revision.acknowledge}><p><strong>{existing.title}</strong></p><p>{existing.description}</p><p>Prazo: {existing.deadline}</p><p>Módulo: {db.modules.find(m => m.id === existing.moduleId)?.title}</p><p>Questões: {existing.questionIds.map(id => assessmentQuestions(db, existing).find(q => q.id === id)?.statement ?? 'Questão indisponível').join('\n\n')}</p></RecordConflict></div>}
     {structuralLocked && <p className="mb-5 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-950">Esta atividade já recebeu entrega. Apenas título, orientações e prazo podem mudar.</p>}
@@ -101,6 +117,7 @@ export function AssessmentBuilder() {
         <Button variant="secondary" onClick={() => {
           const restored = restoreAssessmentStructure({ title, description, deadline, moduleId: module, questionIds: ids, originals }, existing);
           setModule(restored.moduleId); setIds(restored.questionIds); setOriginals(restored.originals);
+          setKind(existing.kind ?? 'quiz'); setRequired(existing.required !== false); setHasDeadline(!!existing.deadline); setAllowLate(!!existing.allowLate); setGraded(existing.maxGrade !== undefined); setMaxGrade(String(existing.maxGrade ?? 10));
           setStatement(''); setOptions(['', '', '', '', '']); setExplanation(''); setCorrect(0);
           setBank(false); setOriginal(false); setError('');
         }}>Usar estrutura atual e manter meu texto</Button>
@@ -109,16 +126,20 @@ export function AssessmentBuilder() {
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Card className="space-y-5">
         <h2 className="font-semibold">Configurações</h2>
+        <Select label="Tipo de atividade" value={kind} disabled={structuralLocked} onChange={e => setKind(e.target.value as 'quiz' | 'work')}><option value="quiz">Questionário</option><option value="work">Entrega de trabalho</option></Select>
         <Input label="Título" value={title} onChange={e => setTitle(e.target.value)} required maxLength={150} />
         <Textarea label="Orientações" value={description} onChange={e => setDescription(e.target.value)} />
         <Select label="Módulo da disciplina" value={module} disabled={structuralLocked} onChange={e => setModule(e.target.value)}>
           {availableModules.map(m => <option key={m.id} value={m.id}>{db.subjects.find(s => s.id === m.subjectId)?.name} · {m.title}</option>)}
         </Select>
-        <Input label="Prazo de entrega" type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} />
-        <p className="text-xs leading-5 text-slate-400">Um único envio por aluno. Cada questão vale 1 ponto, com uma alternativa correta. A ordem das questões e alternativas é fixa.</p>
+        <Select label="Obrigatoriedade" value={required ? 'required' : 'optional'} disabled={structuralLocked} onChange={e => setRequired(e.target.value === 'required')}><option value="required">Obrigatória</option><option value="optional">Opcional</option></Select>
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={hasDeadline} disabled={structuralLocked} onChange={e => setHasDeadline(e.target.checked)} />Definir prazo</label>
+        {hasDeadline ? <><Input label="Prazo de entrega" type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} /><p className="text-xs text-slate-500">Horário de Brasília (UTC−3).</p><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={allowLate} disabled={structuralLocked} onChange={e => setAllowLate(e.target.checked)} />Aceitar entrega atrasada</label></> : <p className="text-sm text-slate-500">Sem prazo</p>}
+        {kind === 'work' && <><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={graded} disabled={structuralLocked} onChange={e => setGraded(e.target.checked)} />Permitir nota opcional</label>{graded && <Input label="Nota máxima" type="number" min="0.01" step="any" disabled={structuralLocked} value={maxGrade} onChange={e => setMaxGrade(e.target.value)} />}</>}
+        <p className="text-xs leading-5 text-slate-500">Um único envio por aluno. {kind === 'quiz' ? 'Cada questão vale 1 ponto, com uma alternativa correta. A ordem das questões e alternativas é fixa.' : 'Até 5 arquivos e links no total, até 10 MB por arquivo. Formatos livres; prévia quando suportada e download nos demais.'}</p>
       </Card>
       <div>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        {kind === 'quiz' && <><div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">{ids.length} questões selecionadas</h2>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" disabled={structuralLocked} onClick={() => setOriginal(true)}><Plus className="size-4" />Questão original</Button>
@@ -159,17 +180,24 @@ export function AssessmentBuilder() {
           </Card>;
           })}
         </div>
-        {!ids.length && <Empty title="Monte seu questionário" description="Selecione questões do banco ou escreva uma questão original." action={<Button disabled={structuralLocked} onClick={() => setBank(true)}>Escolher questões</Button>} />}
+        {!ids.length && <Empty title="Monte seu questionário" description="Selecione questões do banco ou escreva uma questão original." action={<Button disabled={structuralLocked} onClick={() => setBank(true)}>Escolher questões</Button>} />}</>}
+        {kind === 'work' && <Card><h2 className="font-semibold">Entrega de trabalho</h2><p className="mt-4 text-sm leading-7 text-slate-600">O aluno poderá preparar arquivos e links, conferir os anexos e confirmar uma única entrega. Descreva nas orientações o que deve ser entregue. O retorno será privado, com publicação explícita de comentário e nota opcional.</p></Card>}
         <p role="alert" className="mt-4 text-sm text-rose-600">
           {error}
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
+          {existing && <Button variant="danger" loading={busy} disabled={revision.conflict} onClick={async () => { if (window.confirm('Retirar esta atividade? Ela deixará de aparecer para os alunos e não aceitará envios. Os registros anteriores serão preservados para a equipe, sem restauração pela interface.')) { if (await mutate(d => { d.assessments.find(a => a.id === existing.id)!.deletedAt = new Date().toISOString(); }, 'Atividade retirada.', revision.expected)) router.push('/questionarios'); } }}>Retirar atividade</Button>}
           <Button variant="secondary" onClick={() => { if (window.confirm('Descartar alterações não salvas e voltar às atividades?')) router.push('/questionarios'); }}>Cancelar</Button>
           {existing?.status !== 'published' && <Button variant="secondary" loading={busy} disabled={revision.conflict || needsStructureRecovery} onClick={() => void save('draft')}>Salvar rascunho</Button>}
-          <Button loading={busy} disabled={revision.conflict || needsStructureRecovery} onClick={() => void save('published')}>{existing?.status === 'published' ? 'Salvar alterações' : 'Publicar questionário'}</Button>
+          <Button loading={busy} disabled={revision.conflict || needsStructureRecovery} onClick={() => void save('published')}>{existing?.status === 'published' ? 'Salvar alterações' : 'Revisar publicação'}</Button>
         </div>
       </div>
     </div>
+    <Dialog open={review} onClose={() => setReview(false)} title="Conferir atividade">
+      <p className="font-semibold">{title}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{description}</p>
+      <dl className="my-5 space-y-3 text-sm"><div><dt className="font-semibold">Destino</dt><dd>{db.classes.find(c => c.id === db.subjects.find(s => s.id === db.modules.find(m => m.id === module)?.subjectId)?.classId)?.name} · {db.subjects.find(s => s.id === db.modules.find(m => m.id === module)?.subjectId)?.name} · {db.modules.find(m => m.id === module)?.title}</dd></div><div><dt className="font-semibold">Condições</dt><dd>{kind === 'quiz' ? `Questionário · ${ids.length} questões` : 'Entrega de trabalho'} · {required ? 'Obrigatória' : 'Opcional'} · {hasDeadline ? `${deadline.replace('T', ' ')} (Brasília) · ${allowLate ? 'Aceita atraso' : 'Não aceita atraso'}` : 'Sem prazo'} · Envio único{kind === 'work' && graded && ` · Nota opcional de 0 a ${maxGrade}`}</dd></div></dl>
+      <div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => setReview(false)}>Voltar ao editor</Button><Button loading={busy} disabled={revision.conflict || needsStructureRecovery} onClick={() => void save('published')}>{existing?.status === 'published' ? 'Confirmar alterações' : 'Publicar atividade'}</Button></div>
+    </Dialog>
     <Dialog open={bank} onClose={() => setBank(false)} title="Adicionar do banco de questões">
       {structuralLocked && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm leading-6 text-amber-950">A atividade recebeu a primeira entrega. A seleção de questões foi bloqueada. Volte ao editor para manter seu texto e conferir os campos permitidos.</p>}
       <QuestionFilters questions={db.questions} value={filters} onChange={setFilters} />

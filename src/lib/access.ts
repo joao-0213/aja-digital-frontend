@@ -51,6 +51,7 @@ export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
   const assessments = db.assessments.filter(a => !a.deletedAt && moduleIds.has(a.moduleId) && (user.role !== 'student' || a.status === 'published'));
   const assessmentIds = new Set(assessments.map(a => a.id));
   const materialIds = new Set(materials.map(m => m.id));
+  const submissions = (db.submissions ?? []).filter(s => !s.deletedAt && assessmentIds.has(s.assessmentId) && (user.role === 'student' ? s.userId === user.id : !!s.submittedAt));
   const active = isActiveUser(user);
   const announcements = db.announcements.filter(a => !a.deletedAt && classIds.has(a.classId) && (!a.subjectId || subjectIds.has(a.subjectId)));
   const topics = db.topics.filter(t => !t.deletedAt && classIds.has(t.classId) && (!t.subjectId || subjectIds.has(t.subjectId)));
@@ -58,6 +59,7 @@ export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
     ...materials.map(m => m.authorId), ...assessments.map(a => a.authorId),
     ...announcements.map(a => a.authorId), ...topics.flatMap(t => [t.authorId, ...t.replies.map(r => r.authorId)]),
     ...subjects.flatMap(s => s.teacherIds),
+    ...submissions.flatMap(s => [s.userId, s.feedbackPublished?.authorId, s.feedbackDraft?.authorId]),
     ...[...modules, ...materials, ...assessments, ...announcements].map(row => row.updatedBy)
   ]);
   return {
@@ -67,6 +69,7 @@ export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
     users: db.users.filter(person => admin || person.id === user.id || active && (authors.has(person.id) || user.role === 'teacher' && person.role === 'student' && canAccessStudent(db, user, person.id))).map(person => ({ ...person, email: admin || active && (person.id === user.id || user.role === 'teacher' && person.role === 'student' && canAccessStudent(db, user, person.id)) ? person.email : '' })),
     classes: classes.map(c => user.role === 'student' ? { ...c, studentIds: c.studentIds.filter(id => id === user.id) } : c),
     subjects, modules, materials, assessments,
+    submissions: submissions.map(s => user.role === 'student' ? { ...s, feedbackDraft: undefined, feedbackUpdated: s.feedbackHistory.length > 1, feedbackHistory: [] } : s),
     questions: active ? db.questions.filter(q => !q.deletedAt) : [],
     attempts: db.attempts.filter(a => !a.deletedAt && assessmentIds.has(a.assessmentId) && (user.role === 'student' ? a.userId === user.id : !!a.submittedAt)),
     progress: db.progress.filter(p => materialIds.has(p.materialId) && p.userId === user.id),

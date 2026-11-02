@@ -2,7 +2,7 @@ export type { Role, User } from './user';
 export type { SubjectIcon, SchoolClass, Subject, TrailModule } from './academic';
 export type { MaterialKind, Material, Progress } from './materials';
 export type { Difficulty, Question } from './questions';
-export type { Assessment, Attempt } from './assessments';
+export type { Assessment, Attempt, WorkAttachment, WorkSubmission, FeedbackPublication } from './assessments';
 export type { ForumReply, ForumTopic } from './forum';
 export type { Announcement } from './announcements';
 export type { CalendarEvent } from './calendar';

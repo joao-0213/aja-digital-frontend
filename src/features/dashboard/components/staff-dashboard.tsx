@@ -14,7 +14,7 @@ export function StaffDashboard() {
   const subjects = db.subjects.filter(s => classes.some(c => c.id === s.classId));
   const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
   const assessments = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId));
-  const pending = assessments.filter(a => a.deadline >= `${DEMO_DATE}T00:00`)
+  const pending = assessments
     .sort((a, b) => a.deadline.localeCompare(b.deadline));
   const events = db.events.filter(e => e.date >= DEMO_DATE && (!e.subjectId || subjects.some(s => s.id === e.subjectId)))
     .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
@@ -27,7 +27,7 @@ export function StaffDashboard() {
       <div><p className="mb-1 text-sm text-slate-500">Olá, {user.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight text-slate-900">{role === 'admin' ? 'Painel da administração' : 'Sala dos professores'}</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Gerencie os materiais, as atividades e a frequência das turmas.</p></div>
     </header>
     <nav aria-label="Acessos rápidos" className="mb-8 grid gap-3 sm:grid-cols-3">
-      {[{ href: '/disciplinas', label: 'Publicar materiais', detail: 'Escolha a disciplina e o módulo', icon: Upload }, { href: '/questionarios/criar', label: 'Preparar atividade', detail: 'Defina as questões e o prazo', icon: ClipboardCheck }, { href: '/frequencia', label: 'Registrar frequência', detail: 'Faça a chamada da aula', icon: ListChecks }].map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{item.label}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
+      {[{ href: '/disciplinas', label: 'Publicar materiais', detail: 'Escolha a disciplina e o módulo', icon: Upload }, { href: '/questionarios/criar', label: 'Preparar atividade', detail: 'Escolha a modalidade e as condições', icon: ClipboardCheck }, { href: '/frequencia', label: 'Registrar frequência', detail: 'Faça a chamada da aula', icon: ListChecks }].map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{item.label}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
     </nav>
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-8">
@@ -60,7 +60,7 @@ export function StaffDashboard() {
           <h2 className="text-base font-semibold">Prazos das atividades</h2>
           <div className="mt-2 divide-y divide-slate-200">
             {pending.slice(0, 3).map(a => <Link key={a.id} href="/questionarios" className="block rounded-lg py-4 hover:bg-slate-50">
-              <p className="mb-2 text-xs font-medium text-brand-700">Até {dateLabel(a.deadline)} · {a.deadline.slice(11, 16).replace(':', 'h')}</p><h3 className="text-sm font-semibold leading-6">{a.title}</h3><p className="mt-1 text-xs text-slate-500">{a.questionIds.length} {a.questionIds.length === 1 ? 'questão' : 'questões'}</p>
+              <p className="mb-2 text-xs font-medium text-brand-700">Até {dateLabel(a.deadline)} · {a.deadline.slice(11, 16).replace(':', 'h')}</p><h3 className="text-sm font-semibold leading-6">{a.title}</h3><p className="mt-1 text-xs text-slate-500">{a.kind === 'work' ? 'Entrega de trabalho' : a.questionIds.length + ' questões'}</p>
             </Link>)}
             {!pending.length && <p className="py-4 text-sm leading-6 text-slate-600">Nenhuma entrega pendente.</p>}
           </div>
