@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, ThumbsUp, ThumbsDown, Paperclip } from 'lucide-react';
+import { CheckCircle2, ThumbsUp, Paperclip } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
 import { cn, dateLabel, uid } from '@/lib/utils';
+import { compareTimestamps } from '@/lib/study-order';
 import { RichText } from '@/components/ui/rich-text';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
@@ -20,18 +21,19 @@ export function ForumThread() {
   } = useApp();
   const id = useSearchParams().get('id') ?? 't1';
   const topic = db.topics.find(t => t.id === id);
+  const canInteract = !!topic && (role === 'admin' || db.classes.some(c => c.id === topic.classId && c.active));
   const [body, setBody] = useState('');
   useEffect(() => {
-    if (topic && !topic.readBy.includes(user.id)) void mutate(d => {
+    if (topic && canInteract && !topic.readBy.includes(user.id)) void mutate(d => {
       const t = d.topics.find(t => t.id === id);
       if (t && !t.readBy.includes(user.id)) t.readBy.push(user.id);
     });
-  }, [id, user.id, mutate]);
+  }, [id, user.id, mutate, canInteract]);
   if (!topic) return <Empty title="Pergunta não encontrada" action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>} />;
   const author = db.users.find(u => u.id === topic.authorId);
-  const replies = [...topic.replies].sort((a, b) => Number(b.accepted) - Number(a.accepted) || a.createdAt.localeCompare(b.createdAt));
-  const canAccept = user.id === topic.authorId || role === 'admin' || role === 'teacher' && db.subjects.find(s => s.id === topic.subjectId)?.teacherId === user.id;
-  const vote = async (replyId: string, value: -1 | 1) => void mutate(d => {
+  const replies = [...topic.replies].sort((a, b) => compareTimestamps(a.createdAt, b.createdAt));
+  const canAccept = canInteract && (user.id === topic.authorId || role === 'admin' || role === 'teacher' && db.subjects.find(s => s.id === topic.subjectId)?.teacherIds.includes(user.id));
+  const vote = async (replyId: string, value: 1) => void mutate(d => {
     const r = d.topics.find(t => t.id === id)?.replies.find(r => r.id === replyId);
     if (r) {
       if (r.votes[user.id] === value) delete r.votes[user.id];else r.votes[user.id] = value;
@@ -91,15 +93,12 @@ export function ForumThread() {
         </div>
         <RichText text={r.body} />
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <Button variant="ghost" aria-label="Votar positivamente" aria-pressed={r.votes[user.id] === 1} disabled={busy || r.authorId === user.id} className={cn(r.votes[user.id] === 1 && '!bg-brand-50 !text-brand-600')} onClick={() => void vote(r.id, 1)}>
+          <Button variant="ghost" aria-label="Votar positivamente" aria-pressed={r.votes[user.id] === 1} disabled={!canInteract || busy || r.authorId === user.id} className={cn(r.votes[user.id] === 1 && '!bg-brand-50 !text-brand-600')} onClick={() => void vote(r.id, 1)}>
             <ThumbsUp className="size-4" />
           </Button>
           <span className="text-sm font-semibold">
             {Object.values(r.votes).reduce<number>((a, b) => a + b, 0)}
           </span>
-          <Button variant="ghost" aria-label="Votar negativamente" aria-pressed={r.votes[user.id] === -1} disabled={busy || r.authorId === user.id} className={cn(r.votes[user.id] === -1 && '!bg-brand-50 !text-brand-600')} onClick={() => void vote(r.id, -1)}>
-            <ThumbsDown className="size-4" />
-          </Button>
           {canAccept && <Button variant="ghost" className="ml-auto" loading={busy} onClick={() => void mutate(d => {
               const t = d.topics.find(t => t.id === id)!;
               const was = t.replies.find(reply => reply.id === r.id)?.accepted;
@@ -112,7 +111,7 @@ export function ForumThread() {
       </Card>;
       })}
     </div>
-    <Card className="mt-6">
+    {canInteract ? <Card className="mt-6">
       <form onSubmit={async e => {
         e.preventDefault();
         if (await mutate(d => {
@@ -131,6 +130,6 @@ export function ForumThread() {
           <Button type="submit" loading={busy}>Publicar resposta</Button>
         </div>
       </form>
-    </Card>
+    </Card> : <p className="mt-6 text-sm text-slate-500">Esta turma está inativa. O histórico permanece disponível para consulta da equipe autorizada.</p>}
   </div>;
 }

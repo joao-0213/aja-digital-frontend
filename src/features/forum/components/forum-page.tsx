@@ -16,15 +16,16 @@ export function ForumPage() {
     mutate,
     busy
   } = useApp();
+  const publishableSubjects = db.subjects.filter(s => db.classes.some(c => c.id === s.classId && c.active));
   const params = useSearchParams();
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState(params.get('disciplina') ?? 'all');
   const [filter, setFilter] = useState('all');
-  const [classId, setClassId] = useState('c1');
+  const [classId, setClassId] = useState(db.subjects.find(s => s.id === params.get('disciplina'))?.classId ?? db.classes[0]?.id ?? '');
   const [open, setOpen] = useState(!!params.get('questao'));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [targetSubject, setTargetSubject] = useState(params.get('disciplina') ?? 's1');
+  const [targetSubject, setTargetSubject] = useState(publishableSubjects.find(s => s.id === params.get('disciplina'))?.id ?? publishableSubjects[0]?.id ?? '');
   const [tags, setTags] = useState('');
   const [attachment, setAttachment] = useState('');
   const [reference, setReference] = useState(params.get('questao') ?? '');
@@ -34,13 +35,13 @@ export function ForumPage() {
     <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => {
       setError('');
       setOpen(true);
-    }}><Plus className="size-4" />Nova pergunta</Button>} />
+    }} disabled={!publishableSubjects.length}><Plus className="size-4" />Nova pergunta</Button>} />
     <div className="mb-6 grid gap-3 md:grid-cols-[1fr_220px_200px]">
       <Input aria-label="Buscar no fórum" value={search} onChange={e => setSearch(e.target.value)} placeholder="Busque uma dúvida ou um assunto…" />
       <Select aria-label="Turma do fórum" value={classId} onChange={e => {
         setClassId(e.target.value);
         setSubject('all');
-        setTargetSubject(db.subjects.find(s => s.classId === e.target.value)?.id ?? '');
+        setTargetSubject(publishableSubjects.find(s => s.classId === e.target.value)?.id ?? '');
       }}>
         {db.classes.filter(c => c.active).map(c => <option key={c.id} value={c.id}>
           {c.name}
@@ -96,7 +97,7 @@ export function ForumPage() {
       <form className="space-y-4" onSubmit={async e => {
         e.preventDefault();
         setError('');
-        const selected = db.subjects.find(s => s.id === targetSubject);
+        const selected = publishableSubjects.find(s => s.id === targetSubject);
         if (!selected) {
           setError('Selecione uma disciplina.');
           return;
@@ -130,7 +131,7 @@ export function ForumPage() {
       }}>
         <Input label="Título da pergunta" value={title} onChange={e => setTitle(e.target.value)} required minLength={8} maxLength={180} />
         <Select label="Disciplina" value={targetSubject} onChange={e => setTargetSubject(e.target.value)}>
-          {db.subjects.map(s => <option key={s.id} value={s.id}>{s.name} · {db.classes.find(c => c.id === s.classId)?.name}</option>)}
+          {publishableSubjects.map(s => <option key={s.id} value={s.id}>{s.name} · {db.classes.find(c => c.id === s.classId)?.name}</option>)}
         </Select>
         <RichTextEditor label="Conte sua dúvida" placeholder="Explique o que você já tentou e onde encontrou dificuldade." value={body} onChange={setBody} />
         <Input label="Tags (separe por vírgulas, até 5)" value={tags} onChange={e => setTags(e.target.value)} placeholder="funções, gráficos" />

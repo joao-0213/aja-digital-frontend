@@ -3,25 +3,32 @@
 import { useRef, useState } from 'react';
 import { FileText, Upload, X } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
-import { Button, Dialog, Input, Select, Textarea } from '@/components/ui';
+import { Button, Dialog, Empty, Input, Select, Textarea } from '@/components/ui';
+import { RecordConflict } from '@/components/shared/record-conflict';
+import { useRecordRevision } from '@/hooks/use-record-revision';
+import { canManageSubject } from '@/lib/access';
 import { saveMaterialFiles, removeMaterialFiles } from '@/lib/material-files';
 import { uid } from '@/lib/utils';
 import { type MaterialKind } from '@/models';
 
-export function MaterialComposer({ moduleId, onClose }: { moduleId: string; onClose: () => void }) {
-  const { db, user, role, mutate } = useApp();
+export function MaterialComposer({ moduleId, materialId, onClose }: { moduleId: string; materialId?: string; onClose: () => void }) {
+  const { db, user, mutate } = useApp();
   const module = db.modules.find(m => m.id === moduleId);
   const subject = db.subjects.find(s => s.id === module?.subjectId);
+  const material = db.materials.find(m => m.id === materialId);
+  const revision = useRecordRevision('materials', material);
   const input = useRef<HTMLInputElement>(null);
-  const [kind, setKind] = useState<MaterialKind>('pdf');
+  const [kind, setKind] = useState<MaterialKind>(material?.kind ?? 'pdf');
   const [files, setFiles] = useState<{ id: string; file: File; title: string }[]>([]);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [duration, setDuration] = useState(10);
+  const [title, setTitle] = useState(material?.title ?? '');
+  const [content, setContent] = useState(material?.content ?? '');
+  const [duration, setDuration] = useState(material?.duration ?? 10);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
-  if (!module || !subject || !(role === 'admin' || role === 'teacher' && subject.teacherId === user.id)) return null;
+  const dirty = material ? title !== material.title || content !== material.content || duration !== material.duration : !!title || !!content || !!files.length;
+  const close = () => { if (!saving && (!dirty || window.confirm('Descartar as alterações não salvas deste material?'))) onClose(); };
+  if (!module || !subject || !canManageSubject(db, user, subject.id) || materialId && !material) return <Dialog open onClose={onClose} title="Material indisponível"><Empty title="Seu acesso a este conteúdo não está disponível" description="A atribuição ou o conteúdo pode ter sido retirado. Nada foi publicado." action={<Button onClick={onClose}>Fechar</Button>} /></Dialog>;
 
   const addFiles = (incoming: File[]) => {
     setError('');
@@ -33,6 +40,19 @@ export function MaterialComposer({ moduleId, onClose }: { moduleId: string; onCl
   };
   const publish = async () => {
     setError('');
+    if (revision.conflict) { setError('Confira a versão atual antes de salvar.'); return; }
+    if (material) {
+      if (!title.trim() || kind !== 'pdf' && !content.trim()) { setError('Preencha o título e o conteúdo obrigatório.'); return; }
+      setSaving(true);
+      const ok = await mutate(d => {
+        const current = d.materials.find(m => m.id === material.id)!;
+        Object.assign(current, { title: title.trim(), content: content.trim(), duration });
+      }, 'Material atualizado.', revision.expected);
+      setSaving(false);
+      if (ok) onClose();
+      else setError('Não foi possível salvar. Seu preenchimento foi mantido.');
+      return;
+    }
     if (kind === 'pdf' && !files.length) { setError('Selecione ao menos um PDF.'); return; }
     if (kind === 'pdf' ? files.some(item => !item.title.trim()) : !title.trim() || !content.trim()) { setError('Preencha os títulos e o conteúdo obrigatório.'); return; }
     setSaving(true);
@@ -60,14 +80,16 @@ export function MaterialComposer({ moduleId, onClose }: { moduleId: string; onCl
     }
   };
 
-  return <Dialog open onClose={() => { if (!saving) onClose(); }} title="Publicar materiais">
+  return <Dialog open onClose={close} title={material ? 'Editar material' : 'Publicar materiais'}>
     <p className="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900"><span className="block text-xs text-brand-700">Destino</span><strong>{subject.name}</strong> / {module.title}</p>
     <form className="space-y-5" onSubmit={event => { event.preventDefault(); void publish(); }}>
+      {material && <p className="text-xs leading-5 text-slate-500">Autoria: {db.users.find(u => u.id === material.authorId)?.name ?? 'Equipe AJA'}.{material.updatedAt && <> Última alteração: {db.users.find(u => u.id === material.updatedBy)?.name ?? 'Equipe AJA'} · {new Date(material.updatedAt).toLocaleString('pt-BR')}.</>}</p>}
+      {revision.conflict && material && <RecordConflict key={material.revision} author={db.users.find(u => u.id === material.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={material.updatedAt} onReviewed={revision.acknowledge}><p><strong>{material.title}</strong></p><p>{material.content}</p><p>Tempo de estudo: {material.duration} minutos</p></RecordConflict>}
       <fieldset disabled={saving} className="space-y-5">
-        <Select label="O que deseja publicar?" value={kind} onChange={event => { setKind(event.target.value as MaterialKind); setError(''); }}>
+        <Select label="O que deseja publicar?" value={kind} disabled={!!material} onChange={event => { setKind(event.target.value as MaterialKind); setError(''); }}>
           <option value="pdf">Arquivos PDF</option><option value="lesson">Texto de apoio</option><option value="video">Transcrição de vídeo (demonstração)</option>
         </Select>
-        {kind === 'pdf' ? <>
+        {material ? <><Input label="Título do material" value={title} onChange={event => setTitle(event.target.value)} required maxLength={160} />{material.fileName && <p className="text-sm text-slate-600">Arquivo preservado: {material.fileName}</p>}</> : kind === 'pdf' ? <>
           <div onDragOver={event => { event.preventDefault(); if (!saving) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); if (!saving) addFiles(Array.from(event.dataTransfer.files)); }} className={`rounded-xl border-2 border-dashed p-5 text-center ${dragging ? 'border-brand-600 bg-brand-100' : 'border-brand-200 bg-brand-50/40'}`}>
             <Upload aria-hidden="true" className="mx-auto mb-3 size-6 text-brand-600" />
             <p className="text-sm font-medium">Arraste os PDFs para cá</p><p className="mb-3 mt-1 text-xs text-slate-500">Até 10 arquivos · 10 MB por arquivo</p>
@@ -85,7 +107,7 @@ export function MaterialComposer({ moduleId, onClose }: { moduleId: string; onCl
       </fieldset>
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       <p className="text-xs leading-5 text-slate-500">Demonstração local: os PDFs ficam neste navegador. Não são enviados para outros dispositivos. Use arquivos de exemplo.</p>
-      <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4"><Button variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button><Button type="submit" loading={saving}>{kind === 'pdf' && files.length > 1 ? `Publicar ${files.length} materiais` : 'Publicar material'}</Button></div>
+      <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4"><Button variant="secondary" disabled={saving} onClick={close}>Cancelar</Button><Button type="submit" loading={saving} disabled={revision.conflict}>{material ? 'Salvar material' : kind === 'pdf' && files.length > 1 ? `Publicar ${files.length} materiais` : 'Publicar material'}</Button></div>
     </form>
   </Dialog>;
 }

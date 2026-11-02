@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { BookOpen, CheckCircle2, Download, Pause, Play, Clock3 } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, Pause, Play, Clock3, Pencil } from 'lucide-react';
 import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
 import { PublicationDate } from '@/components/ui/publication-date';
 import { useApp } from '@/providers/app-context';
-import { Badge, Button, Card, Empty, LinkButton, ProgressBar } from '@/components/ui';
-import { cn, percent } from '@/lib/utils';
+import { Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { readMaterialFile } from '@/lib/material-files';
+import { canManageSubject } from '@/lib/access';
+import { MaterialComposer } from './material-composer';
 
 export function MaterialReader() {
   const {
@@ -23,6 +25,7 @@ export function MaterialReader() {
   const mod = db.modules.find(m => m.id === material?.moduleId);
   const subject = db.subjects.find(s => s.id === mod?.subjectId);
   const [playing, setPlaying] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [position, setPosition] = useState(0);
   const [localFile, setLocalFile] = useState<{ id: string; url?: string; error?: string } | null>(null);
   useEffect(() => {
@@ -62,11 +65,9 @@ export function MaterialReader() {
     }), 1000);
     return () => clearInterval(timer);
   }, [playing]);
-  if (!material || !mod || !subject) return <Empty title="Material não encontrado" action={<LinkButton href="/disciplinas">Voltar às disciplinas</LinkButton>} />;
+  if (!material || !mod || !subject) return <Empty title="Material indisponível" description="O material pode ter sido retirado ou seu acesso à disciplina foi encerrado. Consulte as disciplinas disponíveis." action={<LinkButton href="/disciplinas">Voltar às disciplinas</LinkButton>} />;
   const modules = db.modules.filter(m => m.subjectId === subject.id).sort((a, b) => a.order - b.order);
   const materials = modules.flatMap(m => db.materials.filter(a => a.moduleId === m.id).sort((a, b) => a.order - b.order));
-  const index = materials.findIndex(m => m.id === id);
-  const next = materials[index + 1];
   const done = db.progress.some(p => p.userId === user.id && p.materialId === id && p.completed);
   const download = () => {
     const blob = new Blob([material.title + '\n\n' + material.content], {
@@ -81,10 +82,11 @@ export function MaterialReader() {
   };
   return <>
     <Link href={`/disciplinas/detalhes?id=${subject.id}`} className="mb-6 inline-block text-sm font-medium text-brand-600">{subject.name} / {mod.title}</Link>
+    {canManageSubject(db, user, subject.id) && <div className="mb-5 flex flex-wrap items-center gap-3"><Button variant="secondary" onClick={() => setEditing(true)}><Pencil aria-hidden="true" className="size-4" />Editar material</Button><p className="text-xs text-slate-500">Publicado por {db.users.find(u => u.id === material.authorId)?.name ?? 'Equipe AJA'}{material.updatedAt && ` · Última alteração: ${db.users.find(u => u.id === material.updatedBy)?.name ?? 'Equipe AJA'}, ${new Date(material.updatedAt).toLocaleString('pt-BR')}`}</p></div>}
+    {editing && <MaterialComposer key={material.id} materialId={material.id} moduleId={mod.id} onClose={() => setEditing(false)} />}
     <div className="grid items-start gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
       <aside className="rounded-xl border border-slate-200 bg-white p-5 xl:sticky xl:top-6">
         <ResponsiveDisclosure title="Materiais da disciplina">
-        <ProgressBar label="Materiais concluídos" value={percent(materials.filter(m => db.progress.some(p => p.materialId === m.id && p.userId === user.id && p.completed)).length, materials.length)} />
         <nav aria-label="Conteúdo da disciplina" className="mt-6 space-y-6">
           {modules.map(m => <div key={m.id}>
             <h3 className="mb-2 text-xs font-semibold leading-5 text-slate-500">{m.order}. {m.title}</h3>
@@ -155,7 +157,7 @@ export function MaterialReader() {
         </Card>
         <div className="mt-5 flex flex-wrap justify-between gap-3">
           <LinkButton secondary href={`/forum?disciplina=${subject.id}`}>Fiquei com uma dúvida</LinkButton>
-          {next ? <LinkButton href={`/materiais?id=${next.id}`}>Próximo material</LinkButton> : <LinkButton href="/questionarios">Praticar com questionários</LinkButton>}
+          <LinkButton href={`/disciplinas/detalhes?id=${subject.id}`}>Voltar à disciplina</LinkButton>
         </div>
       </div>
     </div>
