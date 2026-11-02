@@ -1,4 +1,4 @@
-# AJA-07 — disciplinas HTTP (em andamento)
+# AJA-07 — disciplinas HTTP (concluída)
 
 Base inicial `a7d5ca4`. Entradas: `/disciplinas?turma=…`, `/disciplinas/detalhes?id=…&aba=…`, cards, equipe, módulos e visitas por usuário. Dependência AJA-06 concluída/revisada. Aplicados ECC TDD/verification, arquiteto-nextjs, docs instalados de Server/Client Components e static export, e consulta Graphify antes de fontes.
 
@@ -12,12 +12,12 @@ Base inicial `a7d5ca4`. Entradas: `/disciplinas?turma=…`, `/disciplinas/detalh
 
 ## Plano de prova
 
-Regressões HTTP e cliente em RED antes da implementação; registrar nomes/comandos/falhas nas notas por frente. Após GREEN: suíte completa, tipos, arquitetura e build padrão (fallback separado se necessário), OpenAPI/exemplos, Graphify, navegador em sessões independentes, recarga/falha, teclado/responsividade, revisão independente do diff completo desde a base. Critérios permanecem abertos até validação/revisão.
+Regressões HTTP e cliente em RED antes da implementação; registrar nomes/comandos/falhas nas notas por frente. Após GREEN: suíte completa, tipos, arquitetura e build padrão (fallback separado se necessário), OpenAPI/exemplos, Graphify, navegador em sessões independentes, recarga/falha, teclado/responsividade, revisão independente do diff completo desde a base. Plano executado; resultados e revisão estão registrados abaixo.
 
 ## Checkpoints iniciais
 
 - Cliente: `node --experimental-strip-types --test tests/subjects-client.test.ts` RED, saída 1 por ausência de `subjects/api.ts` antes da produção.
-- Servidor: `node --experimental-strip-types --test tests/http-subjects.test.mjs` RED, sete testes falharam antes da implementação (404 em operações ausentes, DTO de visitas/detalhe ausente). Nomes e observações completos ficarão na nota do servidor.
+- Servidor: `node --experimental-strip-types --test tests/http-subjects.test.mjs` RED, sete testes falharam antes da implementação (404 em operações ausentes, DTO de visitas/detalhe ausente). Nomes e observações completos constam na nota do servidor.
 - Root registrou os dois arquivos na lista explícita de `npm test`. OpenAPI candidato 1.0.3: 77 caminhos estruturalmente válidos, 848 exemplos sem erros. Novos DTOs para summary/detail, GET de módulo por ID e visita com IDs observados; propostas extras de retirada de disciplina/módulo removidas. A validação documental não representa GREEN do runtime.
 
 ## Validação consolidada
@@ -31,6 +31,6 @@ Regressões HTTP e cliente em RED antes da implementação; registrar nomes/coma
 
 ## Revisão
 
-Correções durante revisão: replay de resposta paginada precisava do contexto interno do alvo para reprojetar apenas estado autorizado (RED HTTP 500, GREEN com replay); query sort indevida no comando de reordenação recebeu RED 200 versus 422 e agora é rejeitada. Permanece paginação explicitamente declarada na resposta do comando, sem truncar o conjunto usado para a transação ou detalhe. O revisor independente confirmou 24/24 focados e não apontou outro defeito técnico; parecer final **APPROVE**, zero achados pendentes em todas as severidades, ap?s conferir o diff completo, contratos e evid?ncias.
+Correções durante revisão: replay de resposta paginada precisava do contexto interno do alvo para reprojetar apenas estado autorizado (RED HTTP 500, GREEN com replay); query sort indevida no comando de reordenação recebeu RED 200 versus 422 e agora é rejeitada. Permanece paginação explicitamente declarada na resposta do comando, sem truncar o conjunto usado para a transação ou detalhe. O revisor independente confirmou 24/24 focados e não apontou outro defeito técnico; parecer final **APPROVE**, zero achados pendentes em todas as severidades, após conferir o diff completo, contratos e evidências.
 
 Notas específicas: [servidor](validation-AJA-07-server.md) e [cliente](validation-AJA-07-client.md). Limites: processo JSON Server local, sem backend de produção; Edge em workstation, sem aparelhos físicos ou leitor de tela integral. Materiais, atividades, mural e demais domínios posteriores continuam explicitamente indisponíveis até sua issue. Os IDs/counts de projeção não expõem corpos, arquivos, gabaritos ou dados privados.
