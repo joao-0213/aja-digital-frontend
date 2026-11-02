@@ -24,10 +24,12 @@
 ### AJA-01 · Fixar o contrato e a matriz de migração
 **Depende de** nenhuma. **Entrada** `ARQUITETURA.md`, `src/app/`, `src/features/`, `src/models/database.ts`, `src/providers/app-context.ts`, `src/lib/access.ts`, `src/lib/demo-mutations.ts`, testes de domínio.
 
-- [ ] Versionar um contrato OpenAPI e uma matriz **rota → ação → perfil → operação HTTP → issue**. Usar o índice de rotas ao fim deste documento. Incluir ações dentro de diálogos, shell, mural e ferramentas de estudo. Diferenciar DTOs de leitura por perfil, campos graváveis e metadados controlados pelo servidor.
-- [ ] Definir IDs, paginação, filtros, ordenação estável, nulidade, datas civis e instantes, fuso de Brasília, anexos, exclusão lógica, revisão e repetição de comandos. Padronizar erros com código estável e mensagem PT-BR. Documentar 401 para sessão ausente, 403 para operação vedada, 404 para recurso inexistente ou oculto, 409 para conflito e 422 para entrada inválida.
-- [ ] Inventariar cada chave de navegador, IndexedDB, sessão, rascunho e relógio fixo. Classificar destino e titular dos dados. A instalação nova começa com a massa. Dados locais existentes permanecem intactos e não são enviados automaticamente ao serviço compartilhado. Descrever como manter acesso à versão anterior ou exportar uma cópia antes do corte.
-- [ ] Atualizar as regras do projeto sobre a transição. **Aceite** cada uma das 22 rotas tem dono e operações, cada coleção tem destino (inclusive `audit` e `events` legados), cada ação de escrita tem ator e regra de falha.
+Em execução na branch `feat/frontend-http`, revisão inicial `e169df6`. Evidências e limites em [docs/http/validation-AJA-01.md](docs/http/validation-AJA-01.md). Concluída com revisão independente APPROVE, OpenAPI válido, 851 exemplos sem erros e gates aprovados; limites documentados.
+
+- [x] Versionar um contrato OpenAPI e uma matriz **rota → ação → perfil → operação HTTP → issue**. Usar o índice de rotas ao fim deste documento. Incluir ações dentro de diálogos, shell, mural e ferramentas de estudo. Diferenciar DTOs de leitura por perfil, campos graváveis e metadados controlados pelo servidor.
+- [x] Definir IDs, paginação, filtros, ordenação estável, nulidade, datas civis e instantes, fuso de Brasília, anexos, exclusão lógica, revisão e repetição de comandos. Padronizar erros com código estável e mensagem PT-BR. Documentar 401 para sessão ausente, 403 para operação vedada, 404 para recurso inexistente ou oculto, 409 para conflito e 422 para entrada inválida.
+- [x] Inventariar cada chave de navegador, IndexedDB, sessão, rascunho e relógio fixo. Classificar destino e titular dos dados. A instalação nova começa com a massa. Dados locais existentes permanecem intactos e não são enviados automaticamente ao serviço compartilhado. Descrever como manter acesso à versão anterior ou exportar uma cópia antes do corte.
+- [x] Atualizar as regras do projeto sobre a transição. **Aceite** cada uma das 22 rotas tem dono e operações, cada coleção tem destino (inclusive `audit` e `events` legados), cada ação de escrita tem ator e regra de falha.
 
 ### AJA-02 · Subir o JSON Server com persistência reproduzível
 **Depende de** AJA-01. **Entrada** `package.json`, `package-lock.json`, `scripts/preview.mjs`, `.gitignore`.

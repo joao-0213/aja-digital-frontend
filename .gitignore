@@ -34,7 +34,8 @@ tmp/
 # Documentação interna e experimentos locais
 AGENTS.md
 /VALIDACAO.md
-/docs/
+/docs/*
+!/docs/http/
 /tools/
 /public/brand/README.md
 

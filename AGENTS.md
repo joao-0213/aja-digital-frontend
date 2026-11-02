@@ -17,7 +17,7 @@ Shared data models are grouped by domain in `src/models/`; `index.ts` exposes ex
 
 Read `ARQUITETURA.md` for the domain map and dependency rules before changing structure. Routes compose public feature entries. Inside a feature, use direct internal imports; across features, use `@/features/<domain>` rather than private files. UI elements never import features, application state, routes, or mocks. Keep generic UI imports within `ui/` direct to avoid barrel cycles. Features consume `useApp` from `@/providers/app-context`; only the root layout composes `Providers`.
 
-Preserve browser persistence keys, formats, notification messages, mock delays, query-string routes and Suspense boundaries. This is a static export: browser state and mock mutations remain client-side. Do not introduce Server Actions or a runtime backend during structural refactors.
+Preserve browser persistence keys and formats for the legacy version, query-string routes and Suspense boundaries. During the HTTP migration, ISSUES-FRONTEND-HTTP.md and docs/http/ take precedence for affected flows: institutional reads and writes move to the separate JSON Server under /api/v1; no artificial delays or local-success fallback. Keep the static export, with authenticated requests made in the browser. Do not introduce Server Actions or a Next.js runtime backend. Keep unmigrated flows available until their integrated replacement is validated; never dual-write or merge divergent snapshots. Existing local data must remain intact and must not be uploaded automatically.
 
 ## Build, Test, and Development Commands
 
