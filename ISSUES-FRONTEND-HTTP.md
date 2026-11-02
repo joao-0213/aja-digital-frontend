@@ -44,7 +44,7 @@ Concluída no commit `88b40db`, a partir de `e1bade7`, revisão independente APP
 ### AJA-03 · Preparar massas com jornadas completas por perfil
 **Depende de** AJA-02. **Entrada** `src/mocks/`, `src/models/`, `public/questions/`, exemplos e regras em `tests/`.
 
-Concluída a partir de `88b40db`, revisão independente APPROVE e 141/141 testes. Evidências e limites em [docs/http/validation-AJA-03.md](docs/http/validation-AJA-03.md).
+Concluída nos commits `d51327e` e `683137b`, a partir de `88b40db`, revisão independente APPROVE e 141/141 testes. Evidências e limites em [docs/http/validation-AJA-03.md](docs/http/validation-AJA-03.md).
 
 - [x] Entregar seed versionado, arquivos pequenos válidos para abrir/baixar e guia de acesso do operador. Incluir administrador, dois docentes da mesma disciplina, docente sem atribuição, aluno matriculado, aluno sem turma, matrícula pendente, conta inativa e turma encerrada. Usar identidades fictícias e credenciais exclusivas do ambiente local.
 - [x] Ligar turmas, disciplinas, equipe, módulos, texto/PDF/vídeo, progresso, questões do acervo e autorais, atividade em rascunho/publicada, tentativa em andamento/enviada, trabalho com retorno em rascunho/publicado, fórum com referência/anexo/solução, avisos, acontecimento e chamada. Disponibilizar contexto vazio e contexto com acesso negado. Preservar links estáveis como a disciplina `s1`.
@@ -54,9 +54,11 @@ Concluída a partir de `88b40db`, revisão independente APPROVE e 141/141 testes
 ### AJA-04 · Compartilhar transporte, controle de acesso e gravação consistente
 **Depende de** AJA-02, AJA-03. **Entrada** `src/mocks/api.ts`, `src/hooks/use-mock-query.ts`, `src/lib/demo-mutations.ts`, `src/lib/access.ts`, `src/components/shared/record-conflict.tsx`.
 
-- [ ] Criar cliente HTTP tipado com URL configurável, sinal de cancelamento, leitura de respostas vazias/binárias e erros tipados. Conectar carregamento, nova tentativa e invalidação às requisições efetivas. Limpar dados da sessão anterior e descartar respostas obsoletas. Verificar com servidor em porta de teste.
-- [ ] Criar no serviço o ponto comum para resolver o ator, projetar campos autorizados, revalidar vínculos e comparar revisões durante a gravação. Reaproveitar regras puras. Para comandos com vários registros, serializar a validação e a gravação no mesmo estado, incluindo auditoria. Uma falha preserva o estado anterior. Vincular repetições de operações de envio ao ator e à operação.
-- [ ] **Aceite** testes HTTP com atores controlados cobrem 403 por ID direto, edição concorrente (uma gravação e um 409), acesso revogado antes do commit, falha de persistência e repetição após perda da resposta. O cliente distingue sessão expirada, conflito e API indisponível. AJA-05 liga os atores à sessão real do serviço local.
+Concluída a partir de `683137b`: 164/164 testes, revisão independente APPROVE e gates aprovados. Evidências e limites em [docs/http/validation-AJA-04.md](docs/http/validation-AJA-04.md). Sessão real e telas são entregas seguintes.
+
+- [x] Criar cliente HTTP tipado com URL configurável, sinal de cancelamento, leitura de respostas vazias/binárias e erros tipados. Conectar carregamento, nova tentativa e invalidação às requisições efetivas. Limpar dados da sessão anterior e descartar respostas obsoletas. Verificar com servidor em porta de teste.
+- [x] Criar no serviço o ponto comum para resolver o ator, projetar campos autorizados, revalidar vínculos e comparar revisões durante a gravação. Reaproveitar regras puras. Para comandos com vários registros, serializar a validação e a gravação no mesmo estado, incluindo auditoria. Uma falha preserva o estado anterior. Vincular repetições de operações de envio ao ator e à operação.
+- [x] **Aceite** testes HTTP com atores controlados cobrem 403 por ID direto, edição concorrente (uma gravação e um 409), acesso revogado antes do commit, falha de persistência e repetição após perda da resposta. O cliente distingue sessão expirada, conflito e API indisponível. AJA-05 liga os atores à sessão real do serviço local.
 
 ### AJA-05 · Migrar identidade, sessão, perfil, privacidade e shell
 **Depende de** AJA-04. **Entrada** features `auth`, `profile`, `privacy`, `src/components/layout/`, `src/components/providers.tsx`, `src/providers/`.
