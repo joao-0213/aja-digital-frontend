@@ -44,7 +44,7 @@ Unit tests are required whenever a package changes domain rules, permissions, mi
 
 ## Executing backlog issues
 
-Use `gpt-6.1-sol` for the main coordinator. When delegating implementation, testing, browser validation or fixes, select `gpt-6.1-terra`. Select `gpt-6.1-sol` for the independent code reviewer. Use `medium` reasoning effort for all three roles.
+Use `gpt-6.1-sol` with `medium` reasoning effort for the main coordinator to track dependencies, delegate issues and verify acceptance without repeating implementation. Delegate each issue's implementation, tests, browser validation and review fixes to a single `gpt-6-luna` executor with `xhigh` reasoning effort; keep the executor already assigned to an in-progress issue. Use an independent `gpt-6.1-sol` reviewer with `medium` reasoning effort, and have the same reviewer recheck the executor's fixes.
 
 Apply this workflow to each issue, including documentation issues. When the user requests a whole backlog, create or reuse a dedicated local branch from the current checkout. Follow dependencies and continue to the next eligible issue after closing the current one. A request for one issue authorizes that issue only. For the HTTP migration, use [ISSUES-FRONTEND-HTTP.md](ISSUES-FRONTEND-HTTP.md) for scope and final acceptance. Its migration requirements supersede the legacy demo labels, artificial delays and browser-only transport requirements for the affected flows. Keep the Next.js static export and use the separate JSON Server for the HTTP API.
 
