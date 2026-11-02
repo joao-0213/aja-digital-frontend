@@ -2,16 +2,18 @@ import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
 import { videoSource } from './material-video.ts';
 import { assessmentQuestions, validateComposition } from './question-composition.ts';
+import { activityClosed, deadlineTime, hasDelivery, hasSubmitted, validateAttachments } from './activities.ts';
 import { enrolledForLesson, executeEnrollmentCommand, isAssessmentAssigned, reconcileEnrollments, type EnrollmentCommand } from './enrollment.ts';
 
 export interface MutationOptions {
+  requirePersistence?: boolean;
   expected?: { collection: string; id: string; revision: number }[];
   enrollment?: EnrollmentCommand;
 }
 
 type Row = Record<string, unknown> & RecordMeta & { id?: string };
 type Collection = Exclude<keyof MockDatabase, 'version' | 'audit'>;
-const collections: Collection[] = ['users', 'classes', 'subjects', 'modules', 'materials', 'questions', 'assessments', 'attempts', 'topics', 'announcements', 'events', 'attendance', 'progress', 'enrollments'];
+const collections: Collection[] = ['users', 'classes', 'subjects', 'modules', 'materials', 'questions', 'assessments', 'attempts', 'submissions', 'topics', 'announcements', 'events', 'attendance', 'progress', 'enrollments'];
 const key = (row: Row) => row.id ?? `${row.userId}:${row.materialId}`;
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const denied = () => { throw new Error('Sem permissão para alterar este registro. Confira seu acesso e sua atribuição.'); };
@@ -34,15 +36,23 @@ function onlyFields(before: Row, after: Row, fields: string[]) {
   return [...new Set([...Object.keys(before), ...Object.keys(after)])].every(field => equal(before[field], after[field]) || fields.includes(field));
 }
 
-function validateStudent(db: MockDatabase, actor: User, collection: Collection, before: Row | undefined, row: Row) {
+function validateStudent(db: MockDatabase, actor: User, collection: Collection, before: Row | undefined, row: Row, now: string) {
   if (collection === 'users' && before?.id === actor.id && onlyFields(before, row, ['name']) && typeof row.name === 'string' && row.name.trim()) return;
   const context = subjectId(db, collection, row);
   if (!context || !canAccessSubject(db, actor, context)) return denied();
   if (collection === 'progress' && row.userId === actor.id && (!before || onlyFields(before, row, ['completed', 'lastAccess']))) return;
-  if (collection === 'attempts' && row.userId === actor.id) {
+  if (['attempts', 'submissions'].includes(collection) && row.userId === actor.id) {
     const assessment = db.assessments.find(a => a.id === row.assessmentId && a.status === 'published' && !a.deletedAt);
     if (!assessment) return denied();
     if (!isAssessmentAssigned(db, assessment, actor.id)) throw new Error('Disponível apenas para consulta: o prazo terminou antes da sua matrícula.');
+    if (row.submittedAt && activityClosed(assessment, now) || collection === 'attempts' && !before && activityClosed(assessment, now)) throw new Error('Prazo encerrado. Seu rascunho foi preservado.');
+    if (collection === 'submissions') {
+      if (assessment.kind !== 'work') return denied();
+      if (before?.submittedAt || hasSubmitted(db, assessment.id, actor.id)) throw new Error('Este trabalho já foi enviado. Consulte o comprovante.');
+      if (before ? !onlyFields(before, row, ['attachments', 'submittedAt']) : Object.keys(row).some(k => !['id', 'assessmentId', 'userId', 'attachments', 'feedbackHistory', 'submittedAt'].includes(k)) || !equal(row.feedbackHistory, [])) return denied();
+      return;
+    }
+    if (assessment.kind === 'work') return denied();
     if (before?.submittedAt || db.attempts.some(a => a.id !== row.id && a.assessmentId === row.assessmentId && a.userId === actor.id && a.submittedAt)) throw new Error('Este questionário já foi enviado. Consulte o resultado individual.');
     if (!before || onlyFields(before, row, ['answers', 'submittedAt'])) return;
   }
@@ -74,7 +84,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
   if (!isActiveUser(actor)) throw new Error('Sua conta está inativa ou foi excluída. Solicite a regularização à administração.');
   for (const expected of options.expected ?? []) {
     if (!collections.includes(expected.collection as Collection)) throw new Error('Registro indisponível para edição.');
-    const record = (current[expected.collection as Collection] as unknown as Row[]).find(row => key(row) === expected.id);
+    const record = ((current[expected.collection as Collection] ?? []) as unknown as Row[]).find(row => key(row) === expected.id);
     if (!record || record.deletedAt) throw new Error('O registro foi retirado. Seu preenchimento foi preservado.');
     if ((record.revision ?? 0) !== expected.revision) {
       const author = current.users.find(u => u.id === record.updatedBy)?.name ?? 'outro participante';
@@ -126,11 +136,11 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       else if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
         // Public, local demo self-registration never grants a role or class membership.
         row.emailConfirmedAt = null;
-      } else if (actor.role === 'student') validateStudent(current, actor, collection, before, row);
+      } else if (actor.role === 'student') validateStudent(current, actor, collection, before, row, now);
       else if (actor.role === 'teacher') {
         if (collection === 'users' && before?.id === actor.id && onlyFields(before, row, ['name'])) { /* own minimal profile */ }
         else if (collection === 'progress' && row.userId === actor.id && canAccessSubject(current, actor, subjectId(current, collection, row) ?? '')) { /* own reading state */ }
-        else if (['modules', 'materials', 'assessments', 'announcements', 'topics', 'attendance'].includes(collection)) {
+        else if (['modules', 'materials', 'assessments', 'submissions', 'announcements', 'topics', 'attendance'].includes(collection)) {
           if (!canManageSubject(current, actor, subjectId(draft, collection, row) ?? '')) return denied();
           if (before && !canManageSubject(current, actor, subjectId(current, collection, before) ?? '')) return denied();
         }
@@ -139,6 +149,22 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (before && before.authorId !== row.authorId) throw new Error('A autoria original deve ser preservada.');
       if (!before && ['materials', 'assessments', 'announcements', 'topics'].includes(collection)) row.authorId = actor.id;
       if (collection === 'attempts' && before?.submittedAt) throw new Error('Este questionário já foi enviado. O conteúdo e a data devem ser preservados.');
+      if (collection === 'submissions') {
+        const submission = draft.submissions!.find(s => s.id === row.id)!;
+        const activity = current.assessments.find(a => a.id === submission.assessmentId && !a.deletedAt);
+        if (!activity || activity.kind !== 'work') throw new Error('Atividade indisponível.');
+        validateAttachments(submission.attachments);
+        if (submission.submittedAt && !submission.attachments.length) throw new Error('Adicione pelo menos um anexo.');
+        if (actor.role !== 'student') {
+          if (!before?.submittedAt || !onlyFields(before, row, ['feedbackDraft', 'feedbackPublished', 'feedbackHistory'])) return denied();
+          const feedback = submission.feedbackDraft ?? submission.feedbackPublished;
+          if (!feedback || feedback.authorId !== actor.id || !Number.isFinite(Date.parse(feedback.createdAt))) return denied();
+          if (feedback.grade !== undefined && (activity.maxGrade === undefined || !Number.isFinite(feedback.grade) || feedback.grade < 0 || feedback.grade > activity.maxGrade)) throw new Error('Confira a nota e o máximo da atividade.');
+          if (!equal(before.feedbackPublished, row.feedbackPublished) || !equal(before.feedbackHistory, row.feedbackHistory)) {
+            if (submission.feedbackDraft || !submission.feedbackPublished || !submission.feedbackPublished.comment && submission.feedbackPublished.grade === undefined || !equal(submission.feedbackHistory, [...(before.feedbackHistory as unknown[]), submission.feedbackPublished])) return denied();
+          }
+        }
+      }
       if (['announcements', 'topics'].includes(collection) && row.subjectId && draft.subjects.find(s => s.id === row.subjectId)?.classId !== row.classId) throw new Error('A disciplina não pertence à turma selecionada. Confira o destino.');
       if (['materials', 'assessments'].includes(collection) && !draft.modules.some(m => m.id === row.moduleId && !m.deletedAt)) throw new Error('O módulo de destino está indisponível.');
       if (collection === 'materials' && row.kind === 'video' && row.videoUrl !== undefined && (typeof row.videoUrl !== 'string' || !videoSource(row.videoUrl))) throw new Error('Informe uma URL HTTPS válida para o vídeo, sem credenciais.');
@@ -147,7 +173,14 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
         const schoolClass = draft.classes.find(c => c.id === subject?.classId && !c.deletedAt);
         if (!schoolClass || Object.keys(row.records as object).some(id => !enrolledForLesson(current, schoolClass.id, id, String(row.date)))) throw new Error('A chamada só pode registrar alunos vinculados na data da aula, sem faltas anteriores à matrícula.');
       }
-      if (collection === 'assessments' && before && current.attempts.some(a => a.assessmentId === row.id && a.submittedAt) && !onlyFields(before, row, ['title', 'description', 'deadline', 'deletedAt'])) throw new Error('Já existe uma entrega. Apenas título, instruções e prazo podem mudar.');
+      if (collection === 'assessments') {
+        const activity = draft.assessments.find(a => a.id === row.id)!;
+        if (activity.kind && !['quiz', 'work'].includes(activity.kind) || activity.deadline && !Number.isFinite(deadlineTime(activity.deadline))) throw new Error('Confira o tipo e o prazo da atividade.');
+        if (!activity.title.trim() || activity.maxGrade !== undefined && (!Number.isFinite(activity.maxGrade) || activity.maxGrade <= 0)) throw new Error('Informe título e máximo positivo para a nota opcional.');
+        if (before && hasDelivery(current, activity.id) && (!onlyFields(before, row, ['title', 'description', 'deadline', 'deletedAt']) || !!before.deadline !== !!row.deadline)) throw new Error('Já existe uma entrega. Apenas título, instruções e data do prazo existente podem mudar.');
+        if (activity.kind === 'work' && activity.questionIds.length) throw new Error('Entrega de trabalho não contém questões.');
+        if (before?.status === 'published' && activity.status !== 'published') throw new Error('Atividade publicada não volta a rascunho.');
+      }
       changes.push({ collection, before, after: row });
     }
   }

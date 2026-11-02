@@ -3,7 +3,7 @@ import type { User } from './user';
 import type { SchoolClass, Subject, TrailModule } from './academic';
 import type { Material, Progress } from './materials';
 import type { Question } from './questions';
-import type { Assessment, Attempt } from './assessments';
+import type { Assessment, Attempt, WorkSubmission } from './assessments';
 import type { ForumTopic } from './forum';
 import type { Announcement } from './announcements';
 import type { CalendarEvent } from './calendar';
@@ -22,6 +22,7 @@ export interface MockDatabase {
   questions: Question[];
   assessments: Assessment[];
   attempts: Attempt[];
+  submissions?: WorkSubmission[];
   topics: ForumTopic[];
   announcements: Announcement[];
   events: CalendarEvent[];

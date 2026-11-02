@@ -23,7 +23,7 @@ export function CalendarPage() {
   const entries: Entry[] = [...db.events, ...db.assessments.filter(a => a.status === 'published' && a.deadline && (role !== 'student' || isAssessmentAssigned(db, a, user.id))).map(a => ({
     id: a.id,
     assessmentId: a.id,
-    title: a.title,
+    title: `${a.title} · ${a.required === false ? 'Opcional' : 'Obrigatória'}`,
     kind: 'exam' as const,
     date: a.deadline.slice(0, 10),
     time: a.deadline.slice(11),
@@ -65,7 +65,7 @@ export function CalendarPage() {
         }}>Mês de exemplo</Button>
       </div>
       <div className="flex flex-wrap gap-2">
-        {[['all', 'Tudo'], ['class', 'Aulas'], ['exam', 'Avaliações'], ['event', 'Eventos']].map(([id, label]) => <Button key={id} variant={filter === id ? 'primary' : 'secondary'} aria-pressed={filter === id} onClick={() => setFilter(id)}>
+        {[['all', 'Tudo'], ['class', 'Aulas'], ['exam', 'Atividades e simulados'], ['event', 'Eventos']].map(([id, label]) => <Button key={id} variant={filter === id ? 'primary' : 'secondary'} aria-pressed={filter === id} onClick={() => setFilter(id)}>
           {label}
         </Button>)}
       </div>
@@ -128,7 +128,7 @@ export function CalendarPage() {
     <Dialog open={!!selected} onClose={() => setSelected(null)} title={selected?.title ?? 'Compromisso'}>
       {selected && <>
         <Badge tone={selected.kind === 'exam' ? 'amber' : selected.kind === 'class' ? 'blue' : 'purple'}>
-          {selected.kind === 'exam' ? 'Avaliação' : selected.kind === 'class' ? 'Aula' : 'Evento'}
+          {selected.assessmentId ? 'Atividade' : selected.kind === 'exam' ? 'Simulado' : selected.kind === 'class' ? 'Aula' : 'Evento'}
         </Badge>
         <p className="my-5 flex items-center gap-2 text-sm text-slate-500"><CalendarDays className="size-4" />{dateLabel(selected.date, {
             day: 'numeric',
@@ -138,7 +138,7 @@ export function CalendarPage() {
         <p className="mb-6 leading-7 text-slate-600">
           {selected.description}
         </p>
-        {selected.assessmentId && <LinkButton href={`/questionarios/responder?id=${selected.assessmentId}`}>Abrir questionário</LinkButton>}
+        {selected.assessmentId && <LinkButton href={`/questionarios/responder?id=${selected.assessmentId}`}>{role === 'student' ? 'Abrir atividade' : 'Acompanhar atividade'}</LinkButton>}
       </>}
     </Dialog>
   </>;

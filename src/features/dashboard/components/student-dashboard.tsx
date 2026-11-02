@@ -10,6 +10,7 @@ import { SubjectCard } from '@/features/subjects';
 import { DEMO_DATE } from '@/mocks/database';
 import { EnrollmentStatus } from '@/features/students';
 import { isAssessmentAssigned } from '@/lib/enrollment';
+import { hasSubmitted } from '@/lib/activities';
 
 export function StudentDashboard() {
   const { db, user } = useApp();
@@ -18,7 +19,7 @@ export function StudentDashboard() {
   const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
   const materials = db.materials.filter(m => modules.some(mod => mod.id === m.moduleId));
   const notices = db.announcements.filter(a => classes.some(c => c.id === a.classId) && (!a.subjectId || subjects.some(s => s.id === a.subjectId))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
-  const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && (!a.deadline || a.deadline >= `${DEMO_DATE}T00:00`) && !db.attempts.some(t => t.userId === user.id && t.assessmentId === a.id && t.submittedAt)).sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && !hasSubmitted(db, a.id, user.id)).sort((a, b) => a.deadline.localeCompare(b.deadline));
   const resume = lastAccessedMaterial(user.id, materials, db.progress);
   const events = db.events.filter(e => e.date >= DEMO_DATE && (!e.subjectId || subjects.some(s => s.id === e.subjectId))).sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);

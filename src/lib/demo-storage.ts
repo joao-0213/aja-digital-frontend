@@ -53,6 +53,7 @@ export function migrateDatabase(value: MockDatabase): MockDatabase {
   }));
   db.audit ??= [];
   db.enrollments ??= [];
+  db.submissions ??= [];
   for (const schoolClass of db.classes) {
     for (const studentId of schoolClass.studentIds) {
       const student = db.users.find(u => u.id === studentId);

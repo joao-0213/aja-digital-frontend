@@ -1,4 +1,5 @@
 import type { Assessment, Enrollment, MockDatabase, User } from '@/models';
+import { deadlineTime } from './activities.ts';
 
 export type EnrollmentCommand =
   | { type: 'add'; classId: string; email: string }
@@ -51,7 +52,7 @@ function activate(db: MockDatabase, enrollment: Enrollment, student: User, now: 
   enrollment.status = 'active';
   enrollment.enrolledAt = now;
   const modules = new Set(db.modules.filter(m => db.subjects.some(s => s.id === m.subjectId && s.classId === destination.id)).map(m => m.id));
-  enrollment.unassignedAssessmentIds = db.assessments.filter(a => modules.has(a.moduleId) && !a.deletedAt && a.status === 'published' && a.deadline && new Date(a.deadline).getTime() <= new Date(now).getTime()).map(a => a.id);
+  enrollment.unassignedAssessmentIds = db.assessments.filter(a => modules.has(a.moduleId) && !a.deletedAt && a.status === 'published' && a.deadline && deadlineTime(a.deadline) <= new Date(now).getTime()).map(a => a.id);
   if (!destination.studentIds.includes(student.id)) destination.studentIds.push(student.id);
 }
 

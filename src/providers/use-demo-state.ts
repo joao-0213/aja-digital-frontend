@@ -102,10 +102,15 @@ export function useDemoState(notify: AppContextValue['notify']): Omit<AppContext
         // Without Web Locks a persisted write cannot be safely coordinated with another tab.
         if (!navigator.locks && storageAvailable) throw new Error('Este navegador não permite coordenar alterações entre abas. Abra a demonstração em um navegador atualizado para salvar. Seu preenchimento foi preservado.');
         const draft = applyDemoMutation(latest, requestingActor, recipe, options);
+        if (options?.requirePersistence) {
+          // A work receipt/feedback publication must never claim durable success after a failed write.
+          try { localStorage.setItem(DEMO_DATABASE_KEY, JSON.stringify(draft)); }
+          catch { throw new Error('Não foi possível gravar. Seu preenchimento foi preservado; tente novamente.'); }
+        }
         current.current = draft;
         setDb(draft);
         try {
-          localStorage.setItem(DEMO_DATABASE_KEY, JSON.stringify(draft));
+          if (!options?.requirePersistence) localStorage.setItem(DEMO_DATABASE_KEY, JSON.stringify(draft));
           persisted.current = JSON.stringify(draft);
           memoryOnly.current = false;
         } catch {

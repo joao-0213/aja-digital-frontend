@@ -6,7 +6,10 @@ import { assessmentQuestions } from '@/lib/question-composition';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
-import { DEMO_DATE } from '@/mocks/database';
+import { activityClosed } from '@/lib/activities';
+import { useActivityClock } from '@/hooks/use-activity-clock';
+import { WorkActivity } from './work-activity';
+import { ActivityConditions } from './activity-conditions';
 import { beginAttempt } from '@/lib/assessment-attempts';
 import { QuizSession } from './quiz-session';
 import { isAssessmentAssigned } from '@/lib/enrollment';
@@ -23,7 +26,9 @@ export function AnswerAssessment() {
   const a = db.assessments.find(item => item.id === id);
   const attempts = db.attempts.filter(t => t.assessmentId === id && t.userId === user.id);
   const active = attempts.find(t => !t.submittedAt);
-  if (!a || a.status !== 'published') return <Empty title="Questionário indisponível" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
+  const now = useActivityClock();
+  if (!a || a.status !== 'published') return <Empty title="Atividade indisponível: retirada ou sem acesso" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
+  if (a.kind === 'work') return <WorkActivity activity={a} />;
   if (role !== 'student') {
     const submissions = db.attempts.filter(t => t.assessmentId === id && t.submittedAt);
     return <>
@@ -43,11 +48,12 @@ export function AnswerAssessment() {
     })}
     <div className="mt-5"><LinkButton secondary href="/questionarios">Voltar às atividades</LinkButton></div>
   </div>;
-  const expired = !!a.deadline && a.deadline < `${DEMO_DATE}T00:00` && !a.allowLate;
+  const expired = activityClosed(a, now);
   const exhausted = completed.length > 0;
   if (active && !exhausted) return <QuizSession key={`${active.id}:${active.questionsUpdatedAt ?? ''}`} attempt={active} />;
   return <div className="mx-auto max-w-2xl">
     <PageHeading eyebrow="Questionário" title={a.title} description={a.description} />
+    <ActivityConditions activity={a} />
     <Card>
       <div className="mb-6 flex flex-wrap gap-2">
         <Badge tone="purple">{a.questionIds.length} questões</Badge>
@@ -60,7 +66,7 @@ export function AnswerAssessment() {
         <li>Cada questão tem uma alternativa correta e vale 1 ponto.</li>
         <li>Você pode navegar entre as questões e revisar antes de enviar.</li>
         <li>Suas respostas são salvas automaticamente neste navegador.</li>
-        <li>Data de referência desta demonstração: 05/10/2026.</li>
+        <li>O prazo considera o horário de Brasília (UTC−3), inclusive durante a realização.</li>
       </ul>
       {completed.length > 0 && <div className="mb-6 border-t border-slate-100 pt-5">
         <h3 className="mb-3 text-sm font-semibold">Envios registrados</h3>

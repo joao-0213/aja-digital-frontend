@@ -5,6 +5,7 @@ import { migrateDatabase } from '../src/lib/demo-storage.ts';
 import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
 import { scopeDatabase } from '../src/lib/access.ts';
 import { activityClosed, isLate, saveWork, saveFeedback, validateAttachments } from '../src/lib/activities.ts';
+import { beginAttempt, saveAttemptAnswers, submitAttempt } from '../src/lib/assessment-attempts.ts';
 
 const now = '2026-11-02T15:00:00.000Z';
 function fixture(): MockDatabase {
@@ -124,4 +125,33 @@ test('PP06: migration adds work storage idempotently without changing historical
   assert.deepEqual(migrated.submissions, []);
   assert.deepEqual(migrated.attempts[0].answers, { missing: 0 });
   assert.deepEqual(migrateDatabase(migrated), migrated);
+});
+
+test('PP06: expiry during a quiz preserves answers and refuses submission until extension', () => {
+  let db = fixture(); Object.assign(db.assessments[0], { kind: 'quiz', deadline: '2026-11-02T12:00' });
+  db = applyDemoMutation(db, 's', d => beginAttempt(d, 'w', 's', 'try', '2026-11-02T14:00:00Z'), {}, '2026-11-02T14:00:00Z');
+  db = applyDemoMutation(db, 's', d => saveAttemptAnswers(d, 'try', { answer: 0 }), {}, now);
+  const preserved = structuredClone(db);
+  assert.throws(() => applyDemoMutation(db, 's', d => submitAttempt(d, 'try', { answer: 0 }, now), {}, now), /Prazo encerrado/);
+  assert.deepEqual(db, preserved);
+  db = applyDemoMutation(db, 't', d => { d.assessments[0].deadline = '2026-11-03T12:00'; }, {}, now);
+  db = applyDemoMutation(db, 's', d => submitAttempt(d, 'try', { answer: 0 }, now), {}, now);
+  assert.equal(db.attempts[0].submittedAt, now);
+  assert.throws(() => applyDemoMutation(db, 's', d => beginAttempt(d, 'w', 's', 'new', now), {}, now), /enviado/);
+});
+test('PP06: latest-state simultaneous deliveries keep the first receipt and failed recipes are atomic', () => {
+  const original = fixture(); const db = send(original);
+  assert.throws(() => applyDemoMutation(db, 's', d => saveWork(d, 'w', 's', 'second', [{ ...link, url: 'https://example.org/outro' }], true, now), {}, now), /enviad/);
+  assert.equal(db.submissions![0].id, 'delivery');
+  assert.equal(original.submissions!.length, 0);
+  assert.throws(() => applyDemoMutation(original, 's', d => { saveWork(d, 'w', 's', 'fail', [link], true, now); throw new Error('Falha de gravação simulada'); }, {}, now), /Falha/);
+  assert.equal(original.submissions!.length, 0);
+});
+test('PP06: another discipline and an inactive account cannot read or change work', () => {
+  const db = send(); db.subjects[0].teacherIds = ['t'];
+  assert.equal(scopeDatabase(db, db.users[2]).submissions?.length, 0);
+  assert.throws(() => applyDemoMutation(db, 't2', d => saveFeedback(d, 'delivery', 'Inválido', 1, true, 't2', now), {}, now), /permiss/);
+  db.users[3].active = false;
+  assert.equal(scopeDatabase(db, db.users[3]).submissions?.length, 0);
+  assert.throws(() => send(db), /inativa/);
 });

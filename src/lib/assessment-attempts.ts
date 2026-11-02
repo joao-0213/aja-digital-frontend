@@ -3,7 +3,7 @@ import { assessmentQuestions } from './question-composition.ts';
 
 export function beginAttempt(db: MockDatabase, assessmentId: string, userId: string, id: string, startedAt: string) {
   const assessment = db.assessments.find(a => a.id === assessmentId && a.status === 'published');
-  if (!assessment) throw new Error('Questionário indisponível.');
+  if (!assessment || assessment.kind === 'work') throw new Error('Questionário indisponível.');
   const previous = db.attempts.filter(t => t.assessmentId === assessmentId && t.userId === userId);
   if (previous.some(t => t.submittedAt)) throw new Error('Este questionário já foi enviado.');
   if (previous.some(t => !t.submittedAt)) return;

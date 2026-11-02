@@ -8,7 +8,7 @@ import { useApp } from '@/providers/app-context';
 import { Avatar, Button, Dialog, Empty, Input, Select, Textarea } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
 import { isAssessmentAssigned } from '@/lib/enrollment';
-import { DEMO_DATE } from '@/mocks/database';
+import { hasSubmitted } from '@/lib/activities';
 
 export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: string; canEdit: boolean; onUpload: (moduleId: string) => void }) {
   const { db, user, role, mutate, busy } = useApp();
@@ -26,7 +26,7 @@ export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: strin
     ...notices.map(a => ({ key: `notice-${a.id}`, kind: 'notice' as const, title: a.title, body: a.body, date: a.createdAt, author: a.authorId, detail: a.subjectId ? 'Aviso da disciplina' : 'Aviso da turma', href: '', moduleId: '', fileLabel: '' })),
     ...materials.map(m => ({ key: `material-${m.id}`, kind: 'material' as const, title: m.title, body: m.content, date: m.createdAt ?? '', author: m.authorId, detail: modules.find(mod => mod.id === m.moduleId)!.title, href: `/materiais?id=${m.id}`, moduleId: m.moduleId, fileLabel: m.fileName ?? (m.kind === 'pdf' ? 'Documento PDF' : m.kind === 'video' ? 'Vídeo de apoio' : 'Texto de apoio') }))
   ].filter(item => filter === 'all' || item.kind === filter).sort((a, b) => b.date.localeCompare(a.date));
-  const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && (!a.deadline || a.deadline >= `${DEMO_DATE}T00:00`) && (canEdit || a.required !== false && isAssessmentAssigned(db, a, user.id) && !db.attempts.some(t => t.assessmentId === a.id && t.userId === user.id && t.submittedAt))).sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && (canEdit || a.required !== false && isAssessmentAssigned(db, a, user.id) && !hasSubmitted(db, a.id, user.id))).sort((a, b) => a.deadline.localeCompare(b.deadline));
 
   return <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
     <section aria-label="Publicações da disciplina" className="min-w-0 space-y-4">

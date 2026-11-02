@@ -9,6 +9,9 @@ import { Badge, Button, Card, Dialog, Empty, LinkButton, PageHeading, ProgressBa
 import { cn, percent } from '@/lib/utils';
 import { saveAttemptAnswers, submitAttempt } from '@/lib/assessment-attempts';
 import { type Attempt } from '@/models';
+import { activityClosed, isLate } from '@/lib/activities';
+import { useActivityClock } from '@/hooks/use-activity-clock';
+import { ActivityConditions } from './activity-conditions';
 
 export function QuizSession({
   attempt
@@ -21,6 +24,7 @@ export function QuizSession({
     busy
   } = useApp();
   const router = useRouter();
+  const now = useActivityClock();
   const recoveryKey = `aja-attempt-${attempt.id}`;
   const [answers, setAnswers] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') try {
@@ -44,6 +48,7 @@ export function QuizSession({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [retry, setRetry] = useState(0);
   const a = db.assessments.find(a => a.id === attempt.assessmentId)!;
+  const closed = activityClosed(a, now);
   const question = attemptQuestions(db, attempt).find(q => q.id === attempt.questionOrder[index])!;
   useEffect(() => {
     try {
@@ -78,6 +83,8 @@ export function QuizSession({
     }
   };
   return <div className="mx-auto max-w-4xl">
+    <ActivityConditions activity={a} />
+    {closed ? <p role="status" className="mb-5 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Prazo encerrado. O envio está bloqueado e suas respostas foram preservadas.</p> : isLate(a, now) && <p role="status" className="mb-5 text-sm text-amber-800">O envio será registrado com atraso.</p>}
     {attempt.questionsUpdatedAt && <p role="status" className="mb-5 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-900">O professor atualizou as questões em {new Date(attempt.questionsUpdatedAt).toLocaleString('pt-BR')}. Todo o rascunho anterior foi reiniciado. Confira as questões e responda novamente antes do seu único envio.</p>}
     <PageHeading eyebrow="Questionário" title={a.title} action={<Badge tone={saveStatus === 'error' ? 'red' : 'neutral'}>
         {saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'error' ? 'Falha ao salvar' : 'Salvo neste navegador'}
@@ -132,7 +139,7 @@ export function QuizSession({
       {Object.keys(answers).length < attempt.questionOrder.length && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Há {attempt.questionOrder.length - Object.keys(answers).length} questões em branco. Elas não receberão pontos.</p>}
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={() => setConfirm(false)}>Revisar</Button>
-        <Button loading={busy} onClick={() => void submit()}>Confirmar envio</Button>
+        <Button loading={busy} disabled={closed} onClick={() => void submit()}>Confirmar envio</Button>
       </div>
     </Dialog>
   </div>;
