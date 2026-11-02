@@ -17,15 +17,22 @@ htmlcov/
 
 # Ferramentas locais, sessões de navegador e resultados temporários
 .agents/
+.codex/
 skills-lock.json
 .sites-runtime/
 .playwright/
 .playwright-cli/
 tmp/
+/output/
+/test-results/
+/playwright-report/
 *.log
 
+# Artefatos locais do Graphify
+/graphify-out/
+
 # Documentação interna e experimentos locais
-/AGENTS.md
+AGENTS.md
 /VALIDACAO.md
 /docs/
 /tools/
