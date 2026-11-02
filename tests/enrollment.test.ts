@@ -236,3 +236,19 @@ test('invalid registration, unavailable commands and stale cancellation fail wit
   assert.throws(() => applyDemoMutation(linked, 'admin', () => {}, { enrollment: { type: 'end', id: linked.enrollments[0].id }, expected: [{ collection: 'enrollments', id: linked.enrollments[0].id, revision: 0 }] }), /alterad/i);
   assert.deepEqual(db.classes[0].studentIds, []);
 });
+
+test('legacy multiple-class memberships require explicit regularization without blocking unrelated administration', () => {
+  const legacy = fixture();
+  legacy.classes[0].studentIds = ['student'];
+  legacy.classes[1].studentIds = ['student'];
+  delete (legacy as Partial<MockDatabase>).enrollments;
+  const db = migrateDatabase(legacy);
+  assert.equal(db.enrollments.length, 2);
+  assert.equal(canAccessSubject(db, db.users[2], 's1'), false);
+  assert.equal(scopeDatabase(db, db.users[2]).classes.length, 0);
+  const unrelated = command(db, add('outra-pessoa@exemplo.com'));
+  assert.deepEqual(unrelated.classes.map(c => c.studentIds), [['student'], ['student']]);
+  const resolved = command(unrelated, { type: 'end', id: unrelated.enrollments.find(e => e.classId === 'c2')!.id });
+  assert.equal(canAccessSubject(resolved, resolved.users[2], 's1'), true);
+  assert.equal(resolved.enrollments.filter(e => e.status === 'ended').length, 1);
+});
