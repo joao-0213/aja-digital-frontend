@@ -44,6 +44,8 @@ Unit tests are required whenever a package changes domain rules, permissions, mi
 
 ## Executing backlog issues
 
+Use `gpt-6.1-sol` for the main coordinator. When delegating implementation, testing, browser validation or fixes, select `gpt-6.1-terra`. Select `gpt-6.1-sol` for the independent code reviewer. Use `medium` reasoning effort for all three roles.
+
 Apply this workflow to each issue, including documentation issues. When the user requests a whole backlog, create or reuse a dedicated local branch from the current checkout. Follow dependencies and continue to the next eligible issue after closing the current one. A request for one issue authorizes that issue only. For the HTTP migration, use [ISSUES-FRONTEND-HTTP.md](ISSUES-FRONTEND-HTTP.md) for scope and final acceptance. Its migration requirements supersede the legacy demo labels, artificial delays and browser-only transport requirements for the affected flows. Keep the Next.js static export and use the separate JSON Server for the HTTP API.
 
 Read the installed ECC guides at `skills/tdd-workflow/SKILL.md`, `skills/verification-loop/SKILL.md` and `agents/code-reviewer.md`, relative to the ECC plugin root. Resolve the installed version locally (on this workstation, `~/.codex/plugins/cache/ecc/ecc/2.2.3/`). Use this repository's actual npm scripts and test runner.
