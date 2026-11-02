@@ -155,3 +155,12 @@ test('PP06: another discipline and an inactive account cannot read or change wor
   assert.equal(scopeDatabase(db, db.users[3]).submissions?.length, 0);
   assert.throws(() => send(db), /inativa/);
 });
+
+test('review: two first work drafts cannot silently replace each other before revision tracking starts', () => {
+  const first = applyDemoMutation(fixture(), 's', d => saveWork(d, 'w', 's', 'first-tab', [link], false, now), {}, now);
+  const snapshot = structuredClone(first);
+  assert.throws(() => applyDemoMutation(first, 's', d => saveWork(d, 'w', 's', 'second-tab', [{ ...link, id: 'other', url: 'https://example.org/other' }], false, now), {}, now), /versão atual/i);
+  assert.deepEqual(first, snapshot);
+  const reviewed = applyDemoMutation(first, 's', d => saveWork(d, 'w', 's', 'first-tab', [{ ...link, id: 'reviewed' }], false, now), { expected: [{ collection: 'submissions', id: 'first-tab', revision: first.submissions![0].revision! }] }, now);
+  assert.equal(reviewed.submissions![0].attachments[0].id, 'reviewed');
+});

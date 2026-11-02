@@ -76,7 +76,7 @@ function WorkStudent({ activity }: { activity: Assessment }) {
     const fresh = Object.entries(files).filter(([key]) => items.some(a => a.id === key));
     try {
       if (fresh.length) await saveMaterialFiles(fresh.map(([key, file]) => ({ id: key, file })));
-      const ok = await mutate(d => saveWork(d, activity.id, user.id, id, items, submit, new Date().toISOString()), submit ? 'Trabalho enviado. Consulte o comprovante.' : 'Rascunho salvo. Você ainda não enviou o trabalho.', { ...revision.expected, requirePersistence: true });
+      const ok = await mutate(d => saveWork(d, activity.id, user.id, submission?.id ?? id, items, submit, new Date().toISOString()), submit ? 'Trabalho enviado. Consulte o comprovante.' : 'Rascunho salvo. Você ainda não enviou o trabalho.', { ...revision.expected, requirePersistence: true });
       if (!ok) { if (fresh.length) await removeMaterialFiles(fresh.map(([key]) => key)); return; }
       setFiles({}); setDirty(false); setConfirm(false);
       revision.capture({ id: submission?.id ?? id, revision: (submission?.revision ?? 0) + 1 });
