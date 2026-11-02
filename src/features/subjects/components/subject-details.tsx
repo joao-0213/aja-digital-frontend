@@ -71,7 +71,7 @@ export function SubjectDetails() {
       </aside>
       <div className="min-w-0 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Materiais e atividades</h2><Button variant="ghost" onClick={() => setCollapsed(collapsed.length ? [] : modules.map(m => m.id))}>{collapsed.length ? 'Expandir módulos' : 'Recolher módulos'}</Button></div>
-        {canEdit && <p className="rounded-lg bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">Use Enviar materiais para adicionar PDFs ao módulo. É possível selecionar vários arquivos.</p>}
+        {canEdit && <p className="rounded-lg bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900">Use Enviar materiais para adicionar texto, vídeo por URL ou PDFs ao módulo. PDFs podem ser publicados em lote. Cada item abre independentemente.</p>}
         {modules.map((mod, index) => {
           const materials = db.materials.filter(m => m.moduleId === mod.id).sort((a, b) => a.order - b.order);
           const assessments = db.assessments.filter(a => a.moduleId === mod.id && (canEdit || a.status === 'published'));

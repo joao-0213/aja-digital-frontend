@@ -12,6 +12,7 @@ export interface Material extends RecordMeta {
   fileName?: string;
   localFileId?: string;
   fileSize?: number;
+  videoUrl?: string;
   createdAt?: string;
   authorId?: string;
   order: number;

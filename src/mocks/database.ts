@@ -146,7 +146,7 @@ export const seed: MockDatabase = {
     kind: 'video',
     duration: 18,
     order: 2,
-    content: 'Em f(x) = ax + b, a determina a inclinação da reta e b indica onde ela cruza o eixo vertical.\n\nSe a > 0, a função é crescente. Se a < 0, é decrescente. Se a = 0, é constante.\n\nExemplo: f(x) = 2x + 3. Pontos do gráfico: (0, 3), (1, 5) e (2, 7). Marque-os e trace a reta.\n\nEste player demonstrativo usa uma aula textual; nenhum vídeo externo é carregado.'
+    content: 'Em f(x) = ax + b, a determina a inclinação da reta e b indica onde ela cruza o eixo vertical.\n\nSe a > 0, a função é crescente. Se a < 0, é decrescente. Se a = 0, é constante.\n\nExemplo: f(x) = 2x + 3. Pontos do gráfico: (0, 3), (1, 5) e (2, 7). Marque-os e trace a reta.\n\nTexto de apoio de exemplo. A equipe pode cadastrar a fonte externa do vídeo.'
   }, {
     id: 'mat3',
     createdAt: '2026-10-03T10:00:00-03:00',
