@@ -1,4 +1,4 @@
-﻿# AJA-06 — administração HTTP
+# AJA-06 — administração HTTP
 
 Base `fba87ee`. Escopo: usuários/docentes e cargos, turmas, alunos, vínculos e histórico. Entradas `/usuarios`, `/turmas`, `/alunos` e `/alunos/perfil`. ECC TDD/verification, Graphify e `arquiteto-nextjs` aplicados; revisão independente `review_aja01`, sem implementação pelo revisor.
 
@@ -25,5 +25,3 @@ Base `fba87ee`. Escopo: usuários/docentes e cargos, turmas, alunos, vínculos e
 Achados confirmados de query desconhecida, projeções de registros/pais retirados, instante único de transação, conflito de idempotência e fuso civil receberam correções/regressões. Histórico legado não inventa ingresso: contextos comprovados e marcações já registradas anteriores à saída conhecida autorizam consulta, sem elegibilidade futura após reabertura. Filtros antecedem paginação e total no servidor.
 
 Repetição estática aprovada: diretório, alteração de código da turma com HTTP 200 persistida após recarga, tabela de alunos e detalhe por query string com histórico após recarga. Revisão independente final: **APPROVE**, zero achados pendentes em todas as severidades; diff completo desde a base, novos arquivos e evidências conferidos. JSON Server local, transações serializadas em um processo e caixa local de links fictícios; não representa backend de produção. Próximos domínios permanecem indisponíveis até sua migração.
-
-

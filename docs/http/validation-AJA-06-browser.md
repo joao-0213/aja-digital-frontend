@@ -1,4 +1,4 @@
-﻿# AJA-06 — evidências de navegador
+# AJA-06 — evidências de navegador
 
 Base `fba87ee`. Edge/Playwright CLI, API real em 3002 e runtime isolado `tmp/aja06-browser-runtime`. Contextos independentes de administração, docente atribuído, aluno e docente provisionado. Next dev/3000, depois `out/` servido em 3001. Dados fictícios. Scripts/capturas `tmp/aja06-*` ignorados pelo Git.
 
@@ -27,4 +27,3 @@ Edge automatizado em workstation, sem aparelhos físicos, outros motores, partic
 ## Exportação estática
 
 Turbopack padrão exportou 24 páginas com API desligada. Depois, API e `npm run preview` foram iniciados. No `out/` servido em 3001: diretório, diálogo com Enter/Tab/Escape e foco restaurado; edição real de código da turma respondeu 200 e permaneceu após recarga; tabela de alunos e detalhe por query string mantiveram histórico após recarga. Uma asserção inicial usava texto exato num parágrafo que também contém datas; snapshot confirmou o conteúdo e a asserção por prefixo passou, sem mudança de produto.
-

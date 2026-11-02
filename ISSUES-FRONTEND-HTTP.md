@@ -1,4 +1,4 @@
-﻿# AJA Digital | Migração integral do front-end para HTTP
+# AJA Digital | Migração integral do front-end para HTTP
 
 **Entrega final.** Aluno, docente e administrador entram com suas próprias contas e usam o AJA Digital como produto. Uma publicação feita pelo docente aparece para o aluno em outro navegador. Todos os dados institucionais vêm de endpoints HTTP servidos por um JSON Server com massas preparadas. A interface usa linguagem de produto, inclusive quando uma operação falha.
 
@@ -176,4 +176,3 @@ Concluída a partir de `fba87ee`: 217/217 testes, tipos, arquitetura (161 módul
 | `/` | AJA-16 |
 
 O shell, os provedores, a privacidade, as ferramentas de estudo, os estados globais, os metadados e a documentação têm aceite próprio em AJA-05, AJA-08, AJA-17 e AJA-18. A migração termina quando todas as linhas funcionarem a partir da massa preparada e de chamadas HTTP observáveis.
-
