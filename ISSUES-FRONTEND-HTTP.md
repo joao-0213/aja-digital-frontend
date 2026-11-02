@@ -92,9 +92,11 @@ Concluída e revisada a partir de `a7d5ca4`; evidências em [validation-AJA-07.m
 ### AJA-08 · Disponibilizar arquivos por HTTP e migrar materiais e progresso
 **Depende de** AJA-07. **Entrada** feature `materials`, detalhe da disciplina, `src/lib/material-files.ts`, `src/lib/material-video.ts`, `src/hooks/use-study-tools.ts`.
 
-- [ ] Implementar upload, metadados e download autenticado em `/files`, com limites por uso, MIME, tamanho, nome seguro e autorização pelo recurso pai. Usar área de preparação para publicação em lote e limpar arquivos órfãos em falha. Servir bytes apropriados a prévia/download. Compartilhar o mecanismo com trabalhos e fórum.
-- [ ] Migrar publicação em lote, edição, ordenação e leitura em `/materials`. Preservar texto, PDF, vídeo externo por escolha e retorno ao módulo. Registrar conclusão e último acesso em `/me/progress`. Conectar as ferramentas opcionais `read_study_materials` e `complete_study_material` aos mesmos serviços.
-- [ ] **Aceite** docente envia PDF em um navegador, aluno autorizado abre em outro e conclui o material. Arquivo ausente, ID adivinhado, lote parcialmente inválido, vídeo legado sem URL e repetição de conclusão têm resultados verificáveis. Inspecionar resposta e binário. A tela continua utilizável sem suporte às ferramentas opcionais.
+Concluída a partir de `25c823f`: 254/254 testes, tipos, arquitetura (171 módulos), build padrão com API desligada, OpenAPI (839 exemplos), binário/SHA-256, sessões independentes, teclado e export estático aprovados. Revisão Sol independente APPROVE após correções Terra, sem achados pendentes. Evidências e limites em [validation-AJA-08.md](docs/http/validation-AJA-08.md).
+
+- [x] Implementar upload, metadados e download autenticado em `/files`, com limites por uso, MIME, tamanho, nome seguro e autorização pelo recurso pai. Usar área de preparação para publicação em lote e limpar arquivos órfãos em falha. Servir bytes apropriados a prévia/download. Compartilhar o mecanismo com trabalhos e fórum.
+- [x] Migrar publicação em lote, edição, ordenação e leitura em `/materials`. Preservar texto, PDF, vídeo externo por escolha e retorno ao módulo. Registrar conclusão e último acesso em `/me/progress`. Conectar as ferramentas opcionais `read_study_materials` e `complete_study_material` aos mesmos serviços.
+- [x] **Aceite** docente envia PDF em um navegador, aluno autorizado abre em outro e conclui o material. Arquivo ausente, ID adivinhado, lote parcialmente inválido, vídeo legado sem URL e repetição de conclusão têm resultados verificáveis. Inspecionar resposta e binário. A tela continua utilizável sem suporte às ferramentas opcionais.
 
 ### AJA-09 · Migrar o banco de questões e a prática individual
 **Depende de** AJA-05. **Entrada** feature `questions`, `src/lib/question-composition.ts`, `src/mocks/questions.ts`, imagens em `public/questions/`.

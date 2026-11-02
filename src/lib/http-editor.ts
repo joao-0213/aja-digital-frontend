@@ -26,7 +26,7 @@ export function createHttpEditor<F, R extends RevisionRecord = RevisionRecord>(f
       if (state.latest && !state.blocked) publish({ ...state, expectedRevision: state.latest.revision ?? 1, conflicted: false, latest: null, error: undefined });
     },
     review,
-    async submit(save: (fields: F, revision: number) => Promise<R>, load?: () => Promise<R>) {
+    async submit(save: (fields: F, revision: number) => Promise<unknown>, load?: () => Promise<R>) {
       if (state.busy || state.conflicted || state.blocked) return false;
       publish({ ...state, busy: true, error: undefined });
       try {

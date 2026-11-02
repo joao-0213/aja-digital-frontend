@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { AppContext, SessionContext } from '@/providers/app-context';
 import { createSessionClient } from '@/providers/session-client';
 import { createHttpClient } from '@/lib/http-client';
+import { useStudyTools } from '@/hooks/use-study-tools';
 import type { MockDatabase, User } from '@/models';
 import { ToastRegion } from '@/components/shared/toast-region';
 import { useToasts } from '@/components/shared/use-toasts';
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const { toasts, notify, dismiss } = useToasts();
   const [client] = useState(() => createSessionClient(createHttpClient()));
   const session = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  useStudyTools(client, session.sessionKey, session.status === 'authenticated');
   useEffect(() => {
     void client.refresh();
     const refresh = () => { if (document.visibilityState === 'visible') void client.refresh(); };

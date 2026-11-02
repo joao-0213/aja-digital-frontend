@@ -173,3 +173,5 @@ export function createSubjectService(config, auth) {
     }
   };
 }
+
+export { moduleDTO, summary as subjectSummary };

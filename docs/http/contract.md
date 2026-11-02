@@ -12,6 +12,18 @@ Visitas pertencem à conta autenticada e à disciplina. O navegador envia `publi
 
 As propostas preliminares de retirada de disciplina/módulo foram removidas do OpenAPI por excederem os comandos do legado e o escopo desta issue. A presença de registros antigos retirados no armazenamento continua respeitada pelas projeções.
 
+## Materiais, arquivos e progresso — AJA-08
+
+`GET /materials/{id}` retorna `{material,module,subject,canManageContent}` para leitura e retorno ao contexto. Lista e escritas de material usam o DTO base, com `fileId`, metadados seguros de arquivo e autoria; não retornam blobs/base64. A edição conserva tipo e arquivo vinculado, permitindo título, texto, duração e URL de vídeo. Novo vídeo exige HTTPS sem credenciais; vídeo legado sem URL continua consultável com estado de indisponibilidade, sem inventar link. A proposta preliminar de retirada de material foi removida por exceder os comandos do legado e desta issue.
+
+O navegador envia exatamente um arquivo por multipart, com `purpose` e `parentId`; PDF de material tem limite de 10 MiB e preparação vinculada ao módulo. Um lote tem até dez materiais e compara a revisão do módulo. Falha definitiva não publica parte do lote; limpeza nunca remove arquivos anexados ou de outra conta/contexto. Resposta perdida não prova falha: repetir a mesma intenção e payload deve conferir o resultado antes de criar nova publicação ou descartar preparação. Reordenação verifica revisão do pai e conjunto/revisões dos materiais.
+
+Arquivos novos têm bytes privados no JSON transacional, para que metadados e bytes sejam gravados/removidos com o mesmo rename atômico. Isso tem custo de memória/tamanho do banco e destina-se ao JSON Server local. O upload HTTP permanece binário e nenhuma coleção ou caminho interno é exposto. Fixtures são resolvidas por manifesto fechado. Preparação expira em 24 horas; descarte/expiração não apagam anexos já vinculados. Uma chave de upload descartada/expirada não recria bytes: a mesma conta recebe 404 e precisa iniciar nova preparação com nova chave, mesmo após expirar o cache geral de repetição.
+
+Sessão é conferida antes da leitura limitada do corpo. Como finalidade/pai estão no multipart, a autorização do pai é conferida após o parse e novamente no commit. O limite real do envelope permite 64 KiB além dos 10 MiB de arquivo; não se confia apenas no Content-Length. Download revalida o pai vigente em cada requisição. Preparação alheia, vínculo revogado e arquivo ausente não expõem bytes; nomes e cabeçalhos são seguros, com nosniff e disposição adequada ao tipo.
+
+`PATCH /me/progress` recebe apenas `materialId` e, opcionalmente, `completed:true`. Sem completed registra último acesso do servidor conservando conclusão anterior; true conclui sem duplicar o registro, false é inválido. Usuário vem da sessão. Ferramentas opcionais consultam os mesmos endpoints, respeitam a sessão capturada na execução e não anunciam sucesso local após falha; ausência de registro de ferramentas não impede o uso da tela.
+
 ## Fronteira e versão
 
 Um único contrato `/api/v1`, servido pelo processo separado do JSON Server, inclusive comandos que alteram vários recursos. Nada de CRUD público genérico, `/db`, verificador de senha, sessões brutas, tokens, caixa de saída, auditoria bruta ou diretório de arquivos exposto. A caixa de saída e reset são ferramentas de terminal. Não há endpoint de receita JavaScript nem de upload do banco do navegador.

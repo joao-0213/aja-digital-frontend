@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
@@ -3538,7 +3538,7 @@
         "tags": [
           "AJA-08"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Detalhe autorizado com material, módulo e resumo da disciplina para retorno ao contexto e permissão vigente. O arquivo vinculado tem metadados seguros; bytes são consultados separadamente em /files/{id}/content.",
         "x-roles": [
           "student",
           "teacher",
@@ -3550,36 +3550,68 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Material"
+                  "$ref": "#/components/schemas/MaterialDetail"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Material 1",
-                  "kind": "lesson",
-                  "duration": 10,
-                  "content": "Conteúdo",
-                  "fileId": "s1",
-                  "videoUrl": "https://example.test/material",
-                  "file": {
+                  "material": {
                     "id": "s1",
-                    "name": "material.pdf",
-                    "size": 1,
-                    "mime": "application/pdf",
-                    "purpose": "material",
-                    "parentId": "s1",
-                    "status": "staged",
-                    "downloadUrl": "/api/v1/files/f1/content"
+                    "revision": 1,
+                    "createdAt": "2026-11-02T14:00:00Z",
+                    "updatedAt": "2026-11-02T14:00:00Z",
+                    "updatedBy": "s1",
+                    "moduleId": "s1",
+                    "title": "Material 1",
+                    "kind": "lesson",
+                    "duration": 10,
+                    "content": "Conteúdo",
+                    "fileId": "s1",
+                    "videoUrl": "https://example.test/material",
+                    "file": {
+                      "id": "s1",
+                      "name": "material.pdf",
+                      "size": 1,
+                      "mime": "application/pdf",
+                      "purpose": "material",
+                      "parentId": "s1",
+                      "status": "staged",
+                      "downloadUrl": "/api/v1/files/f1/content"
+                    },
+                    "author": {
+                      "id": "s1",
+                      "name": "Pessoa AJA"
+                    },
+                    "order": 1
                   },
-                  "author": {
+                  "module": {
                     "id": "s1",
-                    "name": "Pessoa AJA"
+                    "revision": 1,
+                    "createdAt": "2026-11-02T14:00:00Z",
+                    "updatedAt": "2026-11-02T14:00:00Z",
+                    "updatedBy": "s1",
+                    "subjectId": "s1",
+                    "title": "Módulo 1",
+                    "description": "Conteúdo",
+                    "order": 1
                   },
-                  "order": 1
+                  "subject": {
+                    "id": "s1",
+                    "revision": 1,
+                    "createdAt": "2026-11-02T14:00:00Z",
+                    "updatedAt": "2026-11-02T14:00:00Z",
+                    "updatedBy": "s1",
+                    "classId": "s1",
+                    "name": "Matemática",
+                    "teacherIds": [],
+                    "color": "violet",
+                    "icon": "book",
+                    "description": "Conteúdo",
+                    "className": "Turma Horizonte",
+                    "teachers": [],
+                    "canManageContent": false,
+                    "hasUpdates": false,
+                    "publicationIds": []
+                  },
+                  "canManageContent": false
                 }
               }
             }
@@ -3811,109 +3843,6 @@
         }
       }
     },
-    "/materials/{id}/withdraw": {
-      "post": {
-        "operationId": "withdrawMaterial",
-        "summary": "withdrawMaterial",
-        "tags": [
-          "AJA-08"
-        ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
-        "x-roles": [
-          "teacher",
-          "admin"
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação concluída.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Material"
-                },
-                "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "moduleId": "s1",
-                  "title": "Material 1",
-                  "kind": "lesson",
-                  "duration": 10,
-                  "content": "Conteúdo",
-                  "fileId": "s1",
-                  "videoUrl": "https://example.test/material",
-                  "file": {
-                    "id": "s1",
-                    "name": "material.pdf",
-                    "size": 1,
-                    "mime": "application/pdf",
-                    "purpose": "material",
-                    "parentId": "s1",
-                    "status": "staged",
-                    "downloadUrl": "/api/v1/files/f1/content"
-                  },
-                  "author": {
-                    "id": "s1",
-                    "name": "Pessoa AJA"
-                  },
-                  "order": 1
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Error401"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error403"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error404"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error409"
-          },
-          "422": {
-            "$ref": "#/components/responses/Error422"
-          },
-          "500": {
-            "$ref": "#/components/responses/Error500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Error503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "s1",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionCommand"
-              },
-              "example": {
-                "expectedRevision": 1
-              }
-            }
-          }
-        }
-      }
-    },
     "/me/progress": {
       "get": {
         "operationId": "listProgress",
@@ -4016,7 +3945,7 @@
         "tags": [
           "AJA-08"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Atua somente para a conta da sessão. materialId sem completed registra último acesso com relógio do serviço e preserva conclusão anterior. completed:true conclui sem desmarcar ou criar duplicata; false não é aceito. Acesso é revalidado no estado mais recente.",
         "x-roles": [
           "student",
           "teacher",
@@ -4160,7 +4089,7 @@
         "tags": [
           "AJA-08"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Revalida acesso pelo pai vigente em cada leitura, inclusive após saída da turma ou revogação de atribuição. Preparação só é visível ao dono autorizado. Arquivo ausente/oculto retorna 404. Bytes têm MIME e Content-Disposition seguros, com nosniff; upload livre não é servido como conteúdo ativo inline.",
         "x-roles": [
           "student",
           "teacher",
@@ -4181,13 +4110,21 @@
                   "type": "string",
                   "example": "attachment; filename=\"material.pdf\""
                 }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "const": "nosniff",
+                  "example": "nosniff"
+                }
               }
             },
             "content": {
-              "application/octet-stream": {
+              "*/*": {
                 "schema": {
                   "type": "string",
-                  "format": "binary"
+                  "format": "binary",
+                  "description": "Bytes com o Content-Type autorizado do arquivo; disposição attachment para tipos livres que não devem executar inline."
                 }
               }
             }
@@ -4249,7 +4186,7 @@
         "tags": [
           "AJA-08"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Recebe exatamente uma parte file e os campos purpose e parentId, sem campos duplicados/desconhecidos. Sessão é validada antes da leitura limitada do corpo; autorização do pai é conferida após parse e novamente na transação. Para material, parentId de preparação é o módulo. PDF até 10 MiB; o envelope multipart pode usar até 64 KiB adicionais. Novos bytes e metadados são privados, persistidos atomicamente; DTO nunca contém bytes/base64 ou path interno. Preparação expira em 24 horas e só pode ser anexada pela própria conta no mesmo uso/contexto. Após descarte ou expiração, repetir a chave de upload da mesma conta retorna 404; uma nova preparação exige nova chave. Essa vinculação impede recriar silenciosamente preparação já eliminada, mesmo depois de expirar o cache geral de repetição.",
         "x-roles": [
           "student",
           "teacher",
@@ -4350,7 +4287,7 @@
         "tags": [
           "AJA-08"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Descarta somente preparação da própria conta. Arquivos já vinculados nunca são apagados por este comando. A expiração de preparação não afeta arquivos anexados.",
         "x-roles": [
           "student",
           "teacher",
@@ -10569,7 +10506,9 @@
           },
           "title": {
             "type": "string",
-            "example": "Material 1"
+            "example": "Material 1",
+            "minLength": 1,
+            "maxLength": 160
           },
           "kind": {
             "type": "string",
@@ -10582,8 +10521,9 @@
           },
           "duration": {
             "type": "number",
-            "minimum": 0,
-            "example": 10
+            "minimum": 1,
+            "example": 10,
+            "maximum": 600
           },
           "content": {
             "type": "string",
@@ -10635,12 +10575,15 @@
           },
           "title": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "minLength": 1,
+            "maxLength": 160
           },
           "duration": {
             "type": "number",
-            "minimum": 0,
-            "example": 10
+            "minimum": 1,
+            "example": 10,
+            "maximum": 600
           },
           "content": {
             "type": "string",
@@ -14511,6 +14454,31 @@
           "subject",
           "modules",
           "projections"
+        ]
+      },
+      "MaterialDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "material": {
+            "$ref": "#/components/schemas/Material"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/SubjectSummary"
+          },
+          "canManageContent": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "material",
+          "module",
+          "subject",
+          "canManageContent"
         ]
       }
     },
