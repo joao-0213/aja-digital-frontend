@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ThumbsUp } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
-import { Avatar, Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Empty, LinkButton, Textarea } from '@/components/ui';
 import { cn, dateLabel, uid } from '@/lib/utils';
 import { forumReplies, forumTarget } from '@/lib/forum';
 import { readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { ForumAttachments } from './forum-attachments';
 import { RichText } from '@/components/ui/rich-text';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 export function ForumThread() {
   const { user } = useApp();
@@ -155,7 +154,7 @@ function ForumThreadContent() {
         }, 'Resposta publicada.', { requirePersistence: true })) setBody('');
       }}>
         <fieldset disabled={busy} className="min-w-0">
-        <RichTextEditor label="Sua resposta" placeholder="Compartilhe seu raciocínio. Uma boa explicação ajuda todo mundo." value={body} onChange={setBody} />
+        <Textarea label="Sua resposta" placeholder="Compartilhe seu raciocínio. Uma boa explicação ajuda todo mundo." value={body} onChange={e => setBody(e.target.value)} required minLength={10} rows={5} className="text-base leading-7" />
         {draftError && <p role="alert" className="mt-3 text-sm text-rose-700">{draftError}</p>}
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={!body.trim()} loading={busy}>Publicar resposta</Button>

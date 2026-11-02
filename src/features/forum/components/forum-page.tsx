@@ -5,14 +5,13 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { MessageSquare, Plus, CheckCircle2 } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
-import { Avatar, Badge, Button, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
+import { Avatar, Badge, Button, Dialog, Empty, Input, PageHeading, Select, Textarea } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
 import { forumMatches, forumReplies, forumTarget, validateForumAttachment } from '@/lib/forum';
 import { readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { saveMaterialFiles } from '@/lib/material-files';
 import type { ForumTopic } from '@/models';
 import { ForumAttachments } from './forum-attachments';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 export function ForumPage() {
   const { user } = useApp();
@@ -136,7 +135,7 @@ function ForumPageContent() {
           return;
         }
         if (!body.trim()) { setError('Conte sua dúvida antes de publicar.'); return; }
-        if (target && !resolved) { setError('Referência indisponível. Confira a disciplina e o alvo ou escolha Sem referência.'); return; }
+        if (target && !resolved) { setError('Referência indisponível. Confira a disciplina ou remova a referência para continuar.'); return; }
         if (await mutate(d => {
           d.topics.unshift({
             id: uid('topic'),
@@ -165,18 +164,25 @@ function ForumPageContent() {
         }
       }}>
         <fieldset disabled={busy || uploading} className="min-w-0 space-y-4">
+        {target && <section aria-label="Referência da pergunta" className="rounded-xl border border-slate-200 bg-slate-50 p-4 [overflow-wrap:anywhere]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="mb-1 text-xs font-semibold text-slate-500">{target.type === 'material' ? 'Sobre este material' : 'Sobre esta questão'}</p>
+              {resolved && <a href={resolved.href} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-brand-700 underline decoration-brand-200 underline-offset-4">{resolved.title}<span className="sr-only"> · abrir em nova aba</span></a>}
+            </div>
+            <Button variant="ghost" aria-label="Remover referência" className="shrink-0" onClick={() => setReference('')}>Remover</Button>
+          </div>
+          {resolved ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{resolved.preview.replace(/\s+/g, ' ')}</p> : <p className="mt-2 text-sm text-amber-800">Esta referência foi retirada ou não está disponível na disciplina selecionada. Você pode removê-la e continuar a pergunta.</p>}
+        </section>}
         <Input label="Título da pergunta" value={title} onChange={e => setTitle(e.target.value)} required minLength={8} maxLength={180} />
         <Select label="Disciplina" value={targetSubject} onChange={e => setTargetSubject(e.target.value)}>
           {publishableSubjects.map(s => <option key={s.id} value={s.id}>{s.name} · {db.classes.find(c => c.id === s.classId)?.name}</option>)}
         </Select>
-        <RichTextEditor label="Conte sua dúvida" placeholder="Explique o que você já tentou e onde encontrou dificuldade." value={body} onChange={setBody} />
-        <Input label="Tags (separe por vírgulas, até 5)" value={tags} onChange={e => setTags(e.target.value)} placeholder="funções, gráficos" />
-        <Select label="Referência (opcional)" value={reference} onChange={e => setReference(e.target.value)}>
-          <option value="">Sem referência</option>
-          {db.materials.filter(m => db.modules.some(mod => mod.id === m.moduleId && mod.subjectId === targetSubject)).map(m => <option key={m.id} value={`material:${m.id}`}>Material · {m.title}</option>)}
-          {db.questions.map(q => <option key={q.id} value={`question:${q.id}`}>{q.id.toUpperCase()} · {q.topic}</option>)}
-        </Select>
-        {target && <p className="rounded-lg bg-slate-50 p-3 text-sm">{resolved ? `${resolved.title}: ${resolved.preview}` : 'Referência indisponível. Confira a disciplina ou remova a referência.'}</p>}
+        <Textarea label="Conte sua dúvida" placeholder="Explique o que você já tentou e onde encontrou dificuldade." value={body} onChange={e => setBody(e.target.value)} required minLength={10} rows={5} className="text-base leading-7" />
+        <details className="rounded-lg border border-slate-200 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-slate-600">Adicionar tags (opcional)</summary>
+          <div className="mt-3"><Input label="Tags (separe por vírgulas, até 5)" value={tags} onChange={e => setTags(e.target.value)} placeholder="funções, gráficos" /></div>
+        </details>
         <p className="text-sm text-slate-600">A pergunta e seu anexo ficam visíveis à turma e à equipe autorizada. Evite dados pessoais. Um PDF, PNG, JPEG ou WebP de até 5 MB; arquivo disponível somente neste navegador.</p>
         <Input label="Anexo (opcional)" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={uploading || busy} onChange={async e => {
           const file = e.target.files?.[0];
