@@ -32,6 +32,17 @@ function fixture(): MockDatabase {
   };
 }
 
+test('video mutations reject unsafe sources without changing existing data and preserve legacy materials', () => {
+  const db = fixture();
+  const original = structuredClone(db);
+  assert.throws(() => applyDemoMutation(db, 't1', d => { Object.assign(d.materials[0], { kind: 'video', videoUrl: 'javascript:alert(1)' }); }), /URL HTTPS/);
+  assert.deepEqual(db, original);
+  const legacy = applyDemoMutation(db, 't1', d => { d.materials[0].kind = 'video'; });
+  assert.equal(legacy.materials[0].videoUrl, undefined);
+  const valid = applyDemoMutation(db, 't1', d => { Object.assign(d.materials[0], { kind: 'video', videoUrl: 'https://example.org/video' }); });
+  assert.equal(valid.materials[0].videoUrl, 'https://example.org/video');
+});
+
 test('assigned colleagues have equal access without gaining another discipline', () => {
   const db = fixture();
   assert.equal(canManageSubject(db, db.users[1], 'd1'), true);
