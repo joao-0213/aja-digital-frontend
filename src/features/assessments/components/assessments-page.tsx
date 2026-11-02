@@ -6,7 +6,7 @@ import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff } from '../api';
+import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff, type AttemptRead } from '../api';
 
 type Filter = 'all' | 'draft' | 'published';
 
@@ -19,9 +19,12 @@ function dateLabel(value: string | null) {
   return `Até ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))} (Brasília)`;
 }
 
-function ActivityDetails({ activity, canManage }: { activity: AssessmentRead; canManage: boolean }) {
+function ActivityDetails({ activity, canManage, userId, attempts }: { activity: AssessmentRead; canManage: boolean; userId: string; attempts: AttemptRead[] }) {
   const staff = isStaffAssessment(activity);
   const questionCount = staff ? activity.questionIds.length : activity.questionCount;
+  const related = attempts.filter(attempt => attempt.assessmentId === activity.id && (canManage || attempt.userId === userId));
+  const activeAttempt = related.find(attempt => !attempt.submittedAt);
+  const submitted = related.filter(attempt => attempt.submittedAt);
   return <>
     <LinkButton secondary href="/questionarios">Voltar para atividades</LinkButton>
     <Card className="mt-5 space-y-5">
@@ -43,7 +46,15 @@ function ActivityDetails({ activity, canManage }: { activity: AssessmentRead; ca
         <h3 className="font-semibold">Questões incluídas</h3>
         {activity.questions.length ? <ol className="mt-3 list-decimal space-y-3 pl-5">{activity.questions.map(question => <li key={question.id} className="text-sm leading-6 text-slate-700">{question.statement}<span className="ml-2 text-xs text-slate-500">{question.origin === 'author' ? 'Autoral desta atividade' : 'Cópia do acervo'}</span></li>)}</ol> : <p className="mt-2 text-sm text-slate-500">Este trabalho recebe arquivos e links.</p>}
       </section>}
-      {!canManage && <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">Esta etapa mostra os detalhes publicados. A abertura e o envio da atividade serão habilitados na próxima etapa.</p>}
+      {activity.kind === 'quiz' && <section className="border-t border-slate-100 pt-4">
+        <h3 className="font-semibold">Tentativa</h3>
+        {canManage ? submitted.length ? <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios entregues</LinkButton> : <p className="mt-2 text-sm text-slate-500">Ainda não há envios para consulta.</p>
+          : activity.status !== 'published' ? <p className="mt-2 text-sm text-slate-500">Este rascunho não está disponível para resposta.</p>
+            : !('assigned' in activity) || !activity.assigned ? <p className="mt-2 text-sm text-slate-500">Disponível apenas para consulta; esta atividade não foi atribuída à sua matrícula.</p>
+              : submitted.length ? <LinkButton className="mt-3" href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
+                : <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar questionário' : 'Iniciar questionário'}</LinkButton>}
+      </section>}
+      {activity.kind === 'work' && <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">Os detalhes estão disponíveis. O envio de trabalhos será habilitado na próxima etapa.</p>}
     </Card>
   </>;
 }
@@ -56,6 +67,7 @@ export function AssessmentsPage() {
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const query = useHttpQuery({ sessionKey, key: JSON.stringify(['assessments', filter, resourceEpoch]) }, useCallback(signal => api.overview(filter === 'all' ? {} : { status: filter }, signal, sessionKey), [api, filter, sessionKey]), status === 'authenticated');
   const detail = useHttpQuery({ sessionKey, key: `assessment-detail:${detailId ?? ''}:${resourceEpoch}` }, useCallback(signal => api.read(detailId ?? '', signal), [api, detailId]), status === 'authenticated' && !!detailId);
+  const attempts = useHttpQuery({ sessionKey, key: `assessment-attempts:${resourceEpoch}` }, useCallback(signal => api.allAttempts({}, signal, sessionKey), [api, sessionKey]), status === 'authenticated');
 
   if (status === 'loading') return <Skeleton />;
   if (status !== 'authenticated' || !user) return <Empty title="Entre para consultar atividades" description="As atividades da disciplina aparecem para a conta autenticada." />;
@@ -63,10 +75,14 @@ export function AssessmentsPage() {
     if (detail.loading) return <Skeleton />;
     if (detail.error) return <ErrorState message={detail.error.message} retry={() => void detail.retry()} />;
     if (!detail.data) return <Empty title="Atividade indisponível" action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
-    return <ActivityDetails activity={detail.data} canManage={user.role !== 'student'} />;
+    if (attempts.loading) return <Skeleton />;
+    if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
+    return <ActivityDetails activity={detail.data} canManage={user.role !== 'student'} userId={user.id} attempts={attempts.data ?? []} />;
   }
   if (query.loading) return <Skeleton />;
   if (query.error) return <ErrorState message={query.error.message} retry={() => void query.retry()} />;
+  if (attempts.loading) return <Skeleton />;
+  if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
 
   const modules = new Map((query.data?.modules ?? []).map(module => [module.id, module]));
   const subjects = new Map((query.data?.subjects ?? []).map(subject => [subject.id, subject]));
@@ -84,6 +100,9 @@ export function AssessmentsPage() {
       const own = isStaffAssessment(activity);
       const count = own ? activity.questionIds.length : activity.questionCount;
       const assigned = isStaffAssessment(activity) ? true : activity.assigned;
+      const related = (attempts.data ?? []).filter(attempt => attempt.assessmentId === activity.id && (staff || attempt.userId === user.id));
+      const activeAttempt = related.find(attempt => !attempt.submittedAt);
+      const submitted = related.filter(attempt => attempt.submittedAt);
       return <Card key={activity.id} className="flex flex-col">
         <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
         <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {module?.order ?? '—'}</p>
@@ -96,6 +115,10 @@ export function AssessmentsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <LinkButton secondary href={`/questionarios?id=${encodeURIComponent(activity.id)}`}>Detalhes</LinkButton>
+          {activity.kind === 'quiz' && !staff && assigned && (submitted[0]
+            ? <LinkButton href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
+            : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar' : 'Iniciar'}</LinkButton>)}
+          {activity.kind === 'quiz' && staff && submitted.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios</LinkButton>}
           {staff && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar atividade'}</LinkButton>}
         </div>
       </Card>;

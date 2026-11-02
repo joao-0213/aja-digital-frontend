@@ -1,7 +1,7 @@
 import type { SessionClient } from '../../providers/session-client.ts';
 import type { Question } from '../../models/questions.ts';
 import type { Subject, TrailModule } from '../../models/academic.ts';
-import { HttpError } from '../../lib/http-client.ts';
+import { HttpError, type HttpRequestOptions } from '../../lib/http-client.ts';
 
 export interface AssessmentSnapshot extends Omit<Question, 'image'> {
   origin: 'bank' | 'author';
@@ -37,6 +37,67 @@ export interface AssessmentStudent extends Omit<AssessmentBase, 'status' | 'publ
 }
 export type AssessmentRead = AssessmentStaff | AssessmentStudent;
 export interface AssessmentPage { items: AssessmentRead[]; page: number; pageSize: number; total: number }
+export type AttemptQuestionPrompt = Omit<AssessmentSnapshot, 'correct' | 'explanation' | 'origin'>;
+export type AttemptQuestionResult = Omit<AssessmentSnapshot, 'origin'>;
+export interface AttemptStudent {
+  id: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string;
+  assessmentId: string;
+  assessmentTitle: string;
+  userId: string;
+  studentName: string;
+  startedAt: string;
+  submittedAt: string | null;
+  answers: Record<string, number | null>;
+  questionOrder: string[];
+  questions: AttemptQuestionPrompt[];
+  questionsUpdatedAt: string | null;
+}
+export interface AttemptStaff extends Omit<AttemptStudent, 'questions'> { questions: AttemptQuestionPrompt[] }
+export type AttemptRead = AttemptStudent | AttemptStaff;
+export interface AttemptPage { items: AttemptRead[]; page: number; pageSize: number; total: number }
+export interface AttemptResult {
+  attempt: AttemptStudent;
+  receipt: { id: string; resourceId: string; submittedAt: string };
+  score: number;
+  maxScore: number;
+  questions: AttemptQuestionResult[];
+}
+export interface FrozenAttemptSubmitIntent { revision: number; key: string }
+
+/** Freeze the submit body and key after the final autosave; retries replay only that POST. */
+export function createAttemptSubmitCommand(makeKey: () => string = () => crypto.randomUUID()) {
+  let intent: FrozenAttemptSubmitIntent | null = null;
+  let preparing: Promise<FrozenAttemptSubmitIntent> | null = null;
+  let pendingSends = 0;
+  return {
+    current: () => intent ? { ...intent } : null,
+    acknowledgeRevisionConflict(reviewedRevision: number) {
+      if (!intent) return;
+      if (preparing || pendingSends > 0) throw new Error('Wait for the current submit request before reviewing its revision.');
+      if (!Number.isSafeInteger(reviewedRevision) || reviewedRevision <= intent.revision) throw new RangeError('The reviewed revision must be newer than the frozen submit revision.');
+      intent = null;
+    },
+    async submit<T>(prepare: () => Promise<number>, send: (frozen: FrozenAttemptSubmitIntent) => Promise<T>) {
+      if (!intent) {
+        preparing ??= (async () => {
+          const revision = await prepare();
+          if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('A revisão salva da tentativa é inválida.');
+          intent = { revision, key: makeKey() };
+          return intent;
+        })().finally(() => { preparing = null; });
+        await preparing;
+      }
+      pendingSends++;
+      try { return await send({ ...intent! }); }
+      finally { pendingSends--; }
+    }
+  };
+}
+type AttemptFilters = { assessmentId?: string; studentId?: string };
 export type AssessmentQuestionEntry =
   | { source: 'bank'; questionId: string }
   | { source: 'authored'; clientKey: string; questionId: string | null; question: Omit<AssessmentSnapshot, 'id' | 'origin'> };
@@ -78,6 +139,31 @@ export function createAssessmentsApi(client: AssessmentClient) {
     for (const key of ['subjectId', 'moduleId', 'status', 'kind'] as const) if (filters[key]) params.set(key, filters[key]!);
     return params;
   };
+  const attemptPageParams = (page: number, filters: AttemptFilters = {}) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: '100' });
+    if (filters.assessmentId) params.set('assessmentId', filters.assessmentId);
+    if (filters.studentId) params.set('studentId', filters.studentId);
+    return params;
+  };
+  const requestForSession = async <T>(path: string, options: HttpRequestOptions | undefined, sessionKey: string | undefined) => {
+    const guard = sessionFence(sessionKey, options?.signal);
+    guard();
+    const result = await client.request<T>(path, options);
+    guard();
+    return result;
+  };
+  const attemptPage = (filters: AttemptFilters, page: number, sessionKey: string | undefined, signal?: AbortSignal) =>
+    requestForSession<AttemptPage>(`/attempts?${attemptPageParams(page, filters)}`, { signal }, sessionKey);
+  const readAttempt = (id: string, signal?: AbortSignal, sessionKey = currentSessionKey()) =>
+    requestForSession<AttemptRead>(`/attempts/${encodeURIComponent(id)}`, { signal }, sessionKey);
+  const startAttempt = (assessmentId: string, intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<AttemptStudent>('/attempts', { method: 'POST', json: { assessmentId }, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const saveAttemptAnswers = (id: string, revision: number, answers: Record<string, number | null>, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<AttemptStudent>(`/attempts/${encodeURIComponent(id)}/answers`, { method: 'PATCH', json: { expectedRevision: revision, answers: structuredClone(answers) }, ...(signal ? { signal } : {}) }, sessionKey);
+  const submitAttempt = (id: string, revision: number, intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<AttemptResult>(`/attempts/${encodeURIComponent(id)}/submit`, { method: 'POST', json: { expectedRevision: revision }, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const readAttemptResult = (id: string, signal?: AbortSignal, sessionKey = currentSessionKey()) =>
+    requestForSession<AttemptResult>(`/attempts/${encodeURIComponent(id)}/result`, { signal }, sessionKey);
   const list = (filters: Filters, page: number, signal?: AbortSignal) => client.request<AssessmentPage>(`/assessments?${pageParams(page, filters)}`, { signal });
   const read = (id: string, signal?: AbortSignal) => client.request<AssessmentRead>(`/assessments/${encodeURIComponent(id)}`, { signal });
   const create = (fields: AssessmentCreate, intent: string, signal?: AbortSignal) => client.request<AssessmentStaff>('/assessments', { method: 'POST', json: fields, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) });
@@ -94,6 +180,15 @@ export function createAssessmentsApi(client: AssessmentClient) {
     const guard = sessionFence(sessionKey, signal), items: AssessmentRead[] = [];
     for (let page = 1; ; page++) {
       guard(); const result = await list(filters, page, signal); guard();
+      items.push(...result.items);
+      if (items.length >= result.total || !result.items.length) return items;
+    }
+  }
+
+  async function allAttempts(filters: AttemptFilters = {}, signal?: AbortSignal, sessionKey = currentSessionKey()) {
+    const guard = sessionFence(sessionKey, signal), items: AttemptRead[] = [];
+    for (let page = 1; ; page++) {
+      guard(); const result = await attemptPage(filters, page, sessionKey, signal); guard();
       items.push(...result.items);
       if (items.length >= result.total || !result.items.length) return items;
     }
@@ -160,5 +255,5 @@ export function createAssessmentsApi(client: AssessmentClient) {
     return assessment;
   }
 
-  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, saveAndPublish, saveDraft };
+  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, saveAndPublish, saveDraft, attemptPage, allAttempts, readAttempt, startAttempt, saveAttemptAnswers, submitAttempt, readAttemptResult };
 }

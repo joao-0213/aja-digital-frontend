@@ -224,8 +224,140 @@ function hasSubmittedDelivery(state, id) {
   return state.attempts.some(row => row.assessmentId === id && row.submittedAt && !row.deletedAt) || (state.submissions ?? []).some(row => row.assessmentId === id && row.submittedAt && !row.deletedAt);
 }
 
+function attemptQuestionOrder(attempt) {
+  const questions = attempt.questions ?? [];
+  return (attempt.questionOrder ?? []).map(id => questions.find(question => question.id === id)).filter(Boolean);
+}
+
+function questionPrompt(question) {
+  return {
+    id: question.id, subject: question.subject,
+    topic: question.topic, difficulty: question.difficulty, institution: question.institution, year: question.year,
+    statement: question.statement, options: [...question.options], image: question.image ? { src: question.image.src, alt: question.image.alt } : null
+  };
+}
+
+function questionResult(question) {
+  const { origin: _origin, ...result } = resolvedQuestion(question);
+  return result;
+}
+
+function attemptStudent(attempt, state) {
+  const assessment = state.assessments.find(row => row.id === attempt.assessmentId && alive(row));
+  const student = state.users.find(row => row.id === attempt.userId && alive(row));
+  return {
+    id: attempt.id, revision: attempt.revision ?? 1, createdAt: attempt.createdAt ?? attempt.startedAt,
+    updatedAt: attempt.updatedAt ?? attempt.startedAt, updatedBy: attempt.updatedBy ?? attempt.userId,
+    assessmentId: attempt.assessmentId, assessmentTitle: attempt.assessmentTitle ?? assessment?.title ?? '',
+    userId: attempt.userId, studentName: student?.name ?? 'Aluno', startedAt: attempt.startedAt,
+    submittedAt: attempt.submittedAt ?? null, answers: structuredClone(attempt.answers ?? {}),
+    questionOrder: [...(attempt.questionOrder ?? [])], questions: attemptQuestionOrder(attempt).map(questionPrompt),
+    questionsUpdatedAt: attempt.questionsUpdatedAt ?? null
+  };
+}
+
+function attemptStaff(attempt, state) {
+  return attemptStudent(attempt, state);
+}
+
+function attemptScore(attempt) {
+  const questions = new Map((attempt.questions ?? []).map(question => [question.id, question]));
+  const score = (attempt.questionOrder ?? []).reduce((total, id) => {
+    const question = questions.get(id);
+    return total + (question && attempt.answers?.[id] !== null && attempt.answers?.[id] !== undefined && attempt.answers[id] === question.correct ? 1 : 0);
+  }, 0);
+  return { score, maxScore: (attempt.questionOrder ?? []).length };
+}
+
+function attemptResult(attempt, _actor, state) {
+  const computed = attempt.result ?? attemptScore(attempt);
+  const receiptId = attempt.receiptId ?? (typeof attempt.receipt === 'string' ? attempt.receipt : attempt.id);
+  return {
+    attempt: attemptStudent(attempt, state),
+    receipt: { id: receiptId, resourceId: attempt.id, submittedAt: attempt.submittedAt },
+    score: computed.score, maxScore: computed.maxScore,
+    questions: attemptQuestionOrder(attempt).map(questionResult)
+  };
+}
+
+function assignedAttempt(state, assessment, subject, userId) {
+  if (!isAssessmentAssigned(state, assessment, userId)) return false;
+  const history = (state.enrollments ?? []).filter(row => row.studentId === userId && row.classId === subject.classId);
+  if (!history.length) return true;
+  const active = history.find(row => row.status === 'active' && !row.deletedAt);
+  if (!active || active.unassignedAssessmentIds?.includes(assessment.id)) return false;
+  if (assessment.deadline && active.enrolledAt && Date.parse(active.enrolledAt) >= Date.parse(assessment.deadline)) return false;
+  return true;
+}
+
+export function studentHasAuthorizedPendingAttemptForQuestion(state, actor, questionId) {
+  if (actor.role !== 'student') return false;
+  return state.attempts.some(attempt => {
+    if (!alive(attempt) || attempt.submittedAt || attempt.userId !== actor.id
+      || !attempt.questionOrder?.includes(questionId) || !attempt.questions?.some(question => question.id === questionId)) return false;
+    try {
+      const { assessment, subject } = attemptAssessment(state, actor, attempt.assessmentId);
+      return assignedAttempt(state, assessment, subject, actor.id);
+    } catch (error) {
+      if (error instanceof HttpError && [403, 404].includes(error.status)) return false;
+      throw error;
+    }
+  });
+}
+
+function attemptAssessment(state, actor, assessmentId) {
+  const context = assessmentFor(state, actor, assessmentId);
+  if (context.assessment.status !== 'published' || (context.assessment.kind ?? 'quiz') !== 'quiz') missing();
+  return context;
+}
+
+function requireAttemptActor(state, actor, attemptId, { submitted = false, staffRead = false } = {}) {
+  const attempt = state.attempts.find(row => row.id === attemptId && alive(row));
+  if (!attempt) missing();
+  const context = attemptAssessment(state, actor, attempt.assessmentId);
+  if (actor.role === 'student') {
+    if (attempt.userId !== actor.id || !assignedAttempt(state, context.assessment, context.subject, actor.id)) missing();
+  } else {
+    const allowed = staffRead ? canAccessSubject(state, actor, context.subject.id) : canManageSubject(state, actor, context.subject.id);
+    if (!allowed || !attempt.submittedAt) missing();
+  }
+  if (submitted && !attempt.submittedAt) missing();
+  return { attempt, ...context };
+}
+
+function requireAttemptWindow(assessment, timestamp) {
+  if (assessment.deadline && !assessment.allowLate && Date.parse(timestamp) >= Date.parse(assessment.deadline)) conflict('O prazo encerrou antes da confirmação. As respostas salvas foram preservadas.');
+}
+
+function attemptListQuery(req) {
+  const values = new URL(req.url, 'http://localhost').searchParams;
+  const allowed = ['page', 'pageSize', 'sort', 'assessmentId', 'studentId'];
+  if ([...values.keys()].some(key => !allowed.includes(key) || values.getAll(key).length !== 1)) invalid('Confira os filtros de tentativas.');
+  const page = Number(values.get('page') ?? 1), pageSize = Number(values.get('pageSize') ?? 20), sort = values.get('sort') ?? 'id';
+  if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100 || !['id', '-id'].includes(sort)) invalid('Confira a paginação e a ordenação.');
+  if (values.has('assessmentId')) validId(values.get('assessmentId'));
+  if (values.has('studentId')) validId(values.get('studentId'));
+  return { values, page, pageSize, sort };
+}
+
+function answerCommand(body, attempt) {
+  fields(body, ['expectedRevision', 'answers'], ['expectedRevision', 'answers']);
+  if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 1) invalid('Informe a revisão atual da tentativa.');
+  if (!body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers) || Object.keys(body.answers).length > attempt.questionOrder.length) invalid('Informe o mapa completo das respostas.');
+  const questionById = new Map((attempt.questions ?? []).map(question => [question.id, question]));
+  const answers = {};
+  for (const [id, value] of Object.entries(body.answers)) {
+    const question = questionById.get(validId(id));
+    if (!question || !attempt.questionOrder.includes(id)) invalid('Responda somente às questões desta tentativa.');
+    if (value !== null && (!Number.isSafeInteger(value) || value < 0 || value >= question.options.length)) invalid('Escolha uma alternativa válida para cada questão.');
+    answers[id] = value;
+  }
+  return answers;
+}
+
 export function createAssessmentService(config, auth) {
-  const service = createCommandService({ store: config.store, resolveActor: auth.resolveActor, now: config.now });
+  const now = config.now ?? (() => new Date().toISOString());
+  const service = createCommandService({ store: config.store, resolveActor: auth.resolveActor, now });
   const routes = new Map();
   const add = (path, method, handler) => { const methods = routes.get(path) ?? {}; methods[method] = handler; routes.set(path, methods); };
   const read = (path, authorize, select) => add(path, 'GET', service.read({ authorize, select, project: (value, actor, state) => value?.items ? { ...value, items: value.items.map(item => projectAssessment(state, actor, item.assessment)) } : projectAssessment(state, actor, value) }));
@@ -354,9 +486,146 @@ export function createAssessmentService(config, auth) {
     }
   }));
 
+  add('/attempts', 'GET', service.read({
+    authorize: (state, actor, req) => {
+      const { values } = attemptListQuery(req);
+      if (!values.has('assessmentId')) return;
+      const { assessment, subject } = attemptAssessment(state, actor, values.get('assessmentId'));
+      if (actor.role === 'student') {
+        if (!assignedAttempt(state, assessment, subject, actor.id)) missing();
+      } else if (!canAccessSubject(state, actor, subject.id)) missing();
+    },
+    select: (state, actor, req) => {
+      const { values, page, pageSize, sort } = attemptListQuery(req);
+      const activities = new Map(state.assessments.filter(assessment => {
+        if (!alive(assessment) || assessment.status !== 'published' || (assessment.kind ?? 'quiz') !== 'quiz') return false;
+        const module = state.modules.find(row => row.id === assessment.moduleId && alive(row));
+        const subject = module && state.subjects.find(row => row.id === module.subjectId && alive(row));
+        if (!subject) return false;
+        if (actor.role === 'student') return canAccessSubject(state, actor, subject.id) && assignedAttempt(state, assessment, subject, actor.id);
+        return canAccessSubject(state, actor, subject.id);
+      }).map(assessment => [assessment.id, assessment]));
+      const studentId = actor.role === 'student' ? actor.id : values.get('studentId');
+      const rows = state.attempts.filter(attempt => alive(attempt) && activities.has(attempt.assessmentId)
+        && (!values.has('assessmentId') || attempt.assessmentId === values.get('assessmentId'))
+        && (!studentId || attempt.userId === studentId)
+        && (actor.role === 'student' || !!attempt.submittedAt));
+      rows.sort((left, right) => (left.id.localeCompare(right.id) * (sort === '-id' ? -1 : 1)) || left.id.localeCompare(right.id));
+      return { items: rows.slice((page - 1) * pageSize, page * pageSize), page, pageSize, total: rows.length };
+    },
+    project: (page, actor, state) => ({ ...page, items: page.items.map(attempt => actor.role === 'student' ? attemptStudent(attempt, state) : attemptStaff(attempt, state)) })
+  }));
+
+  add('/attempts', 'POST', service.command({
+    operation: 'POST /attempts', target: req => req.body?.assessmentId, successStatus: 201,
+    authorize: (state, actor, req) => {
+      fields(req.body, ['assessmentId'], ['assessmentId']);
+      const assessmentId = validId(req.body.assessmentId);
+      if (actor.role !== 'student') forbidden();
+      const { assessment, subject } = attemptAssessment(state, actor, assessmentId);
+      if (!assignedAttempt(state, assessment, subject, actor.id)) missing();
+      const existing = state.attempts.find(row => row.assessmentId === assessmentId && row.userId === actor.id && alive(row));
+      if (!existing || !existing.submittedAt) requireAttemptWindow(assessment, now());
+      return assessment;
+    },
+    apply: (state, actor, req, { timestamp }) => {
+      const { assessment, subject } = attemptAssessment(state, actor, req.body.assessmentId);
+      if (!assignedAttempt(state, assessment, subject, actor.id)) missing();
+      const existing = state.attempts.find(row => row.assessmentId === assessment.id && row.userId === actor.id && alive(row));
+      if (existing) return existing;
+      requireAttemptWindow(assessment, timestamp);
+      const questionOrder = [...(assessment.questionIds ?? [])];
+      const questions = questionOrder.map(id => (assessment.questions ?? []).find(question => question.id === id)).filter(Boolean);
+      if (!questionOrder.length || questions.length !== questionOrder.length) invalid('A cópia das questões desta atividade está incompleta.');
+      const attempt = {
+        id: `attempt-${randomUUID()}`, assessmentId: assessment.id, userId: actor.id, startedAt: timestamp,
+        assessmentTitle: assessment.title,
+        submittedAt: null, answers: {}, questionOrder, questions: structuredClone(questions), questionsUpdatedAt: null
+      };
+      state.attempts.push(attempt);
+      return attempt;
+    },
+    project: (attempt, actor, state) => attemptStudent(attempt, state),
+    replayProject: (dto, actor, state) => {
+      const { attempt } = requireAttemptActor(state, actor, dto.id);
+      return attemptStudent(attempt, state);
+    }
+  }));
+
+  const attemptRoute = (suffix, method, template, handler) => {
+    add(template, method, handler);
+  };
+
+  attemptRoute('', 'GET', '/attempts/{id}', service.read({
+    authorize: (state, actor, req) => { requireAttemptActor(state, actor, req.params.id, { staffRead: true }); },
+    select: (state, actor, req) => requireAttemptActor(state, actor, req.params.id, { staffRead: true }).attempt,
+    project: (attempt, actor, state) => actor.role === 'student' ? attemptStudent(attempt, state) : attemptStaff(attempt, state)
+  }));
+
+  attemptRoute('/result', 'GET', '/attempts/{id}/result', service.read({
+    authorize: (state, actor, req) => { requireAttemptActor(state, actor, req.params.id, { submitted: true, staffRead: true }); },
+    select: (state, actor, req) => requireAttemptActor(state, actor, req.params.id, { submitted: true, staffRead: true }).attempt,
+    project: attemptResult
+  }));
+
+  attemptRoute('/answers', 'PATCH', '/attempts/{id}/answers', service.command({
+    operation: 'PATCH /attempts/{id}/answers', target: req => req.params.id,
+    authorize: (state, actor, req) => {
+      if (actor.role !== 'student') forbidden();
+      if (new URL(req.url, 'http://localhost').searchParams.size) invalid('Esta operação não aceita filtros.');
+      const { attempt, assessment } = requireAttemptActor(state, actor, req.params.id);
+      fields(req.body, ['expectedRevision', 'answers'], ['expectedRevision', 'answers']);
+      if (!Number.isSafeInteger(req.body.expectedRevision) || req.body.expectedRevision < 1) invalid('Informe a revisão atual da tentativa.');
+      return { attempt, assessment };
+    },
+    expected: req => [{ collection: 'attempts', id: req.params.id, revision: req.body?.expectedRevision }],
+    apply: (state, actor, req, { timestamp }) => {
+      const { attempt, assessment } = requireAttemptActor(state, actor, req.params.id);
+      if (attempt.submittedAt) conflict('Esta tentativa já foi enviada e não pode ser alterada.');
+      requireAttemptWindow(assessment, timestamp);
+      attempt.answers = answerCommand(req.body, attempt);
+      return attempt;
+    },
+    project: (attempt, actor, state) => attemptStudent(attempt, state)
+  }));
+
+  attemptRoute('/submit', 'POST', '/attempts/{id}/submit', service.command({
+    operation: 'POST /attempts/{id}/submit', target: req => req.params.id,
+    authorize: (state, actor, req) => {
+      if (actor.role !== 'student') forbidden();
+      if (new URL(req.url, 'http://localhost').searchParams.size) invalid('Esta operação não aceita filtros.');
+      const { attempt } = requireAttemptActor(state, actor, req.params.id);
+      fields(req.body, ['expectedRevision'], ['expectedRevision']);
+      if (!Number.isSafeInteger(req.body.expectedRevision) || req.body.expectedRevision < 1) invalid('Informe a revisão atual da tentativa.');
+      return attempt;
+    },
+    expected: req => [{ collection: 'attempts', id: req.params.id, revision: req.body?.expectedRevision }],
+    apply: (state, actor, req, { timestamp }) => {
+      const { attempt, assessment } = requireAttemptActor(state, actor, req.params.id);
+      if (attempt.submittedAt) return attempt;
+      requireAttemptWindow(assessment, timestamp);
+      attempt.submittedAt = timestamp;
+      attempt.receiptId = randomUUID();
+      attempt.result = attemptScore(attempt);
+      return attempt;
+    },
+    project: attemptResult,
+    replayProject: (dto, actor, state) => {
+      const { attempt } = requireAttemptActor(state, actor, dto.attempt.id, { submitted: true });
+      return attemptResult(attempt, null, state);
+    }
+  }));
+
   return {
     resolve(path) {
       if (routes.has(path)) return { methods: routes.get(path), params: {}, acceptsQuery: path === '/assessments' };
+      const attemptMatch = path.match(/^\/attempts\/([^/]{1,384})(?:\/(answers|submit|result))?$/);
+      if (attemptMatch) {
+        let id; try { id = decodeURIComponent(attemptMatch[1]); } catch { return null; }
+        if (!idPattern.test(id)) return null;
+        const template = `/attempts/{id}${attemptMatch[2] ? `/${attemptMatch[2]}` : ''}`;
+        return routes.has(template) ? { methods: routes.get(template), params: { id }, acceptsQuery: false } : null;
+      }
       const match = path.match(/^\/assessments\/([^/]{1,384})(?:\/(publish))?$/);
       if (!match) return null;
       let id; try { id = decodeURIComponent(match[1]); } catch { return null; }

@@ -17,6 +17,17 @@ test('session starts without local persona and never restores identity after fai
   assert.equal(client.getSnapshot().user, null);
 });
 
+test('verified session exposes a stable opaque session identifier for tab-scoped answer recovery', async () => {
+  const client = createSessionClient({ request: async <T>(): Promise<T> => session as T });
+  await client.login(user.email, 'password');
+  assert.equal(client.getSnapshot().sessionId, session.sessionId);
+  const reloaded = createSessionClient({ request: async <T>(): Promise<T> => session as T });
+  await reloaded.refresh();
+  assert.equal(reloaded.getSnapshot().sessionId, client.getSnapshot().sessionId);
+  await reloaded.logout();
+  assert.equal(reloaded.getSnapshot().sessionId, null);
+});
+
 test('session 401 becomes anonymous while login failure preserves actual error without a fallback user', async () => {
   const client = createSessionClient({ request: async () => { throw new HttpError('session', 'Senha incorreta.', { status: 401 }); } });
   await client.refresh();

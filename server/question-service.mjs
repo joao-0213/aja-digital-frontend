@@ -1,7 +1,9 @@
 import { createCommandService, HttpError } from './command-service.mjs';
+import { studentHasAuthorizedPendingAttemptForQuestion } from './assessment-service.mjs';
 
 const invalid = () => { throw new HttpError(422, 'VALIDATION_ERROR', 'Confira os filtros ou a resposta informada.'); };
 const missing = () => { throw new HttpError(404, 'NOT_FOUND', 'Questão indisponível.'); };
+const conflict = () => { throw new HttpError(409, 'BUSINESS_CONFLICT', 'Esta questão faz parte de um questionário em andamento. Continue pela tentativa antes de consultar a resolução.'); };
 const visible = q => q && q.origin !== 'author' && !q.deletedAt;
 function dto(q, state) {
   const image = q.image;
@@ -27,9 +29,10 @@ export function createQuestionService(config, auth) {
     return { items: rows.slice((page - 1) * pageSize, page * pageSize).map(q => dto(q, state)), page, pageSize, total: rows.length };
   });
   const detail = read((state, _actor, req) => { noQuery(req); return dto(lookup(state, req.params.id), state); });
-  const practice = read((state, _actor, req) => {
+  const practice = read((state, actor, req) => {
     noQuery(req); const q = lookup(state, req.params.id), body = req.body;
     if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || !Number.isInteger(body.choice) || body.choice < 0 || body.choice >= q.options.length) invalid();
+    if (studentHasAuthorizedPendingAttemptForQuestion(state, actor, q.id)) conflict();
     return { questionId: q.id, choice: body.choice, correct: q.correct, isCorrect: body.choice === q.correct, explanation: q.explanation };
   });
   return { resolve(path) {

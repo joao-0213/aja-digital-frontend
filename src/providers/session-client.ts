@@ -4,6 +4,7 @@ import { HttpError, type HttpRequestOptions } from '../lib/http-client.ts';
 export interface SessionState {
   status: 'loading' | 'authenticated' | 'anonymous' | 'error';
   user: User | null;
+  sessionId: string | null;
   expiresAt: string | null;
   sessionKey: string;
   resourceEpoch: number;
@@ -17,7 +18,7 @@ interface ProfileDraft { name: string; revision: number }
 /** Memory-only identity. The HTTP cookie is the sole source of session truth. */
 export function createSessionClient(http: Transport) {
   let version = 0;
-  let state: SessionState = { status: 'loading', user: null, expiresAt: null, sessionKey: 'session-0', resourceEpoch: 0 };
+  let state: SessionState = { status: 'loading', user: null, sessionId: null, expiresAt: null, sessionKey: 'session-0', resourceEpoch: 0 };
   let pending: AbortController | undefined;
   let sessionId: string | undefined;
   // Unpublished profile text stays in memory during a transient outage, hidden
@@ -34,7 +35,7 @@ export function createSessionClient(http: Transport) {
     const current = ++version;
     sessionId = undefined;
     discardDraft();
-    publish({ status, user: null, expiresAt: null, sessionKey: `session-${current}` });
+    publish({ status, user: null, sessionId: null, expiresAt: null, sessionKey: `session-${current}` });
     return { current, signal: pending.signal };
   };
   const save = (session: SessionDto, current: number, preserveKey?: string) => {
@@ -43,7 +44,7 @@ export function createSessionClient(http: Transport) {
       if (owner !== draftOwner) { profileDraft = undefined; compositions.clear(); }
       draftOwner = owner;
       sessionId = session.sessionId;
-      publish({ status: 'authenticated', user: session.user, expiresAt: session.expiresAt, sessionKey: preserveKey ?? `session-${current}`, resourceEpoch: state.resourceEpoch + 1 });
+      publish({ status: 'authenticated', user: session.user, sessionId: session.sessionId, expiresAt: session.expiresAt, sessionKey: preserveKey ?? `session-${current}`, resourceEpoch: state.resourceEpoch + 1 });
     }
   };
   async function refresh() {
@@ -51,7 +52,7 @@ export function createSessionClient(http: Transport) {
     pending?.abort();
     pending = new AbortController();
     const current = ++version;
-    if (!previous.user) publish({ status: 'loading', user: null, expiresAt: null, sessionKey: `session-${current}` });
+    if (!previous.user) publish({ status: 'loading', user: null, sessionId: null, expiresAt: null, sessionKey: `session-${current}` });
     try {
       const session = await http.request<SessionDto>('/auth/session', { signal: pending.signal });
       const sameSession = !!sessionId && sessionId === session.sessionId && previous.user?.id === session.user.id && previous.user.role === session.user.role && previous.expiresAt === session.expiresAt;
@@ -61,7 +62,7 @@ export function createSessionClient(http: Transport) {
       if (current !== version) return;
       sessionId = undefined;
       if (error instanceof HttpError && (error.kind === 'session' || error.kind === 'forbidden')) discardDraft();
-      publish({ user: null, expiresAt: null, sessionKey: `session-${current}`, status: error instanceof HttpError && error.kind === 'session' ? 'anonymous' : 'error', error: error instanceof Error ? error : new Error('Não foi possível consultar a sessão.') });
+      publish({ user: null, sessionId: null, expiresAt: null, sessionKey: `session-${current}`, status: error instanceof HttpError && error.kind === 'session' ? 'anonymous' : 'error', error: error instanceof Error ? error : new Error('Não foi possível consultar a sessão.') });
     }
   }
   async function login(email: string, password: string) {

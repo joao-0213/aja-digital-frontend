@@ -117,8 +117,10 @@ Concluída a partir de `a7ff570`: 271/271 testes, tipos, arquitetura (178 módul
 ### AJA-11 · Migrar tentativas, retomada e resultado individual
 **Depende de** AJA-10. **Entrada** `quiz-session.tsx`, `answer-assessment.tsx`, `assessment-result.tsx`, `src/lib/assessment-attempts.ts`.
 
-- [ ] Implementar início, consulta, salvamento de respostas, finalização e resultado de `/attempts`. Capturar ordem e conteúdo, preservar respostas em branco e verificar condição de atribuição/prazo no serviço. Guardar gabarito e cálculo da nota no serviço até a fase autorizada. Recuperação de digitação deve respeitar usuário, tentativa e revisão.
-- [ ] **Aceite** iniciar em um navegador e retomar respostas já salvas em outro. Duplo envio ou perda da resposta produz um único comprovante/resultado. Após entrega, impedir edição. Testar prazo de Brasília na virada, atividade sem prazo, revisão das questões, campos da resposta antes/depois da entrega e consulta ao resultado de outro aluno.
+Concluída a partir de `e3689c0`: 298/298 testes, tipos, arquitetura (179 módulos), OpenAPI (830 exemplos sem erros), build padrão com API/dev desligados e navegador estático aprovados. Revisão Sol independente APPROVE, sem achados pendentes. Evidências e limites em [validation-AJA-11.md](docs/http/validation-AJA-11.md).
+
+- [x] Implementar início, consulta, salvamento de respostas, finalização e resultado de `/attempts`. Capturar ordem e conteúdo, preservar respostas em branco e verificar condição de atribuição/prazo no serviço. Guardar gabarito e cálculo da nota no serviço até a fase autorizada. Recuperação de digitação deve respeitar usuário, tentativa e revisão.
+- [x] **Aceite** iniciar em um navegador e retomar respostas já salvas em outro. Duplo envio ou perda da resposta produz um único comprovante/resultado. Após entrega, impedir edição. Testar prazo de Brasília na virada, atividade sem prazo, revisão das questões, campos da resposta antes/depois da entrega e consulta ao resultado de outro aluno.
 
 ### AJA-12 · Migrar entregas de trabalho e devolutivas
 **Depende de** AJA-08, AJA-10. **Entrada** `work-activity.tsx`, `work-attachments.tsx`, `feedback-editor.tsx`, `src/lib/activities.ts`.

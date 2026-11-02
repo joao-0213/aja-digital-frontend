@@ -1,86 +1,107 @@
 'use client';
 
+import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { assessmentQuestions } from '@/lib/question-composition';
-import { useApp } from '@/providers/app-context';
-import { Badge, Button, Card, Empty, LinkButton, PageHeading } from '@/components/ui';
-import { dateLabel, uid } from '@/lib/utils';
-import { activityClosed } from '@/lib/activities';
-import { useActivityClock } from '@/hooks/use-activity-clock';
-import { WorkActivity } from './work-activity';
-import { ActivityConditions } from './activity-conditions';
-import { beginAttempt } from '@/lib/assessment-attempts';
+import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useSession } from '@/providers/app-context';
+import { createAssessmentsApi, type AssessmentRead, type AttemptRead, type AttemptStudent } from '../api';
 import { QuizSession } from './quiz-session';
-import { isAssessmentAssigned } from '@/lib/enrollment';
+
+function isStaffAssessment(assessment: AssessmentRead): assessment is Extract<AssessmentRead, { questionIds: string[] }> {
+  return 'questionIds' in assessment;
+}
+
+function deadlineLabel(value: string | null) {
+  if (!value) return 'Sem prazo';
+  return `Até ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))} (Brasília)`;
+}
+
+function TeamSubmissions({ attempts }: { attempts: AttemptRead[] }) {
+  const submitted = attempts.filter(attempt => attempt.submittedAt);
+  return <div className="mx-auto max-w-3xl">
+    <PageHeading eyebrow="Consulta individual" title="Envios dos alunos" description="A equipe consulta somente tentativas entregues. Rascunhos privados não aparecem aqui." />
+    <Card>
+      {submitted.length ? <ul className="divide-y divide-slate-100">{submitted.map(attempt => <li key={attempt.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+        <div><p className="font-medium text-slate-800">{attempt.studentName}</p><p className="text-sm text-slate-600">{attempt.assessmentTitle}</p><p className="text-xs text-slate-500">{attempt.submittedAt && new Date(attempt.submittedAt).toLocaleString('pt-BR')}</p></div>
+        <Link className="inline-flex min-h-11 items-center font-semibold text-brand-700" href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`}>Consultar resultado</Link>
+      </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Ainda não há envios. Rascunhos continuam privados para cada aluno.</p>}
+    </Card>
+    <div className="mt-5"><LinkButton secondary href="/questionarios">Ver atividades</LinkButton></div>
+  </div>;
+}
 
 export function AnswerAssessment() {
-  const {
-    db,
-    user,
-    role,
-    mutate,
-    busy
-  } = useApp();
-  const id = useSearchParams().get('id') ?? 'a1';
-  const a = db.assessments.find(item => item.id === id);
-  const attempts = db.attempts.filter(t => t.assessmentId === id && t.userId === user.id);
-  const active = attempts.find(t => !t.submittedAt);
-  const now = useActivityClock();
-  if (!a || a.status !== 'published') return <Empty title="Atividade indisponível: retirada ou sem acesso" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
-  if (a.kind === 'work') return <WorkActivity activity={a} />;
-  if (role !== 'student') {
-    const submissions = db.attempts.filter(t => t.assessmentId === id && t.submittedAt);
-    return <>
-      <PageHeading eyebrow="Consulta individual" title={a.title} description="Consulte cada envio da disciplina. Respostas e resultados são privados para a equipe autorizada." action={<LinkButton secondary href={`/questionarios/criar?id=${a.id}`}>Editar atividade</LinkButton>} />
-      <Card><h2 className="mb-4 font-semibold">Envios dos alunos</h2><div className="divide-y divide-slate-100">{submissions.map(t => <Link key={t.id} href={`/questionarios/resultado?id=${t.id}`} className="flex min-h-14 flex-wrap items-center justify-between gap-3 py-3 text-sm"><span>{db.users.find(u => u.id === t.userId)?.name ?? 'Aluno'} · {new Date(t.submittedAt!).toLocaleString('pt-BR')}</span><span className="font-semibold text-brand-700">Consultar envio</span></Link>)}</div>{!submissions.length && <p className="text-sm text-slate-500">Ainda não há envios. Os rascunhos de resposta pertencem a cada aluno.</p>}</Card>
-      <Card className="mt-5"><h2 className="mb-3 font-semibold">Situação por aluno</h2><ul className="divide-y divide-slate-100">{db.users.filter(u => u.role === 'student' && db.classes.some(c => c.studentIds.includes(u.id) && db.subjects.some(s => s.classId === c.id && db.modules.some(m => m.id === a.moduleId && m.subjectId === s.id)))).map(u => <li key={u.id} className="py-3 text-sm leading-6">{u.name} · {submissions.some(t => t.userId === u.id) ? 'Entregue' : !isAssessmentAssigned(db, a, u.id) ? 'Não atribuída — matrícula posterior ao prazo' : a.required === false ? 'Prática opcional — sem envio' : 'Não entregue'}</li>)}</ul></Card>
-      <div className="mt-5"><LinkButton secondary href="/questionarios">Ver atividades</LinkButton></div>
-    </>;
-  }
-  const completed = attempts.filter(t => t.submittedAt);
-  if (!isAssessmentAssigned(db, a, user.id)) return <div className="mx-auto max-w-3xl">
-    <PageHeading eyebrow="Consulta de atividade" title={a.title} description={a.description} />
-    <Card><p role="status" className="text-sm leading-6 text-slate-700">Disponível apenas para consulta: o prazo terminou antes da sua matrícula. Esta atividade não foi atribuída a você e não gera pendência ou entrega atrasada.</p><p className="mt-3 text-sm text-slate-500">{a.required === false ? 'Opcional' : 'Obrigatória'} · {a.deadline ? `Prazo original: ${dateLabel(a.deadline)}` : 'Sem prazo'}</p></Card>
-    {a.questionIds.map((questionId, index) => {
-      const question = assessmentQuestions(db, a).find(q => q.id === questionId);
-      return question && <Card key={questionId} className="mt-4"><h2 className="font-semibold">Questão {index + 1}</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{question.statement}</p><ol className="mt-4 list-inside list-[upper-alpha] space-y-3 text-sm">{question.options.map((option, i) => <li key={i}>{option}</li>)}</ol></Card>;
-    })}
-    <div className="mt-5"><LinkButton secondary href="/questionarios">Voltar às atividades</LinkButton></div>
+  const { client, sessionKey, resourceEpoch, status, user } = useSession();
+  const params = useSearchParams();
+  const id = params.get('id') ?? '';
+  const deliveryId = params.get('entrega');
+  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const assessment = useHttpQuery({ sessionKey, key: `attempt-assessment:${id}:${resourceEpoch}` }, useCallback(signal => api.readForSession(id, sessionKey, signal), [api, id, sessionKey]), status === 'authenticated' && !!id && !deliveryId);
+  const attempts = useHttpQuery({ sessionKey, key: `attempt-list:${id}:${resourceEpoch}` }, useCallback(signal => api.allAttempts({ assessmentId: id }, signal, sessionKey), [api, id, sessionKey]), status === 'authenticated' && !!id && !!assessment.data);
+  const startIntent = useRef<string | null>(null);
+  const [started, setStarted] = useState<AttemptStudent | null>(null);
+  const [startBusy, setStartBusy] = useState(false);
+  const [startError, setStartError] = useState('');
+  const currentSessionKey = useRef(sessionKey);
+  currentSessionKey.current = sessionKey;
+
+  if (status === 'loading' || assessment.loading) return <Skeleton />;
+  if (status !== 'authenticated' || !user) return <Empty title="Entre para consultar a atividade" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
+  if (deliveryId) return <Empty title="Consulta de trabalhos ainda não disponível" description="Os comprovantes e o feedback de trabalhos serão habilitados na próxima etapa." action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
+  if (!id) return <Empty title="Atividade não encontrada" description="Abra uma atividade pela lista da disciplina." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
+  if (assessment.error) return <ErrorState message={assessment.error.message} retry={() => void assessment.retry()} />;
+  if (!assessment.data) return <Empty title="Atividade indisponível" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
+  const activity = assessment.data;
+  if (activity.kind === 'work') return <Empty title="Envio de trabalhos ainda não disponível" description="Os trabalhos e o feedback serão habilitados na próxima etapa da migração." action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
+  if (attempts.loading) return <Skeleton />;
+  if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
+  const listed = attempts.data ?? [];
+  if (user.role !== 'student') return <TeamSubmissions attempts={listed} />;
+  const studentAttempts = listed.filter(attempt => attempt.userId === user.id);
+  const active = started ?? studentAttempts.find(attempt => !attempt.submittedAt) as AttemptStudent | undefined;
+  const submitted = studentAttempts.filter(attempt => attempt.submittedAt);
+  if (active) return <QuizSession key={`${active.id}:${active.questionsUpdatedAt ?? ''}`} attempt={active} title={activity.title} deadline={activity.deadline} allowLate={activity.allowLate} />;
+
+  if (!('assigned' in activity) || !activity.assigned) return <div className="mx-auto max-w-3xl">
+    <PageHeading eyebrow="Consulta de atividade" title={activity.title} description={activity.description} />
+    <Card><p role="status" className="text-sm leading-6 text-slate-700">Disponível apenas para consulta. Esta atividade não foi atribuída à sua matrícula.</p><p className="mt-3 text-sm text-slate-500">{activity.required ? 'Obrigatória' : 'Opcional'} · {deadlineLabel(activity.deadline)}</p></Card>
+    <div className="mt-5"><LinkButton secondary href="/questionarios">Voltar para atividades</LinkButton></div>
   </div>;
-  const expired = activityClosed(a, now);
-  const exhausted = completed.length > 0;
-  if (active && !exhausted) return <QuizSession key={`${active.id}:${active.questionsUpdatedAt ?? ''}`} attempt={active} />;
-  return <div className="mx-auto max-w-2xl">
-    <PageHeading eyebrow="Questionário" title={a.title} description={a.description} />
-    <ActivityConditions activity={a} />
+
+  const start = async () => {
+    if (startBusy || status !== 'authenticated') return;
+    startIntent.current ??= crypto.randomUUID();
+    const requestSession = sessionKey;
+    setStartBusy(true);
+    setStartError('');
+    try {
+      const attempt = await api.startAttempt(activity.id, startIntent.current, requestSession);
+      const latest = client.getSnapshot();
+      if (latest.status === 'authenticated' && latest.sessionKey === requestSession && currentSessionKey.current === requestSession) setStarted(attempt);
+    } catch (cause: unknown) {
+      const latest = client.getSnapshot();
+      if (latest.status === 'authenticated' && latest.sessionKey === requestSession && currentSessionKey.current === requestSession) setStartError(cause instanceof Error ? cause.message : 'Não foi possível iniciar o questionário.');
+    } finally {
+      if (currentSessionKey.current === requestSession) setStartBusy(false);
+    }
+  };
+  return <div className="mx-auto max-w-3xl">
+    <PageHeading eyebrow="Questionário" title={activity.title} description={activity.description} />
     <Card>
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Badge tone="purple">{a.questionIds.length} questões</Badge>
-        <Badge>Envio único</Badge>
-        <Badge tone="amber">{a.deadline ? `Até ${dateLabel(a.deadline)}` : 'Sem prazo'}</Badge>
-        <Badge>{a.required === false ? 'Opcional' : 'Obrigatória'}</Badge>
-      </div>
+      <div className="mb-5 flex flex-wrap gap-2"><Badge tone="purple">{isStaffAssessment(activity) ? activity.questionIds.length : activity.questionCount} questões</Badge><Badge>Envio único</Badge><Badge tone="amber">{deadlineLabel(activity.deadline)}</Badge><Badge>{activity.required ? 'Obrigatória' : 'Opcional'}</Badge></div>
       <h2 className="font-semibold">Antes de começar</h2>
-      <ul className="my-5 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-500">
-        <li>Cada questão tem uma alternativa correta e vale 1 ponto.</li>
-        <li>Você pode navegar entre as questões e revisar antes de enviar.</li>
-        <li>Suas respostas são salvas automaticamente neste navegador.</li>
-        <li>O prazo considera o horário de Brasília (UTC−3), inclusive durante a realização.</li>
+      <ul className="my-5 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-600">
+        <li>As questões e a ordem ficam registrados nesta tentativa.</li>
+        <li>As respostas salvas no servidor podem ser retomadas em outro navegador.</li>
+        <li>Questões em branco não recebem pontos.</li>
+        <li>O serviço confirma atribuição e prazo no início e no envio.</li>
       </ul>
-      {completed.length > 0 && <div className="mb-6 border-t border-slate-100 pt-5">
-        <h3 className="mb-3 text-sm font-semibold">Envios registrados</h3>
-        {completed.map((t, i) => <Link key={t.id} href={`/questionarios/resultado?id=${t.id}`} className="mb-2 flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm">
-          <span>Envio {i + 1}</span>
-          <span className="font-semibold text-brand-600">Ver resultado</span>
-        </Link>)}
-      </div>}
-      <Button className="w-full" disabled={exhausted || expired} loading={busy} onClick={() => void mutate(d => {
-        beginAttempt(d, id, user.id, uid('attempt'), new Date().toISOString());
-      })}>
-        {exhausted ? 'Questionário já enviado' : expired ? 'Prazo encerrado' : 'Iniciar questionário'}
-      </Button>
-      <p className="mt-3 text-center text-xs text-slate-400">Um único envio. Você pode retomar suas respostas antes de enviar.</p>
+      {submitted.length > 0 && <div className="mb-5 border-t border-slate-100 pt-4"><h3 className="mb-2 text-sm font-semibold">Envio registrado</h3>{submitted.map(attempt => <Link key={attempt.id} href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm"><span>{attempt.submittedAt && new Date(attempt.submittedAt).toLocaleString('pt-BR')}</span><span className="font-semibold text-brand-700">Ver resultado</span></Link>)}</div>}
+      {startError && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{startError}</p>}
+      <Button className="w-full" disabled={submitted.length > 0} loading={startBusy} onClick={() => void start()}>{submitted.length ? 'Questionário já enviado' : studentAttempts.length ? 'Retomar questionário' : 'Iniciar questionário'}</Button>
+      <p className="mt-3 text-center text-xs text-slate-500">Um único envio. A tentativa permanece ligada à sua conta.</p>
     </Card>
   </div>;
 }

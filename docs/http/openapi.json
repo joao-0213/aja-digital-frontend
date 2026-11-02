@@ -5448,7 +5448,9 @@
                   },
                   "questionOrder": [],
                   "questions": [],
-                  "questionsUpdatedAt": "2026-11-02T14:00:00Z"
+                  "questionsUpdatedAt": "2026-11-02T14:00:00Z",
+                  "assessmentTitle": "Quiz de proporções",
+                  "studentName": "Bia Aprendiz"
                 }
               }
             }
@@ -5532,7 +5534,9 @@
                   },
                   "questionOrder": [],
                   "questions": [],
-                  "questionsUpdatedAt": "2026-11-02T14:00:00Z"
+                  "questionsUpdatedAt": "2026-11-02T14:00:00Z",
+                  "assessmentTitle": "Quiz de proporções",
+                  "studentName": "Bia Aprendiz"
                 }
               }
             }
@@ -5610,7 +5614,9 @@
                   },
                   "questionOrder": [],
                   "questions": [],
-                  "questionsUpdatedAt": "2026-11-02T14:00:00Z"
+                  "questionsUpdatedAt": "2026-11-02T14:00:00Z",
+                  "assessmentTitle": "Quiz de proporções",
+                  "studentName": "Bia Aprendiz"
                 }
               }
             }
@@ -5706,7 +5712,9 @@
                     },
                     "questionOrder": [],
                     "questions": [],
-                    "questionsUpdatedAt": "2026-11-02T14:00:00Z"
+                    "questionsUpdatedAt": "2026-11-02T14:00:00Z",
+                    "assessmentTitle": "Quiz de proporções",
+                    "studentName": "Bia Aprendiz"
                   },
                   "receipt": {
                     "id": "s1",
@@ -5812,7 +5820,9 @@
                     },
                     "questionOrder": [],
                     "questions": [],
-                    "questionsUpdatedAt": "2026-11-02T14:00:00Z"
+                    "questionsUpdatedAt": "2026-11-02T14:00:00Z",
+                    "assessmentTitle": "Quiz de proporções",
+                    "studentName": "Bia Aprendiz"
                   },
                   "receipt": {
                     "id": "s1",
@@ -11687,12 +11697,22 @@
             "maxLength": 128,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
           },
+          "assessmentTitle": {
+            "type": "string",
+            "example": "Quiz de proporções",
+            "minLength": 1
+          },
           "userId": {
             "type": "string",
             "example": "s1",
             "minLength": 1,
             "maxLength": 128,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "studentName": {
+            "type": "string",
+            "example": "Bia Aprendiz",
+            "minLength": 1
           },
           "startedAt": {
             "type": "string",
@@ -11761,7 +11781,9 @@
           "updatedAt",
           "updatedBy",
           "assessmentId",
+          "assessmentTitle",
           "userId",
+          "studentName",
           "startedAt",
           "submittedAt",
           "answers",
@@ -11815,12 +11837,22 @@
             "maxLength": 128,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
           },
+          "assessmentTitle": {
+            "type": "string",
+            "example": "Quiz de proporções",
+            "minLength": 1
+          },
           "userId": {
             "type": "string",
             "example": "s1",
             "minLength": 1,
             "maxLength": 128,
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "studentName": {
+            "type": "string",
+            "example": "Bia Aprendiz",
+            "minLength": 1
           },
           "startedAt": {
             "type": "string",
@@ -11882,7 +11914,9 @@
           "updatedAt",
           "updatedBy",
           "assessmentId",
+          "assessmentTitle",
           "userId",
+          "studentName",
           "startedAt",
           "submittedAt",
           "answers",
