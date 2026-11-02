@@ -79,7 +79,7 @@ export function executeEnrollmentCommand(db: MockDatabase, actor: User, command:
     if (!destination) throw new Error('Esta turma está inativa ou indisponível.');
     const student = db.users.find(u => normalizeEmail(u.email) === email);
     if (student && (!available(student) || student.role !== 'student')) throw new Error('Esta conta está inativa, excluída ou tem outro cargo. A inclusão não altera seu estado ou cargo.');
-    const previous = db.enrollments.find(e => e.classId === command.classId && e.email === email);
+    const previous = db.enrollments.find(e => e.classId === command.classId && (e.email === email || !!student && e.studentId === student.id));
     if (previous) {
       if (previous.status === 'cancelled' || previous.status === 'ended' || previous.deletedAt) throw new Error('Matrícula encerrada ou cancelada neste destino. Não há restauração pela interface.');
       if (student && previous.status === 'pending') activate(db, previous, student, now);

@@ -252,3 +252,11 @@ test('legacy multiple-class memberships require explicit regularization without 
   assert.equal(canAccessSubject(resolved, resolved.users[2], 's1'), true);
   assert.equal(resolved.enrollments.filter(e => e.status === 'ended').length, 1);
 });
+
+test('reconfirmed email keeps the same account membership and enrollment date on repeated inclusion', () => {
+  const linked = command(fixture(), add());
+  const changed = applyDemoMutation(linked, 'admin', d => { d.users[2].email = 'novo-endereco@exemplo.com'; });
+  const confirmed = command(changed, { type: 'confirm' }, 'student');
+  assert.deepEqual(command(confirmed, add('novo-endereco@exemplo.com')), confirmed);
+  assert.equal(confirmed.enrollments[0].enrolledAt, now);
+});
