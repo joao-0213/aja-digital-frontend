@@ -30,6 +30,7 @@ tmp/
 
 # Artefatos locais do Graphify
 /graphify-out/
+/server/runtime/
 
 # Documentação interna e experimentos locais
 AGENTS.md

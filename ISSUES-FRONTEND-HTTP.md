@@ -24,7 +24,7 @@
 ### AJA-01 · Fixar o contrato e a matriz de migração
 **Depende de** nenhuma. **Entrada** `ARQUITETURA.md`, `src/app/`, `src/features/`, `src/models/database.ts`, `src/providers/app-context.ts`, `src/lib/access.ts`, `src/lib/demo-mutations.ts`, testes de domínio.
 
-Em execução na branch `feat/frontend-http`, revisão inicial `e169df6`. Evidências e limites em [docs/http/validation-AJA-01.md](docs/http/validation-AJA-01.md). Concluída com revisão independente APPROVE, OpenAPI válido, 851 exemplos sem erros e gates aprovados; limites documentados.
+Concluída no commit `e1bade7`, branch `feat/frontend-http`, revisão inicial `e169df6`. Evidências e limites em [docs/http/validation-AJA-01.md](docs/http/validation-AJA-01.md). Revisão independente APPROVE, OpenAPI válido, 851 exemplos sem erros e gates aprovados; limites documentados.
 
 - [x] Versionar um contrato OpenAPI e uma matriz **rota → ação → perfil → operação HTTP → issue**. Usar o índice de rotas ao fim deste documento. Incluir ações dentro de diálogos, shell, mural e ferramentas de estudo. Diferenciar DTOs de leitura por perfil, campos graváveis e metadados controlados pelo servidor.
 - [x] Definir IDs, paginação, filtros, ordenação estável, nulidade, datas civis e instantes, fuso de Brasília, anexos, exclusão lógica, revisão e repetição de comandos. Padronizar erros com código estável e mensagem PT-BR. Documentar 401 para sessão ausente, 403 para operação vedada, 404 para recurso inexistente ou oculto, 409 para conflito e 422 para entrada inválida.
@@ -34,10 +34,12 @@ Em execução na branch `feat/frontend-http`, revisão inicial `e169df6`. Evidê
 ### AJA-02 · Subir o JSON Server com persistência reproduzível
 **Depende de** AJA-01. **Entrada** `package.json`, `package-lock.json`, `scripts/preview.mjs`, `.gitignore`.
 
-- [ ] Criar `server/` e fixar no lockfile a versão do JSON Server com suporte ao uso como módulo. Referência de implementação: [documentação da versão 0.17.4](https://github.com/typicode/json-server/tree/v0.17.4#module). Usar a API da versão escolhida, com handlers no mesmo processo para regras de negócio.
-- [ ] Entregar `npm run api`, `npm run api:reset` e `npm run dev:full` para Windows e Linux. Reservar 3000 para o front, 3001 para a prévia e 3002 para a API por padrão. Adicionar exemplo de configuração da URL pública, origens permitidas e comando de saúde. Inicializar cópia gravável só se ausente. Reset explícito via terminal, restrito à pasta de execução.
-- [ ] Servir somente operações públicas documentadas. Bloquear acesso direto a `/db`, coleções brutas, credenciais, arquivos privados, caixa de mensagens e rotas de manutenção. Desabilitar rotas padrão ou caminhos alternativos que contornem essa restrição.
-- [ ] **Aceite** em checkout limpo, instalar com `npm ci`, iniciar, consultar saúde, persistir um registro de teste, reiniciar e reler. Reset recompõe o estado inicial. Testes usam diretório e porta isolados. Build do front funciona com a API desligada.
+Concluída a partir de `e1bade7`, revisão independente APPROVE. Evidências e limites em [docs/http/validation-AJA-02.md](docs/http/validation-AJA-02.md): 137/137 testes, instalação isolada, scripts exercitados, gates aprovados; Linux não executado.
+
+- [x] Criar `server/` e fixar no lockfile a versão do JSON Server com suporte ao uso como módulo. Referência de implementação: [documentação da versão 0.17.4](https://github.com/typicode/json-server/tree/v0.17.4#module). Usar a API da versão escolhida, com handlers no mesmo processo para regras de negócio.
+- [x] Entregar `npm run api`, `npm run api:reset` e `npm run dev:full` para Windows e Linux. Reservar 3000 para o front, 3001 para a prévia e 3002 para a API por padrão. Adicionar exemplo de configuração da URL pública, origens permitidas e comando de saúde. Inicializar cópia gravável só se ausente. Reset explícito via terminal, restrito à pasta de execução.
+- [x] Servir somente operações públicas documentadas. Bloquear acesso direto a `/db`, coleções brutas, credenciais, arquivos privados, caixa de mensagens e rotas de manutenção. Desabilitar rotas padrão ou caminhos alternativos que contornem essa restrição.
+- [x] **Aceite** em checkout limpo, instalar com `npm ci`, iniciar, consultar saúde, persistir um registro de teste, reiniciar e reler. Reset recompõe o estado inicial. Testes usam diretório e porta isolados. Build do front funciona com a API desligada.
 
 ### AJA-03 · Preparar massas com jornadas completas por perfil
 **Depende de** AJA-02. **Entrada** `src/mocks/`, `src/models/`, `public/questions/`, exemplos e regras em `tests/`.

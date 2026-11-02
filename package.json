@@ -12,20 +12,24 @@
     "preview": "node scripts/preview.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "check:architecture": "node scripts/check-architecture.mjs",
-    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/api.test.ts tests/subject-updates.test.ts tests/scope.test.ts tests/permissions.test.ts tests/attendance.test.ts tests/teaching-team.test.ts tests/assessment-editor.test.ts tests/enrollment.test.ts tests/material-video.test.ts tests/question-composition.test.ts tests/activities.test.ts tests/announcements.test.ts tests/announcement-draft.test.ts tests/forum.test.ts tests/forum-draft.test.ts"
+    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/api.test.ts tests/subject-updates.test.ts tests/scope.test.ts tests/permissions.test.ts tests/attendance.test.ts tests/teaching-team.test.ts tests/assessment-editor.test.ts tests/enrollment.test.ts tests/material-video.test.ts tests/question-composition.test.ts tests/activities.test.ts tests/announcements.test.ts tests/announcement-draft.test.ts tests/forum.test.ts tests/forum-draft.test.ts tests/http-server.test.mjs",
+    "api": "node server/index.mjs",
+    "api:reset": "node server/reset.mjs",
+    "dev:full": "node scripts/dev-full.mjs"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "json-server": "0.17.4",
     "tailwindcss": "^4.1.0",
-    "@tailwindcss/postcss": "^4.1.0"
+    "typescript": "^5.9.3"
   }
 }
