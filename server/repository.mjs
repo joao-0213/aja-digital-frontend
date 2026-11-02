@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import jsonServer from 'json-server';
+import { generateSeed } from './seed.mjs';
 
 export const runtimeRoot = fileURLToPath(new URL('./runtime/', import.meta.url));
-const seedFile = fileURLToPath(new URL('./seed.json', import.meta.url));
 
 function prepare(directory) {
   const absolute = path.resolve(directory);
@@ -20,9 +20,9 @@ function prepare(directory) {
   return filename;
 }
 
-export function openRepository(directory = runtimeRoot) {
+export function openRepository(directory = runtimeRoot, options = {}) {
   const filename = prepare(directory);
-  if (!fs.existsSync(filename)) fs.copyFileSync(seedFile, filename, fs.constants.COPYFILE_EXCL);
+  if (!fs.existsSync(filename)) fs.writeFileSync(filename, JSON.stringify(generateSeed(options), null, 2) + '\n', { flag: 'wx' });
   // Fail closed on corruption: never silently replace existing work with fixtures.
   const data = JSON.parse(fs.readFileSync(filename, 'utf8'));
   if (!data || Array.isArray(data) || typeof data !== 'object') throw new Error('Base de execução inválida.');
@@ -30,12 +30,12 @@ export function openRepository(directory = runtimeRoot) {
   return { db: router.db, filename };
 }
 
-export function resetRepository(directory = runtimeRoot, { allowedRoot = runtimeRoot } = {}) {
+export function resetRepository(directory = runtimeRoot, { allowedRoot = runtimeRoot, baseDate } = {}) {
   if (path.resolve(directory) !== path.resolve(allowedRoot)) throw new Error('Reset restrito à pasta de execução.');
   const filename = prepare(directory);
   const temporary = path.join(path.dirname(filename), `.reset-${process.pid}-${Date.now()}.tmp`);
   try {
-    fs.copyFileSync(seedFile, temporary, fs.constants.COPYFILE_EXCL);
+    fs.writeFileSync(temporary, JSON.stringify(generateSeed({ baseDate }), null, 2) + '\n', { flag: 'wx' });
     fs.renameSync(temporary, filename);
   } finally {
     if (fs.existsSync(temporary)) fs.unlinkSync(temporary);

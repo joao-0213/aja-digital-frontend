@@ -34,7 +34,7 @@ Concluída no commit `e1bade7`, branch `feat/frontend-http`, revisão inicial `e
 ### AJA-02 · Subir o JSON Server com persistência reproduzível
 **Depende de** AJA-01. **Entrada** `package.json`, `package-lock.json`, `scripts/preview.mjs`, `.gitignore`.
 
-Concluída a partir de `e1bade7`, revisão independente APPROVE. Evidências e limites em [docs/http/validation-AJA-02.md](docs/http/validation-AJA-02.md): 137/137 testes, instalação isolada, scripts exercitados, gates aprovados; Linux não executado.
+Concluída no commit `88b40db`, a partir de `e1bade7`, revisão independente APPROVE. Evidências e limites em [docs/http/validation-AJA-02.md](docs/http/validation-AJA-02.md): 137/137 testes, instalação isolada, scripts exercitados, gates aprovados; Linux não executado.
 
 - [x] Criar `server/` e fixar no lockfile a versão do JSON Server com suporte ao uso como módulo. Referência de implementação: [documentação da versão 0.17.4](https://github.com/typicode/json-server/tree/v0.17.4#module). Usar a API da versão escolhida, com handlers no mesmo processo para regras de negócio.
 - [x] Entregar `npm run api`, `npm run api:reset` e `npm run dev:full` para Windows e Linux. Reservar 3000 para o front, 3001 para a prévia e 3002 para a API por padrão. Adicionar exemplo de configuração da URL pública, origens permitidas e comando de saúde. Inicializar cópia gravável só se ausente. Reset explícito via terminal, restrito à pasta de execução.
@@ -44,10 +44,12 @@ Concluída a partir de `e1bade7`, revisão independente APPROVE. Evidências e l
 ### AJA-03 · Preparar massas com jornadas completas por perfil
 **Depende de** AJA-02. **Entrada** `src/mocks/`, `src/models/`, `public/questions/`, exemplos e regras em `tests/`.
 
-- [ ] Entregar seed versionado, arquivos pequenos válidos para abrir/baixar e guia de acesso do operador. Incluir administrador, dois docentes da mesma disciplina, docente sem atribuição, aluno matriculado, aluno sem turma, matrícula pendente, conta inativa e turma encerrada. Usar identidades fictícias e credenciais exclusivas do ambiente local.
-- [ ] Ligar turmas, disciplinas, equipe, módulos, texto/PDF/vídeo, progresso, questões do acervo e autorais, atividade em rascunho/publicada, tentativa em andamento/enviada, trabalho com retorno em rascunho/publicado, fórum com referência/anexo/solução, avisos, acontecimento e chamada. Disponibilizar contexto vazio e contexto com acesso negado. Preservar links estáveis como a disciplina `s1`.
-- [ ] Gerar datas relativas a uma data-base de inicialização, com opção explícita de data fixa em testes. Incluir prazos futuros, encerrados e sem prazo. O relógio do produto usa o dia corrente. Reiniciar o servidor conserva prazos e alterações.
-- [ ] **Aceite** teste de integridade verifica IDs únicos, vínculos, referências, gabaritos, revisões e disponibilidade de binários. Dois resets com a mesma data-base reproduzem os mesmos cenários de negócio. O guia permite percorrer “docente publica → aluno entrega → docente devolve → aluno consulta” sem cadastro manual prévio.
+Concluída a partir de `88b40db`, revisão independente APPROVE e 141/141 testes. Evidências e limites em [docs/http/validation-AJA-03.md](docs/http/validation-AJA-03.md).
+
+- [x] Entregar seed versionado, arquivos pequenos válidos para abrir/baixar e guia de acesso do operador. Incluir administrador, dois docentes da mesma disciplina, docente sem atribuição, aluno matriculado, aluno sem turma, matrícula pendente, conta inativa e turma encerrada. Usar identidades fictícias e credenciais exclusivas do ambiente local.
+- [x] Ligar turmas, disciplinas, equipe, módulos, texto/PDF/vídeo, progresso, questões do acervo e autorais, atividade em rascunho/publicada, tentativa em andamento/enviada, trabalho com retorno em rascunho/publicado, fórum com referência/anexo/solução, avisos, acontecimento e chamada. Disponibilizar contexto vazio e contexto com acesso negado. Preservar links estáveis como a disciplina `s1`.
+- [x] Gerar datas relativas a uma data-base de inicialização, com opção explícita de data fixa em testes. Incluir prazos futuros, encerrados e sem prazo. O relógio do produto usa o dia corrente. Reiniciar o servidor conserva prazos e alterações.
+- [x] **Aceite** teste de integridade verifica IDs únicos, vínculos, referências, gabaritos, revisões e disponibilidade de binários. Dois resets com a mesma data-base reproduzem os mesmos cenários de negócio. O guia permite percorrer “docente publica → aluno entrega → docente devolve → aluno consulta” sem cadastro manual prévio.
 
 ### AJA-04 · Compartilhar transporte, controle de acesso e gravação consistente
 **Depende de** AJA-02, AJA-03. **Entrada** `src/mocks/api.ts`, `src/hooks/use-mock-query.ts`, `src/lib/demo-mutations.ts`, `src/lib/access.ts`, `src/components/shared/record-conflict.tsx`.
