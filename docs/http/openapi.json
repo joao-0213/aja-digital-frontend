@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
@@ -2607,7 +2607,7 @@
         "tags": [
           "AJA-07"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Detalhe autorizado com todos os módulos vivos. Projeções de materiais, atividades e avisos contêm somente contagens visíveis; não expõem conteúdo, arquivos, respostas, gabaritos ou rascunhos privados. publicationIds identifica somente publicações visíveis para registrar visita observada.",
         "x-roles": [
           "student",
           "teacher",
@@ -2619,20 +2619,39 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Subject"
+                  "$ref": "#/components/schemas/SubjectDetail"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "classId": "s1",
-                  "name": "Matemática",
-                  "teacherIds": [],
-                  "color": "violet",
-                  "icon": "book",
-                  "description": "Conteúdo"
+                  "subject": {
+                    "id": "s1",
+                    "revision": 1,
+                    "createdAt": "2026-11-02T14:00:00Z",
+                    "updatedAt": "2026-11-02T14:00:00Z",
+                    "updatedBy": "s1",
+                    "classId": "s1",
+                    "name": "Matemática",
+                    "teacherIds": [],
+                    "color": "violet",
+                    "icon": "book",
+                    "description": "Conteúdo",
+                    "className": "Turma Horizonte",
+                    "teachers": [],
+                    "canManageContent": false,
+                    "hasUpdates": false,
+                    "publicationIds": []
+                  },
+                  "modules": [],
+                  "projections": {
+                    "materials": {
+                      "count": 0
+                    },
+                    "assessments": {
+                      "count": 0
+                    },
+                    "announcements": {
+                      "count": 0
+                    }
+                  }
                 }
               }
             }
@@ -2760,92 +2779,6 @@
         }
       }
     },
-    "/subjects/{id}/withdraw": {
-      "post": {
-        "operationId": "withdrawSubject",
-        "summary": "withdrawSubject",
-        "tags": [
-          "AJA-07"
-        ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
-        "x-roles": [
-          "admin"
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação concluída.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Subject"
-                },
-                "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "classId": "s1",
-                  "name": "Matemática",
-                  "teacherIds": [],
-                  "color": "violet",
-                  "icon": "book",
-                  "description": "Conteúdo"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Error401"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error403"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error404"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error409"
-          },
-          "422": {
-            "$ref": "#/components/responses/Error422"
-          },
-          "500": {
-            "$ref": "#/components/responses/Error500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Error503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "s1",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionCommand"
-              },
-              "example": {
-                "expectedRevision": 1
-              }
-            }
-          }
-        }
-      }
-    },
     "/subjects/{id}/visits": {
       "get": {
         "operationId": "getVisit",
@@ -2853,7 +2786,7 @@
         "tags": [
           "AJA-07"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Visita exclusivamente da conta autenticada. O POST recebe IDs de publicações observadas na leitura autorizada, valida seu contexto e mescla com os IDs já vistos pela mesma conta. Não marca publicações novas que não constam no comando; nenhum userId ou instante é aceito do navegador. Revalida acesso inclusive após revogação; equipe atribuída pode consultar turma encerrada.",
         "x-roles": [
           "student",
           "teacher",
@@ -2869,7 +2802,10 @@
                 },
                 "example": {
                   "subjectId": "s1",
-                  "seenAt": "2026-11-02T14:00:00Z"
+                  "seenAt": null,
+                  "seenPublicationIds": [],
+                  "publicationIds": [],
+                  "hasUpdates": false
                 }
               }
             }
@@ -2917,7 +2853,7 @@
         "tags": [
           "AJA-07"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Visita exclusivamente da conta autenticada. O POST recebe IDs de publicações observadas na leitura autorizada, valida seu contexto e mescla com os IDs já vistos pela mesma conta. Não marca publicações novas que não constam no comando; nenhum userId ou instante é aceito do navegador. Revalida acesso inclusive após revogação; equipe atribuída pode consultar turma encerrada.",
         "x-roles": [
           "student",
           "teacher",
@@ -2933,7 +2869,10 @@
                 },
                 "example": {
                   "subjectId": "s1",
-                  "seenAt": "2026-11-02T14:00:00Z"
+                  "seenAt": null,
+                  "seenPublicationIds": [],
+                  "publicationIds": [],
+                  "hasUpdates": false
                 }
               }
             }
@@ -2984,7 +2923,9 @@
               "schema": {
                 "$ref": "#/components/schemas/VisitCommand"
               },
-              "example": {}
+              "example": {
+                "publicationIds": []
+              }
             }
           }
         }
@@ -3236,17 +3177,16 @@
             }
           }
         }
-      }
-    },
-    "/modules/{id}/withdraw": {
-      "post": {
-        "operationId": "withdrawModule",
-        "summary": "withdrawModule",
+      },
+      "get": {
+        "operationId": "getModule",
+        "summary": "Consultar módulo autorizado",
         "tags": [
           "AJA-07"
         ],
         "description": "Respeita autorização, escopo e invariantes de contract.md.",
         "x-roles": [
+          "student",
           "teacher",
           "admin"
         ],
@@ -3307,20 +3247,7 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
             }
           }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionCommand"
-              },
-              "example": {
-                "expectedRevision": 1
-              }
-            }
-          }
-        }
+        ]
       }
     },
     "/subjects/{id}/reorder-modules": {
@@ -3330,7 +3257,7 @@
         "tags": [
           "AJA-07"
         ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "description": "Substitui atomicamente a ordem do conjunto completo de módulos não retirados da disciplina. expectedRevision é a revisão da disciplina; items contém IDs únicos de todos os módulos vivos, em sua ordem desejada, com a revisão de cada um. Acesso é revalidado antes de revisões. Criação concorrente ou alteração de qualquer módulo exige 409, preservando ordem/conjunto.",
         "x-roles": [
           "teacher",
           "admin"
@@ -10057,7 +9984,9 @@
           },
           "name": {
             "type": "string",
-            "example": "Matemática"
+            "example": "Matemática",
+            "minLength": 1,
+            "maxLength": 100
           },
           "teacherIds": {
             "type": "array",
@@ -10068,7 +9997,8 @@
               "maxLength": 128,
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "maxItems": 100
           },
           "color": {
             "type": "string",
@@ -10098,7 +10028,8 @@
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           }
         },
         "required": [
@@ -10128,7 +10059,9 @@
           },
           "name": {
             "type": "string",
-            "example": "Matemática"
+            "example": "Matemática",
+            "minLength": 1,
+            "maxLength": 100
           },
           "teacherIds": {
             "type": "array",
@@ -10139,7 +10072,8 @@
               "maxLength": 128,
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "maxItems": 100
           },
           "color": {
             "type": "string",
@@ -10169,7 +10103,8 @@
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           }
         },
         "required": [
@@ -10198,7 +10133,9 @@
           },
           "name": {
             "type": "string",
-            "example": "Matemática"
+            "example": "Matemática",
+            "minLength": 1,
+            "maxLength": 100
           },
           "teacherIds": {
             "type": "array",
@@ -10209,7 +10146,8 @@
               "maxLength": 128,
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "maxItems": 100
           },
           "color": {
             "type": "string",
@@ -10239,7 +10177,8 @@
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           }
         },
         "required": [
@@ -10293,11 +10232,14 @@
           },
           "title": {
             "type": "string",
-            "example": "Módulo 1"
+            "example": "Módulo 1",
+            "minLength": 1,
+            "maxLength": 160
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           },
           "order": {
             "type": "integer",
@@ -10330,11 +10272,14 @@
           },
           "title": {
             "type": "string",
-            "example": "Módulo 1"
+            "example": "Módulo 1",
+            "minLength": 1,
+            "maxLength": 160
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           }
         },
         "required": [
@@ -10354,11 +10299,14 @@
           },
           "title": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "minLength": 1,
+            "maxLength": 160
           },
           "description": {
             "type": "string",
-            "example": "Conteúdo"
+            "example": "Conteúdo",
+            "maxLength": 10000
           }
         },
         "required": [
@@ -10419,21 +10367,64 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
           },
           "seenAt": {
-            "type": "string",
-            "example": "2026-11-02T14:00:00Z",
-            "format": "date-time"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": null
+          },
+          "seenPublicationIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(material|notice|assessment):[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "maxLength": 139
+            },
+            "example": []
+          },
+          "publicationIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(material|notice|assessment):[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "maxLength": 139
+            },
+            "example": []
+          },
+          "hasUpdates": {
+            "type": "boolean",
+            "example": false
           }
         },
         "required": [
           "subjectId",
-          "seenAt"
+          "seenAt",
+          "seenPublicationIds",
+          "publicationIds",
+          "hasUpdates"
         ]
       },
       "VisitCommand": {
         "type": "object",
         "additionalProperties": false,
-        "properties": {},
-        "required": []
+        "properties": {
+          "publicationIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(material|notice|assessment):[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "maxLength": 139
+            },
+            "example": []
+          }
+        },
+        "required": [
+          "publicationIds"
+        ]
       },
       "Material": {
         "type": "object",
@@ -13677,7 +13668,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Subject"
+              "$ref": "#/components/schemas/SubjectSummary"
             }
           },
           "page": {
@@ -14303,6 +14294,223 @@
           "otherClass",
           "canEnroll",
           "message"
+        ]
+      },
+      "SubjectSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "s1",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "readOnly": true
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1,
+            "readOnly": true
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-11-02T14:00:00Z",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2026-11-02T14:00:00Z",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "example": "s1",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+            "readOnly": true
+          },
+          "classId": {
+            "type": "string",
+            "example": "s1",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "name": {
+            "type": "string",
+            "example": "Matemática",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "teacherIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "s1",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "uniqueItems": true,
+            "maxItems": 100
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "violet",
+              "blue",
+              "amber",
+              "green"
+            ],
+            "example": "violet"
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "book",
+              "calculator",
+              "atom",
+              "flask",
+              "leaf",
+              "globe",
+              "languages",
+              "landmark",
+              "palette",
+              "graduation"
+            ],
+            "example": "book"
+          },
+          "description": {
+            "type": "string",
+            "example": "Conteúdo",
+            "maxLength": 10000
+          },
+          "className": {
+            "type": "string",
+            "example": "Turma Horizonte"
+          },
+          "teachers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            },
+            "example": []
+          },
+          "canManageContent": {
+            "type": "boolean",
+            "example": false
+          },
+          "hasUpdates": {
+            "type": "boolean",
+            "example": false
+          },
+          "publicationIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(material|notice|assessment):[A-Za-z0-9][A-Za-z0-9._:-]*$",
+              "maxLength": 139
+            },
+            "example": []
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "updatedBy",
+          "classId",
+          "name",
+          "teacherIds",
+          "color",
+          "icon",
+          "description",
+          "className",
+          "teachers",
+          "canManageContent",
+          "hasUpdates",
+          "publicationIds"
+        ]
+      },
+      "SubjectDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SubjectSummary"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            },
+            "description": "Todos os módulos não retirados do contexto autorizado, ordenados por order e ID; sem corte de paginação."
+          },
+          "projections": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "materials": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                  }
+                },
+                "required": [
+                  "count"
+                ]
+              },
+              "assessments": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                  }
+                },
+                "required": [
+                  "count"
+                ]
+              },
+              "announcements": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 0
+                  }
+                },
+                "required": [
+                  "count"
+                ]
+              }
+            },
+            "required": [
+              "materials",
+              "assessments",
+              "announcements"
+            ]
+          }
+        },
+        "required": [
+          "subject",
+          "modules",
+          "projections"
         ]
       }
     },

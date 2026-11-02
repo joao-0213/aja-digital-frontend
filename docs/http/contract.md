@@ -2,6 +2,16 @@
 
 Estado: **contrato alvo**, fixado pela AJA-01 a partir de `e169df6`. A presença de uma operação no [OpenAPI 3.1](openapi.json) não significa que ela já funciona. AJA-02 a AJA-16 implementam e verificam cada fatia; o backlog registra disponibilidade e evidência. A [matriz de rotas](route-matrix.md) é o mapa de consumidores e o [inventário](storage-inventory.md) define destino e preservação dos dados anteriores.
 
+## Disciplinas, módulos e visitas — AJA-07
+
+A lista de disciplinas retorna `SubjectSummary`: identificação da disciplina, nome da turma, docentes como `{id,name}`, permissão vigente de conteúdo, `hasUpdates` e IDs das publicações visíveis. O detalhe retorna `{subject,modules,projections}`; `modules` contém todos os módulos vivos ordenados, sem corte arbitrário de cem registros. `projections` contém apenas contagens autorizadas de materiais, atividades e avisos para integrar as próximas issues. Não inclui arquivos, corpos, respostas ou gabaritos. `GET /modules/{id}` permite conferir a versão atual durante um conflito.
+
+Reordenar módulos exige o conjunto completo de IDs únicos, revisão da disciplina e revisão de cada módulo. A criação concorrente ou alteração de qualquer registro impede substituir a ordem silenciosamente. A transação conserva todos os registros e revalida o acesso antes de conferir revisões.
+
+Visitas pertencem à conta autenticada e à disciplina. O navegador envia `publicationIds` que observou no detalhe; o serviço valida o contexto e une esses IDs aos já vistos. Não recalcula todas as publicações como vistas no instante do POST: conteúdo publicado entre GET e POST continua novidade. O retorno inclui IDs visíveis, IDs vistos da própria conta, `seenAt` nulo antes da primeira visita e `hasUpdates`. A identidade `tipo:id` independe de ordem dos módulos e relógio do navegador. Equipe ainda atribuída pode consultar/registrar visita em turma encerrada; aluno sem vínculo ativo não pode.
+
+As propostas preliminares de retirada de disciplina/módulo foram removidas do OpenAPI por excederem os comandos do legado e o escopo desta issue. A presença de registros antigos retirados no armazenamento continua respeitada pelas projeções.
+
 ## Fronteira e versão
 
 Um único contrato `/api/v1`, servido pelo processo separado do JSON Server, inclusive comandos que alteram vários recursos. Nada de CRUD público genérico, `/db`, verificador de senha, sessões brutas, tokens, caixa de saída, auditoria bruta ou diretório de arquivos exposto. A caixa de saída e reset são ferramentas de terminal. Não há endpoint de receita JavaScript nem de upload do banco do navegador.

@@ -2,11 +2,13 @@ import jsonServer from 'json-server';
 import { randomUUID } from 'node:crypto';
 import { createAuthService } from './auth-service.mjs';
 import { createAdministrationService } from './administration-service.mjs';
+import { createSubjectService } from './subject-service.mjs';
 
 export function createApp(config) {
   const { origins, store } = config;
   const auth = store && createAuthService(config);
   const administration = auth && createAdministrationService(config, auth);
+  const subjects = auth && createSubjectService(config, auth);
   const routes = new Map([
     ['/api/v1/health', { GET: 'health' }],
     ...['register', 'login', 'logout', 'email-confirmation-requests', 'email-confirmations', 'password-reset-requests', 'password-resets'].map(route => [`/api/v1/auth/${route}`, { POST: route }]),
@@ -24,7 +26,7 @@ export function createApp(config) {
     if (origin && !origins.includes(origin)) return error(403, 'FORBIDDEN', 'Origem não permitida.');
     // Deliberately no defaults(), static(), router mounting, JSONP or rewrite middleware.
     const path = req.url.split('?')[0];
-    const administrative = path.startsWith('/api/v1/') && administration?.resolve(path.slice('/api/v1'.length));
+    const administrative = path.startsWith('/api/v1/') && (administration?.resolve(path.slice('/api/v1'.length)) ?? subjects?.resolve(path.slice('/api/v1'.length)));
     const methods = routes.get(path) ?? administrative?.methods;
     if (!methods) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
     if (origin) {
@@ -39,7 +41,7 @@ export function createApp(config) {
     }
     const route = methods[req.method];
     if (!route) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
-    if (administrative && req.method !== 'GET' && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
+    if (administrative && req.method !== 'GET' && !administrative.acceptsQuery && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
     if (!administrative && route !== 'enrollments' && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
     if (route === 'health') return res.json({ status: 'ok', version: '1' });
     if (!auth) return error(503, 'API_UNAVAILABLE', 'Serviço indisponível.');

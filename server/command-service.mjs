@@ -62,7 +62,7 @@ export function createCommandService({ store, resolveActor, now = () => new Date
           if (previous.operation !== operation || previous.targetId !== targetId || previous.fingerprint !== fingerprint) fail(409, 'IDEMPOTENCY_CONFLICT', 'Esta chave já foi usada para outra operação.');
           // Store only the original DTO, never a private raw command result.
           // Field-sensitive handlers can reduce/rebuild this DTO from current state.
-          return synchronous(replayProject(structuredClone(previous.result), actor, state));
+          return synchronous(replayProject(structuredClone(previous.result), actor, state, { targetId, timestamp }));
         }
         for (const item of synchronous(expected(req))) {
           if (!Number.isInteger(item.revision) || item.revision < 1) fail(422, 'VALIDATION_ERROR', 'Informe a revisão do registro.');

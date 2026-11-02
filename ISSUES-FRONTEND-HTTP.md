@@ -84,8 +84,10 @@ Concluída a partir de `fba87ee`: 217/217 testes, tipos, arquitetura (161 módul
 ### AJA-07 · Migrar disciplinas, equipe, módulos e visitas
 **Depende de** AJA-06. **Entrada** feature `subjects`, `src/lib/subject-updates.ts`, testes de equipe e atualizações.
 
-- [ ] Implementar `/subjects`, detalhe por ID, atribuição de docentes, comandos de criação/edição/ordenação de módulos e leitura/gravação de última visita por usuário. Migrar filtros por turma, cards, abas, âncoras e indicadores de novidades. Definir no detalhe as projeções consumidas por mural, materiais e atividades nas issues seguintes.
-- [ ] **Aceite** dois docentes atribuídos colaboram na mesma disciplina. Remover um durante a edição impede salvar. A reordenação verifica os dois registros e preserva o conjunto no conflito. Aluno vê só disciplinas da turma. Visita em outro navegador atualiza o indicador da mesma conta sem marcar a disciplina para outro usuário.
+Em execução a partir de `a7d5ca4`. Escopo e plano de validação em [validation-AJA-07.md](docs/http/validation-AJA-07.md); critérios ainda abertos.
+
+- [x] Implementar `/subjects`, detalhe por ID, atribuição de docentes, comandos de criação/edição/ordenação de módulos e leitura/gravação de última visita por usuário. Migrar filtros por turma, cards, abas, âncoras e indicadores de novidades. Definir no detalhe as projeções consumidas por mural, materiais e atividades nas issues seguintes.
+- [x] **Aceite** dois docentes atribuídos colaboram na mesma disciplina. Remover um durante a edição impede salvar. A reordenação verifica os dois registros e preserva o conjunto no conflito. Aluno vê só disciplinas da turma. Visita em outro navegador atualiza o indicador da mesma conta sem marcar a disciplina para outro usuário.
 
 ### AJA-08 · Disponibilizar arquivos por HTTP e migrar materiais e progresso
 **Depende de** AJA-07. **Entrada** feature `materials`, detalhe da disciplina, `src/lib/material-files.ts`, `src/lib/material-video.ts`, `src/hooks/use-study-tools.ts`.
