@@ -74,7 +74,7 @@ export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
     attempts: db.attempts.filter(a => !a.deletedAt && assessmentIds.has(a.assessmentId) && (user.role === 'student' ? a.userId === user.id : !!a.submittedAt)),
     progress: db.progress.filter(p => materialIds.has(p.materialId) && p.userId === user.id),
     attendance: db.attendance.filter(a => !a.deletedAt && subjectIds.has(a.subjectId)).map(a => user.role === 'student' ? { ...a, records: Object.fromEntries(Object.entries(a.records).filter(([id]) => id === user.id && enrolledForLesson(db, db.subjects.find(s => s.id === a.subjectId)!.classId, id, a.date))) } : a),
-    announcements, topics,
+    announcements, topics: topics.map(t => ({ ...t, readBy: t.readBy.filter(id => id === user.id), replies: t.replies.filter(r => !r.deletedAt) })),
     events: db.events.filter(e => !e.deletedAt && (e.subjectId ? subjectIds.has(e.subjectId) : active && classes.length > 0))
   };
 }

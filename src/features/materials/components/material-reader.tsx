@@ -132,7 +132,7 @@ export function MaterialReader() {
           </div>
         </Card>
         <div className="mt-5 flex flex-wrap justify-between gap-3">
-          <LinkButton secondary href={`/forum?disciplina=${subject.id}`}>Fiquei com uma dúvida</LinkButton>
+          <LinkButton secondary href={`/forum?disciplina=${subject.id}&material=${encodeURIComponent(material.id)}`}>Fiquei com uma dúvida</LinkButton>
           <LinkButton href={`/disciplinas/detalhes?id=${subject.id}&aba=materiais#module-${mod.id}`}>Voltar à disciplina</LinkButton>
         </div>
       </div>

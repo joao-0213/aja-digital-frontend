@@ -102,6 +102,7 @@ export function migrateDatabase(value: MockDatabase): MockDatabase {
   });
   for (const topic of db.topics) {
     for (const reply of topic.replies) {
+      if (Object.values(reply.votes).some(v => (v as number) < 0)) db.audit.push({ id: `migration-forum-votes-${topic.id}-${reply.id}`, actorId: 'migration-pp08', action: 'update', collection: 'forumVotes', targetId: reply.id, createdAt: '2026-11-02T12:00:00-03:00' });
       reply.votes = Object.fromEntries(Object.entries(reply.votes).filter(([, vote]) => vote === 1));
     }
   }

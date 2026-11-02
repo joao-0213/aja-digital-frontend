@@ -1,3 +1,4 @@
+import { validateForum } from './forum.ts';
 import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
 import { validateAnnouncement } from './announcement-calendar.ts';
@@ -137,6 +138,8 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       else if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
         // Public, local demo self-registration never grants a role or class membership.
         row.emailConfirmedAt = null;
+      } else if (collection === 'topics') {
+        validateForum(current, actor, before as unknown as import('@/models').ForumTopic | undefined, row as unknown as import('@/models').ForumTopic, now);
       } else if (actor.role === 'student') validateStudent(current, actor, collection, before, row, now);
       else if (actor.role === 'teacher') {
         if (collection === 'users' && before?.id === actor.id && onlyFields(before, row, ['name'])) { /* own minimal profile */ }
@@ -225,6 +228,13 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       attempt.questions = structuredClone(change.after.questions as NonNullable<typeof attempt.questions>);
       attempt.questionsUpdatedAt = now;
       if (!changes.some(item => item.collection === 'attempts' && item.after.id === attempt.id)) changes.push({ collection: 'attempts', before: before as unknown as Row, after: attempt as unknown as Row });
+    }
+  }
+  for (const topic of draft.topics) {
+    const old = current.topics.find(t => t.id === topic.id);
+    for (const reply of topic.replies) {
+      const previous = old?.replies.find(r => r.id === reply.id);
+      if (!equal(previous, reply)) draft.audit.push({ id: `audit-${globalThis.crypto.randomUUID()}`, actorId: actor.id, action: !previous ? 'create' : reply.deletedAt ? 'delete' : 'update', collection: 'forumReplies', targetId: reply.id, createdAt: now });
     }
   }
   for (const change of changes) {
