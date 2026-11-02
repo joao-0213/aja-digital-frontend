@@ -1,4 +1,4 @@
-# AJA Digital | Migração integral do front-end para HTTP
+﻿# AJA Digital | Migração integral do front-end para HTTP
 
 **Entrega final.** Aluno, docente e administrador entram com suas próprias contas e usam o AJA Digital como produto. Uma publicação feita pelo docente aparece para o aluno em outro navegador. Todos os dados institucionais vêm de endpoints HTTP servidos por um JSON Server com massas preparadas. A interface usa linguagem de produto, inclusive quando uma operação falha.
 
@@ -63,7 +63,7 @@ Concluída no commit `43549c1`, a partir de `683137b`: 164/164 testes, revisão 
 ### AJA-05 · Migrar identidade, sessão, perfil, privacidade e shell
 **Depende de** AJA-04. **Entrada** features `auth`, `profile`, `privacy`, `src/components/layout/`, `src/components/providers.tsx`, `src/providers/`.
 
-Concluída a partir de `43549c1`: 185/185 testes, gates e revisão independente APPROVE. Evidências em [docs/http/validation-AJA-05.md](docs/http/validation-AJA-05.md). Exportação anterior preservada separadamente; identidade HTTP não mistura dados legados.
+Concluída no commit `fba87ee`, a partir de `43549c1`: 185/185 testes, gates e revisão independente APPROVE. Evidências em [docs/http/validation-AJA-05.md](docs/http/validation-AJA-05.md). Exportação anterior preservada separadamente; identidade HTTP não mistura dados legados.
 
 - [x] Implementar cadastro, login, sessão atual e logout, confirmação de e-mail e recuperação com token de uso único no JSON Server. Usar cookie de sessão HttpOnly, expiração, origens explícitas e controle de origem nas escritas. Guardar verificador de senha só no serviço. Uma caixa de saída local acessível ao operador pelo terminal permite completar os fluxos sem provedor externo.
 - [x] Migrar `/login`, `/cadastro`, `/recuperar-senha`, `/perfil`, entrada protegida e saída. Cobrir alteração do nome e consulta dos vínculos. Substituir conta pré-selecionada, senha preenchida, seleção de papel, checkbox de dados fictícios, entrada sem login e painel de controles por sessão obtida via HTTP. Atualizar aviso de privacidade conforme os dados e as funções disponíveis.
@@ -76,8 +76,10 @@ Os caminhos abaixo são operações propostas sob `/api/v1`. AJA-01 fixa os nome
 ### AJA-06 · Migrar usuários, turmas, alunos e matrículas
 **Depende de** AJA-05. **Entrada** features `users`, `classes`, `students`, `src/lib/enrollment.ts` e testes de permissões/matrículas.
 
-- [ ] Integrar listagem e detalhe, cadastro/edição de docentes, gestão de cargos, inativação, exclusão lógica, cadastro/edição/encerramento de turma e perfil do aluno. Usar recursos `/users`, `/classes`, `/students` e comandos de `/enrollments` para inclusão por e-mail, efetivação, cancelamento e saída. Ligar confirmação de AJA-05 e status no perfil/painel ao mesmo vínculo.
-- [ ] **Aceite** proteger último administrador ativo e escopo docente. Uma confirmação repetida não cria novo vínculo. Encerrar turma cancela pendências e encerra vínculos no mesmo comando. Preservar autoria e histórico, turmas legadas ambíguas e atividades vencidas antes do ingresso. Reutilizar e-mail de outra conta não transfere matrícula. Validar em duas sessões.
+Concluída a partir de `fba87ee`: 217/217 testes, tipos, arquitetura (161 módulos), build padrão Turbopack (24 páginas), OpenAPI (79 caminhos/858 exemplos), navegador em sessões independentes e prévia estática aprovados. Revisão independente APPROVE, sem achados pendentes. Evidências e limites em [validation-AJA-06.md](docs/http/validation-AJA-06.md).
+
+- [x] Integrar listagem e detalhe, cadastro/edição de docentes, gestão de cargos, inativação, exclusão lógica, cadastro/edição/encerramento de turma e perfil do aluno. Usar recursos `/users`, `/classes`, `/students` e comandos de `/enrollments` para inclusão por e-mail, efetivação, cancelamento e saída. Ligar confirmação de AJA-05 e status no perfil/painel ao mesmo vínculo.
+- [x] **Aceite** proteger último administrador ativo e escopo docente. Uma confirmação repetida não cria novo vínculo. Encerrar turma cancela pendências e encerra vínculos no mesmo comando. Preservar autoria e histórico, turmas legadas ambíguas e atividades vencidas antes do ingresso. Reutilizar e-mail de outra conta não transfere matrícula. Validar em duas sessões.
 
 ### AJA-07 · Migrar disciplinas, equipe, módulos e visitas
 **Depende de** AJA-06. **Entrada** feature `subjects`, `src/lib/subject-updates.ts`, testes de equipe e atualizações.
@@ -174,3 +176,4 @@ Os caminhos abaixo são operações propostas sob `/api/v1`. AJA-01 fixa os nome
 | `/` | AJA-16 |
 
 O shell, os provedores, a privacidade, as ferramentas de estudo, os estados globais, os metadados e a documentação têm aceite próprio em AJA-05, AJA-08, AJA-17 e AJA-18. A migração termina quando todas as linhas funcionarem a partir da massa preparada e de chamadas HTTP observáveis.
+

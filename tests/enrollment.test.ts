@@ -7,6 +7,29 @@ import type { MockDatabase } from '../src/models/database.ts';
 import { enrolledForLesson, isAssessmentAssigned } from '../src/lib/enrollment.ts';
 
 const now = '2026-11-02T12:00:00.000Z';
+
+test('Brasília civil enrollment day includes a late-night entry regardless of server timezone', () => {
+  const db = fixture();
+  db.enrollments = [{ id: 'tz-entry', classId: 'c1', studentId: 'student', email: 'aluno@exemplo.com', status: 'active', createdAt: '2031-06-15T23:30:00-03:00', enrolledAt: '2031-06-15T23:30:00-03:00', createdBy: 'admin', unassignedAssessmentIds: [] }];
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-15'), true);
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-14'), false);
+});
+
+test('Brasília civil exit day never grants attendance on the next day in a UTC server', () => {
+  const db = fixture();
+  db.enrollments = [{ id: 'tz-exit', classId: 'c1', studentId: 'student', email: 'aluno@exemplo.com', status: 'ended', createdAt: '2031-06-01T12:00:00-03:00', enrolledAt: '2031-06-01T12:00:00-03:00', endedAt: '2031-06-15T23:30:00-03:00', createdBy: 'admin', unassignedAssessmentIds: [] }];
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-15'), true);
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-16'), false);
+});
+
+test('Brasília exit also bounds dateless legacy marks independently of the host timezone', () => {
+  const db = fixture();
+  db.enrollments = [{ id: 'tz-legacy-exit', classId: 'c1', studentId: 'student', email: 'aluno@exemplo.com', status: 'ended', legacy: true, createdAt: '2031-06-15T23:30:00-03:00', endedAt: '2031-06-15T23:30:00-03:00', createdBy: 'admin', unassignedAssessmentIds: [] }];
+  db.attendance = ['2031-06-15', '2031-06-16'].map(date => ({ id: `lesson-${date}`, subjectId: 's1', date, time: '19:00', records: { student: false } }));
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-15'), true);
+  assert.equal(enrolledForLesson(db, 'c1', 'student', '2031-06-16'), false);
+});
+
 function fixture(): MockDatabase {
   return migrateDatabase({
     version: 1, audit: [], enrollments: [],

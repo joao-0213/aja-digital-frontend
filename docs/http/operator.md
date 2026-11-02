@@ -10,7 +10,7 @@ Requer Node.js 22.6+ e npm. No PowerShell use `npm.cmd` quando a política bloqu
 - `npm run build` seguido de `npm run preview`: exportação em `out/`, prévia estática na porta 3001. O build funciona com a API desligada.
 - `curl.exe http://127.0.0.1:3002/api/v1/health` no Windows; `curl http://127.0.0.1:3002/api/v1/health` no Linux. Resposta 200: `{"status":"ok","version":"1"}`.
 
-Desde AJA-05, além de saúde, estão disponíveis cadastro/login/logout/sessão, confirmação de e-mail, recuperação, consulta/alteração do próprio nome e consulta de vínculos próprios. Os demais endpoints do OpenAPI permanecem alvos das próximas issues. Não há endpoint de probe, reset, manutenção, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
+Desde AJA-05, além de saúde, estão disponíveis cadastro/login/logout/sessão, confirmação de e-mail, recuperação, consulta/alteração do próprio nome e consulta de vínculos próprios. AJA-06 acrescenta administração de usuários/turmas/matrículas e consulta autorizada de alunos. Os demais endpoints do OpenAPI permanecem alvos das próximas issues. Não há endpoint de probe, reset, manutenção, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
 
 ## Configuração de origem
 
@@ -79,3 +79,13 @@ Teste com data fixa: `generateSeed({ baseDate: '2031-06-15' })`, `openRepository
 Tokens expiram em 30 minutos, são de uso único e uma nova solicitação invalida os links anteriores da mesma finalidade. Uma alteração do e-mail da conta também invalida o token emitido para o endereço antigo. Sessões expiram em oito horas e logout invalida apenas a sessão corrente. Login incorreto encerra a sessão que estava nesse navegador para evitar reabrir a identidade anterior por recarga. No serviço somente hashes de tokens/sessões e verificadores scrypt são persistidos; a caixa local privada conserva links para a operação manual autorizada.
 
 O script de API usa `--experimental-strip-types` para Node 22.6+, pois reutiliza as regras TypeScript de matrícula sem transportar o seed para o frontend. Não iniciar `server/index.mjs` em Node 22.6 sem essa opção. A CLI de outbox não aceita caminhos/argumentos e não depende de TypeScript; consulta somente a pasta de execução fixa do projeto.
+
+## Administração HTTP — AJA-06
+
+Entre como `admin` para criar/editar docentes e turmas, alterar cargos, inativar/retirar contas e gerir matrículas. Um docente criado pela administração recebe os links de definição de senha e confirmação pela caixa local (`npm run api:outbox`); não existe senha preenchida ou retornada pela API. O último administrador ativo é protegido. Inativar/retirar ou mudar o cargo de uma conta encerra suas sessões. Não há restauração de conta pela interface ou endpoint público; reabertura de turma é uma operação separada que não restaura vínculos encerrados.
+
+Ao incluir por e-mail, confira o preview antes de confirmar. A consulta não efetiva matrícula: se outra sessão mudar a turma/conta entre conferência e confirmação, a gravação revalida e pode falhar preservando o preenchimento. E-mail desconhecido vira pendência, sem criar conta. Confirmação e cadastro usam a mesma reserva. Reutilizar o endereço antigo de outra conta não transfere o vínculo existente. Para cancelar/encerrar, use a revisão atual; em conflito consulte e confira o registro antes de tentar novamente.
+
+Encerrar turma cancela as pendências e encerra vínculos, preservando autoria, tentativas, trabalhos e chamadas. Reabrir a turma não restaura participantes. Registros legados sem data confiável exibem ingresso não registrado: a data de criação de uma prova histórica não é a data de ingresso. Docentes atualmente atribuídos podem consultar esse histórico, sem conceder nova participação ao aluno. Matrículas ambíguas de mais de uma turma ativa exigem regularização administrativa explícita.
+
+Listas usam paginação real. `GET /students?classId=c1&history=true` inclui histórico antes da paginação; o padrão é participantes atuais. `GET /enrollments?classId=c1&status=pending,cancelled&q=exemplo` pesquisa as situações pedidas por e-mail/nome autorizado antes do total/página. `GET /enrollments/{id}` é consulta administrativa para conferir a revisão. Professor sem atribuição e aluno não recebem dados administrativos por acessar uma URL diretamente.

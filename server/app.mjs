@@ -1,10 +1,12 @@
 import jsonServer from 'json-server';
 import { randomUUID } from 'node:crypto';
 import { createAuthService } from './auth-service.mjs';
+import { createAdministrationService } from './administration-service.mjs';
 
 export function createApp(config) {
   const { origins, store } = config;
   const auth = store && createAuthService(config);
+  const administration = auth && createAdministrationService(config, auth);
   const routes = new Map([
     ['/api/v1/health', { GET: 'health' }],
     ...['register', 'login', 'logout', 'email-confirmation-requests', 'email-confirmations', 'password-reset-requests', 'password-resets'].map(route => [`/api/v1/auth/${route}`, { POST: route }]),
@@ -21,31 +23,36 @@ export function createApp(config) {
     res.setHeader('Vary', 'Origin');
     if (origin && !origins.includes(origin)) return error(403, 'FORBIDDEN', 'Origem não permitida.');
     // Deliberately no defaults(), static(), router mounting, JSONP or rewrite middleware.
-    const methods = routes.get(req.url.split('?')[0]);
+    const path = req.url.split('?')[0];
+    const administrative = path.startsWith('/api/v1/') && administration?.resolve(path.slice('/api/v1'.length));
+    const methods = routes.get(path) ?? administrative?.methods;
     if (!methods) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
     const requestedHeaders = (req.headers['access-control-request-headers'] ?? '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
-    if (req.method === 'OPTIONS' && origin && methods[req.headers['access-control-request-method']] && requestedHeaders.every(header => header === 'content-type')) {
+    if (req.method === 'OPTIONS' && origin && methods[req.headers['access-control-request-method']] && requestedHeaders.every(header => header === 'content-type' || administrative && header === 'idempotency-key')) {
       res.setHeader('Access-Control-Allow-Methods', Object.keys(methods).join(', '));
-      if (requestedHeaders.length) res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      if (requestedHeaders.length) res.setHeader('Access-Control-Allow-Headers', administrative ? 'Content-Type, Idempotency-Key' : 'Content-Type');
       return res.status(204).end();
     }
     const route = methods[req.method];
     if (!route) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
-    if (route !== 'enrollments' && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
+    if (administrative && req.method !== 'GET' && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
+    if (!administrative && route !== 'enrollments' && new URL(req.url, 'http://localhost').searchParams.size) return error(422, 'VALIDATION_ERROR', 'Esta operação não aceita parâmetros de consulta.');
     if (route === 'health') return res.json({ status: 'ok', version: '1' });
     if (!auth) return error(503, 'API_UNAVAILABLE', 'Serviço indisponível.');
     if (!['GET', 'HEAD'].includes(req.method) && (!origin || !origins.includes(origin))) return error(403, 'FORBIDDEN', 'Origem não permitida.');
     if (!['GET', 'HEAD'].includes(req.method) && route !== 'logout' && !req.is('application/json')) return error(422, 'VALIDATION_ERROR', 'Envie os campos em JSON.');
     req.authRoute = route;
+    if (administrative) { req.administrationHandler = route; req.administrationParams = administrative.params; }
     next();
   });
   app.use(jsonServer.bodyParser);
   app.use(async (req, res) => {
     try {
+      if (req.administrationHandler) { req.params = req.administrationParams; return await req.administrationHandler(req, res); }
       const result = await auth.execute(req, req.authRoute);
       if (result.cookie) res.setHeader('Set-Cookie', result.cookie);
       if (result.status === 204) res.status(204).end(); else res.status(result.status).json(result.body);

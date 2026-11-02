@@ -25,15 +25,17 @@ export function isAssessmentAssigned(db: MockDatabase, assessment: Assessment, s
   return enrollment ? !enrollment.unassignedAssessmentIds.includes(assessment.id) : !!db.classes.find(c => c.id === classId && c.active && !c.deletedAt && c.studentIds.includes(studentId));
 }
 
-/** Date-only records use the local lesson day, including the enrollment day. */
+/** Civil lesson dates use Brasília, independent of the browser/server timezone. */
 export function enrolledForLesson(db: MockDatabase, classId: string, studentId: string, date: string): boolean {
-  const history = db.enrollments?.filter(e => e.classId === classId && e.studentId === studentId && e.enrolledAt) ?? [];
+  const history = db.enrollments?.filter(e => e.classId === classId && e.studentId === studentId && (e.enrolledAt || e.legacy === true)) ?? [];
   if (!history.length) return !!db.classes.find(c => c.id === classId && c.studentIds.includes(studentId));
   const day = (timestamp: string) => {
-    const value = new Date(timestamp);
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(timestamp));
+    const value = (type: string) => parts.find(part => part.type === type)!.value;
+    return `${value('year')}-${value('month')}-${value('day')}`;
   };
   return history.some(e => {
+    if (!e.enrolledAt) return e.legacy === true && e.status === 'ended' && (!e.endedAt || day(e.endedAt) >= date) && db.attendance.some(a => !a.deletedAt && a.date === date && a.records[studentId] !== undefined && db.subjects.some(s => s.id === a.subjectId && s.classId === classId));
     // An unknown historical exit cannot establish eligibility for a new lesson.
     if (e.status === 'ended' && !e.endedAt) return db.attendance.some(a => !a.deletedAt && a.date === date && a.records[studentId] !== undefined && db.subjects.some(s => s.id === a.subjectId && s.classId === classId));
     return (e.legacy || day(e.enrolledAt!) <= date) && (!e.endedAt || day(e.endedAt) >= date);

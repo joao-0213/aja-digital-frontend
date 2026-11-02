@@ -1,98 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Plus } from 'lucide-react';
-import { useApp } from '@/providers/app-context';
-import { Avatar, Badge, Button, Card, Check, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
-import { percent, textMatch } from '@/lib/utils';
-import { canAccessStudent } from '@/lib/access';
-import { enrolledForLesson, normalizeEmail, validEmail } from '@/lib/enrollment';
-import type { Enrollment } from '@/models';
+import { useSession, useApp } from '@/providers/app-context';
+import { Avatar, Badge, Button, Card, Check, Dialog, Empty, Input, PageHeading, Select, Skeleton, ErrorState } from '@/components/ui';
+import { RecordConflict } from '@/components/shared/record-conflict';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useHttpEditor } from '@/hooks/use-http-editor';
+import { createClassesApi } from '@/features/classes';
+import { createStudentsApi, type EnrollmentDto, type EnrollmentPreview } from '../api';
+
+type Selection = { action: 'add' | 'cancel' | 'end'; record?: EnrollmentDto; classId: string; className: string; intent: string };
+const labels: Record<string, string> = { active: 'Ativo', pending: 'Pendente', ended: 'Encerrado', cancelled: 'Cancelado' };
+
+function EnrollmentDialog({ selection, close, saved }: { selection: Selection; close: () => void; saved: () => void }) {
+  const { client } = useSession();
+  const { notify } = useApp();
+  const api = useMemo(() => createStudentsApi(client), [client]);
+  const state = useHttpEditor<{ email: string }, EnrollmentDto>({ email: selection.record?.email ?? '' }, selection.record?.revision ?? 0, 'students-fields');
+  const [preview, setPreview] = useState<EnrollmentPreview | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const adding = selection.action === 'add';
+  const closeEditor = () => { if (!state.busy && !checking && (!adding || window.confirm('Fechar sem concluir a inclusão deste e-mail?'))) { state.clear(); close(); } };
+  const submit = async () => {
+    if (adding && !preview) {
+      if (checking) return;
+      setChecking(true); setPreviewError('');
+      try { setPreview(await api.preview(selection.classId, state.fields.email.trim().toLowerCase())); }
+      catch (cause: unknown) { setPreviewError(cause instanceof Error ? cause.message : 'Não foi possível conferir a inclusão.'); }
+      finally { setChecking(false); }
+      return;
+    }
+    if (adding && !preview?.canEnroll) return;
+    const ok = await state.editor.submit((fields, revision) => adding ? api.add(selection.classId, fields.email.trim().toLowerCase(), selection.intent) : api.command(selection.record!.id, selection.action as 'cancel' | 'end', revision, selection.intent), selection.record ? () => api.readEnrollment(selection.record!.id) : undefined);
+    if (ok) { state.clear(); notify(adding ? 'Situação da matrícula registrada. Confira o vínculo na lista.' : 'Situação da matrícula atualizada. Histórico preservado.'); saved(); }
+  };
+  return <Dialog open onClose={closeEditor} title={adding ? `Adicionar aluno em ${selection.className}` : selection.action === 'cancel' ? 'Cancelar matrícula pendente?' : 'Encerrar vínculo com a turma?'}><form className="space-y-5" onSubmit={event => { event.preventDefault(); void submit(); }}>
+    {adding ? <><p className="text-sm leading-6 text-slate-600">Destino: <strong>{selection.className}</strong>. Uma única turma ativa por aluno. Confira a conta e a situação antes de confirmar. A inclusão não cria uma conta nem comprova entrega de convite.</p><Input label="E-mail do aluno" type="email" required maxLength={254} value={state.fields.email} disabled={state.busy || checking} onChange={event => { state.editor.change({ email: event.target.value }); setPreview(null); setPreviewError(''); }} />{preview && <div role="status" className="rounded-lg bg-slate-50 p-4 text-sm leading-6"><p className="break-all font-semibold">{preview.email}</p>{preview.account && <p>{preview.account.name} · Conta existente</p>}<p>{preview.message}</p>{preview.otherClass && <p>Há vínculo em {preview.otherClass.name}. Regularize o destino; não há transferência automática.</p>}</div>}</> : <p className="break-words text-sm leading-6 text-slate-600">{selection.record?.email} · {selection.className}. {selection.action === 'cancel' ? 'O cadastro posterior não consumirá esta pendência.' : 'O aluno perde o acesso à turma, inclusive em atividades abertas.'} O histórico será preservado. Não há restauração automática.</p>}
+    {state.conflicted && <RecordConflict author="Equipe administrativa" updatedAt={state.latest?.updatedAt} onReviewed={state.editor.acknowledge}>{state.latest ? <p>{state.latest.email} · {labels[state.latest.status]} · {state.latest.className ?? selection.className}</p> : <Button variant="secondary" onClick={() => void state.editor.review(() => api.readEnrollment(selection.record!.id))}>Consultar versão atual</Button>}</RecordConflict>}
+    {(state.error || previewError) && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.error || previewError}</p>}
+    {state.blocked && <p className="text-sm text-slate-600">Feche esta janela e atualize a lista para conferir o que foi registrado antes de iniciar outra operação.</p>}
+    <div className="flex flex-wrap justify-end gap-2"><Button variant="secondary" disabled={state.busy || checking} onClick={closeEditor}>Cancelar</Button><Button type="submit" loading={state.busy || checking} disabled={state.conflicted || state.blocked || adding && !!preview && !preview.canEnroll}>{adding ? preview ? 'Confirmar inclusão' : 'Conferir inclusão' : 'Confirmar'}</Button></div>
+  </form></Dialog>;
+}
 
 export function StudentsPage() {
-  const { db, user, role, mutate, busy } = useApp();
+  const { client, sessionKey, user, resourceEpoch } = useSession();
   const params = useSearchParams();
-  const [classId, setClassId] = useState(params.get('turma') ?? db.classes[0]?.id ?? '');
+  const api = useMemo(() => createStudentsApi(client), [client]);
+  const classApi = useMemo(() => createClassesApi(client), [client]);
+  const requestedClassId = params.get('turma') ?? '';
+  const [classSelection, setClassSelection] = useState({ source: requestedClassId, id: requestedClassId });
   const [search, setSearch] = useState('');
   const [history, setHistory] = useState(false);
-  const [enroll, setEnroll] = useState(false);
-  const [email, setEmail] = useState('');
-  const [reviewed, setReviewed] = useState(false);
-  const [error, setError] = useState('');
-  const [removing, setRemoving] = useState<Enrollment | null>(null);
-  const schoolClass = db.classes.find(c => c.id === classId);
-  const records = db.enrollments.filter(e => e.classId === classId);
-  const students = db.users.filter(u => u.role === 'student' && canAccessStudent(db, user, u.id) && (schoolClass?.studentIds.includes(u.id) || history && records.some(e => e.studentId === u.id && e.enrolledAt)) && textMatch(`${u.name} ${u.email}`, search));
-  const pending = records.filter(e => (history || e.status === 'pending') && !e.enrolledAt && textMatch(e.email, search));
-  const person = db.users.find(u => normalizeEmail(u.email) === normalizeEmail(email));
-  const other = person && db.classes.find(c => c.id !== classId && c.active && c.studentIds.includes(person.id));
-  const previous = records.find(e => e.email === normalizeEmail(email));
-  const problem = !validEmail(email) ? 'Informe um e-mail válido.' : !schoolClass?.active ? 'Esta turma está inativa ou indisponível.' : person && (person.deletedAt || person.active === false || person.role !== 'student') ? 'Esta conta está inativa, excluída ou tem outro cargo. A inclusão não altera seu estado ou cargo.' : other ? `Já existe vínculo ativo em ${other.name}. Regularize esse vínculo antes de incluir aqui. Não há transferência automática.` : previous?.deletedAt ? 'Matrícula encerrada ou cancelada neste destino. Não há restauração pela interface.' : '';
-  const currentRemoval = db.enrollments.find(e => e.id === removing?.id);
-  const removalChanged = !!removing && (!currentRemoval || currentRemoval.status !== removing.status || currentRemoval.revision !== removing.revision);
-  if (role === 'student') return <Empty title="Área da equipe pedagógica" description="Selecione o perfil de professor ou administrador para conhecer esta tela." />;
+  const [page, setPage] = useState(1);
+  const [enrollmentPage, setEnrollmentPage] = useState(1);
+  const [selection, setSelection] = useState<Selection | null>(() => client.readDraft<Selection>('students-open') ?? null);
+  const allowed = !!user && user.role !== 'student';
+  const classes = useHttpQuery({ sessionKey, key: `student-class-options:${resourceEpoch}` }, useCallback(signal => classApi.options(signal), [classApi]), allowed);
+  const selectedClassId = classSelection.source === requestedClassId ? classSelection.id : requestedClassId;
+  const classId = selectedClassId || classes.data?.[0]?.id || '';
+  const schoolClass = classes.data?.find(item => item.id === classId);
+  const students = useHttpQuery({ sessionKey, key: JSON.stringify(['students', classId, search, history, page, resourceEpoch]) }, useCallback(signal => api.list(classId, search, history, page, signal), [api, classId, search, history, page]), allowed && !!classId);
+  const enrollments = useHttpQuery({ sessionKey, key: JSON.stringify(['class-enrollments', classId, search, history, enrollmentPage, resourceEpoch]) }, useCallback(signal => api.enrollments(classId, search, history, enrollmentPage, signal), [api, classId, search, history, enrollmentPage]), user?.role === 'admin' && !!classId);
+  if (!allowed) return <Empty title="Área da equipe pedagógica" description="Seu perfil não permite consultar os alunos de outras contas." />;
+  const visible = students.data?.items ?? [];
+  const pending = enrollments.data?.items ?? [];
+  const open = (action: Selection['action'], record?: EnrollmentDto) => { const next = { action, record, classId, className: schoolClass?.name ?? record?.className ?? 'Turma indisponível', intent: crypto.randomUUID() }; client.clearDraft('students-fields', sessionKey); client.saveDraft('students-open', next, sessionKey); setSelection(next); };
+  const close = () => { client.clearDraft('students-open', sessionKey); setSelection(null); };
   return <>
-    <PageHeading eyebrow="Acompanhamento acadêmico" title="Alunos" description="Consulte vínculos ativos, matrículas pendentes e histórico da turma." action={role === 'admin' && <Button disabled={!schoolClass?.active} onClick={() => { setEmail(''); setReviewed(false); setError(''); setEnroll(true); }}><Plus className="size-4" />Adicionar aluno por e-mail</Button>} />
-    <div className="mb-6 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,360px)_240px_1fr]">
-      <Input aria-label="Buscar aluno ou matrícula" placeholder="Buscar por nome ou e-mail…" value={search} onChange={e => setSearch(e.target.value)} />
-      <Select aria-label="Turma" value={classId} onChange={e => setClassId(e.target.value)}>{db.classes.map(c => <option key={c.id} value={c.id}>{c.name}{!c.active ? ' (inativa)' : ''}</option>)}</Select>
-      <Check label="Incluir histórico encerrado" checked={history} onChange={setHistory} />
-    </div>
-    <Card className="!p-0 overflow-hidden">
-      <h2 className="px-5 pt-5 font-semibold">Alunos vinculados{schoolClass && ` — ${schoolClass.name}`}</h2>
-      <p className="px-5 pt-3 text-xs text-slate-500 sm:hidden">Deslize para ver todas as colunas.</p>
-      <div className="relative overflow-x-auto" role="region" aria-label="Lista de alunos" tabIndex={0}>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="p-5 font-medium">Aluno</th><th className="p-5 font-medium">Vínculo</th><th className="p-5 font-medium">Frequência</th><th className="p-5"><span className="sr-only">Ações</span></th></tr></thead>
-          <tbody className="divide-y divide-slate-100">{students.map(u => {
-            const enrollment = records.find(e => e.studentId === u.id && e.enrolledAt);
-            const attendance = db.attendance.filter(a => db.subjects.some(s => s.id === a.subjectId && s.classId === classId) && a.records[u.id] !== undefined && enrolledForLesson(db, classId, u.id, a.date));
-            return <tr key={u.id}>
-              <td className="p-5"><div className="flex items-center gap-3"><Avatar name={u.name} /><div><p className="whitespace-nowrap font-semibold">{u.name}</p><p className="mt-1 text-xs text-slate-500">{u.email}</p></div></div></td>
-              <td className="p-5"><Badge tone={enrollment?.status === 'ended' ? 'neutral' : 'green'}>{enrollment?.status === 'ended' ? 'Encerrado' : 'Ativo'}</Badge><p className="mt-2 text-xs text-slate-500">{enrollment?.legacy ? 'Matrícula anterior — data não registrada' : enrollment?.enrolledAt ? new Date(enrollment.enrolledAt).toLocaleString('pt-BR') : 'Data não registrada'}</p></td>
-              <td className="p-5"><Badge tone="green">{attendance.length ? `${percent(attendance.filter(a => a.records[u.id]).length, attendance.length)}%` : 'Sem registro'}</Badge></td>
-              <td className="p-5"><div className="flex flex-wrap items-center gap-2"><Link className="inline-flex min-h-11 items-center whitespace-nowrap font-semibold text-brand-600" href={`/alunos/perfil?id=${u.id}`}>Ver perfil</Link>{role === 'admin' && enrollment?.status === 'active' && <Button variant="ghost" onClick={() => { setError(''); setRemoving(enrollment); }}>Encerrar vínculo</Button>}</div></td>
-            </tr>;
-          })}</tbody>
-        </table>
-      </div>
-      {!students.length && <Empty title="Nenhum aluno encontrado" description="Altere os filtros. Matrículas pendentes ainda não são participantes ativos." />}
-    </Card>
-    {role === 'admin' && <Card className="mt-6">
-      <h2 className="font-semibold">Matrículas pendentes{history && ' e canceladas'}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">Aguardando cadastro ou confirmação simulada do e-mail. Não aparecem na chamada. Endereço incorreto: cancele a pendência e inclua o correto.</p>
-      <ul className="mt-4 divide-y divide-slate-100">{pending.map(e => <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0"><p className="break-all text-sm font-medium">{e.email}</p><p className="mt-1 text-xs text-slate-500">{e.status === 'cancelled' ? 'Cancelada' : 'Matrícula pendente — aguardando cadastro ou confirmação'} · {new Date(e.createdAt).toLocaleString('pt-BR')}<br />Incluída por {db.users.find(u => u.id === e.createdBy)?.name ?? 'Equipe administrativa'}</p></div>{e.status === 'pending' && <Button variant="secondary" onClick={() => { setError(''); setRemoving(e); }}>Cancelar pendência</Button>}</li>)}</ul>
-      {!pending.length && <p className="py-5 text-sm text-slate-500">Nenhuma matrícula pendente com estes filtros.</p>}
-    </Card>}
-    <Dialog open={enroll} onClose={() => { if (!busy && (!email || window.confirm('Fechar sem concluir a inclusão deste e-mail?'))) setEnroll(false); }} title={`Adicionar aluno em ${schoolClass?.name ?? 'turma indisponível'}`}>
-      <form className="space-y-5" onSubmit={async e => {
-        e.preventDefault();
-        if (busy) return;
-        setError('');
-        if (problem) { setError(problem); return; }
-        if (!reviewed) { setReviewed(true); return; }
-        const ok = await mutate(() => {}, person && person.emailConfirmedAt !== null ? 'Vínculo de matrícula conferido. A turma está disponível ao aluno.' : 'Matrícula pendente registrada. Aguarde cadastro ou confirmação simulada do e-mail.', { enrollment: { type: 'add', email, classId } });
-        if (ok) setEnroll(false);
-        else setError('A inclusão não foi concluída. Confira a mensagem apresentada e tente novamente. O e-mail e a turma foram mantidos.');
-      }}>
-        <p className="text-sm leading-6 text-slate-600">Destino: <strong>{schoolClass?.name}</strong>. Uma única turma ativa por aluno. Esta operação é local; nenhum convite será enviado.</p>
-        <Input label="E-mail do aluno" type="email" required value={email} error={error} onChange={e => { setEmail(e.target.value); setReviewed(false); setError(''); }} maxLength={254} placeholder="aluno@exemplo.com" />
-        {reviewed && <div className="rounded-lg bg-slate-50 p-4 text-sm leading-6"><p className="break-all font-semibold">{normalizeEmail(email)}</p>{person ? <p>{person.name} · Conta existente. {person.emailConfirmedAt === null ? 'A matrícula aguardará a confirmação simulada pelo aluno.' : previous?.status === 'active' ? 'O vínculo já existe; confirmar não o duplica.' : 'A confirmação efetiva o vínculo e libera a turma.'}</p> : <p>Não há conta com este e-mail. Será criada somente uma matrícula pendente, aguardando cadastro. Nenhum usuário será criado por esta inclusão.</p>}</div>}
-        <Button type="submit" loading={busy}>{reviewed ? person && person.emailConfirmedAt !== null ? 'Confirmar vínculo' : 'Confirmar matrícula pendente' : 'Conferir inclusão'}</Button>
-      </form>
-    </Dialog>
-    <Dialog open={!!removing} onClose={() => { if (!busy) setRemoving(null); }} title={removing?.status === 'pending' ? 'Cancelar matrícula pendente?' : 'Encerrar vínculo com a turma?'}>
-      <p className="mb-5 break-words text-sm leading-6 text-slate-600">{removing?.email} · {schoolClass?.name}. {removing?.status === 'pending' ? 'O cadastro posterior não consumirá esta pendência.' : 'O aluno perde o acesso à turma, inclusive em atividades abertas.'} O histórico será preservado para a equipe autorizada. Não há restauração pela interface.</p>
-      {removalChanged && <p role="alert" className="mb-4 text-sm text-amber-800">A matrícula mudou. Feche e confira o estado atual antes de continuar.</p>}
-      {error && <p role="alert" className="mb-4 text-sm text-rose-700">{error}</p>}
-      <Button loading={busy} disabled={removalChanged} onClick={async () => {
-        if (!removing || busy || removalChanged) return;
-        const ok = await mutate(() => {}, 'Situação da matrícula atualizada. Histórico preservado.', { enrollment: { type: removing.status === 'pending' ? 'cancel' : 'end', id: removing.id }, expected: [{ collection: 'enrollments', id: removing.id, revision: removing.revision ?? 0 }] });
-        if (ok) setRemoving(null);
-        else setError('Não foi possível concluir. Confira o estado atual e tente novamente.');
-      }}>Confirmar {removing?.status === 'pending' ? 'cancelamento' : 'encerramento'}</Button>
-    </Dialog>
+    <PageHeading eyebrow="Acompanhamento acadêmico" title="Alunos" description="Consulte vínculos ativos, matrículas pendentes e histórico da turma." action={user?.role === 'admin' && <Button disabled={!schoolClass?.active || !!classes.error} onClick={() => open('add')}>Adicionar aluno por e-mail</Button>} />
+    <div className="mb-6 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,360px)_240px_1fr]"><Input aria-label="Buscar aluno ou matrícula" placeholder="Buscar por nome ou e-mail…" value={search} onChange={event => { setSearch(event.target.value); setPage(1); setEnrollmentPage(1); }} /><Select aria-label="Turma" value={classId} onChange={event => { setClassSelection({ source: requestedClassId, id: event.target.value }); setPage(1); setEnrollmentPage(1); }}><option value="">Selecione uma turma</option>{classes.data?.map(item => <option key={item.id} value={item.id}>{item.name}{item.active ? '' : ' (inativa)'}</option>)}</Select><Check label="Incluir histórico encerrado" checked={history} onChange={value => { setHistory(value); setPage(1); setEnrollmentPage(1); }} /></div>
+    {classes.loading ? <Skeleton /> : classes.error ? <ErrorState message={classes.error.message} retry={() => void classes.retry()} /> : !classes.data?.length ? <Empty title="Nenhuma turma disponível" description="As turmas aparecem conforme suas atribuições." /> : !schoolClass ? <Empty title="Turma indisponível neste contexto" /> : students.loading || enrollments.loading ? <Skeleton /> : students.error || enrollments.error ? <ErrorState message={students.error?.message ?? enrollments.error!.message} retry={() => { void students.retry(); void enrollments.retry(); }} /> : <>
+      <Card className="!p-0 overflow-hidden"><h2 className="px-5 pt-5 font-semibold">Alunos vinculados — {schoolClass.name}</h2><div className="relative overflow-x-auto" role="region" aria-label="Lista de alunos" tabIndex={0}><table className="w-full text-left text-sm"><thead className="border-b bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-5">Aluno</th><th className="p-5">Vínculo</th><th className="p-5">Frequência</th><th className="p-5"><span className="sr-only">Ações</span></th></tr></thead><tbody className="divide-y">{visible.map(item => { const record = item.enrollment; return <tr key={item.id}><td className="p-5"><div className="flex items-center gap-3"><Avatar name={item.name} /><div><p className="whitespace-nowrap font-semibold">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.email}</p></div></div></td><td className="p-5"><Badge tone={record?.status === 'ended' ? 'neutral' : 'green'}>{record ? labels[record.status] : 'Histórico'}</Badge><p className="mt-2 text-xs text-slate-500">{record?.legacy ? 'Matrícula anterior — data não registrada' : record?.enrolledAt ? new Date(record.enrolledAt).toLocaleString('pt-BR') : 'Data não registrada'}</p></td><td className="p-5">{item.attendance?.total ? `${Math.round(item.attendance.present / item.attendance.total * 100)}%` : 'Sem registro'}</td><td className="p-5"><div className="flex flex-wrap items-center gap-2"><Link className="inline-flex min-h-11 items-center whitespace-nowrap font-semibold text-brand-700" href={`/alunos/perfil?id=${encodeURIComponent(item.id)}`}>Ver perfil</Link>{user?.role === 'admin' && record?.status === 'active' && <Button variant="ghost" onClick={() => open('end', record)}>Encerrar vínculo</Button>}</div></td></tr>; })}</tbody></table></div>{!visible.length && <Empty title="Nenhum aluno encontrado" description="Altere os filtros. Matrículas pendentes ainda não são participantes ativos." />}</Card>
+      <div className="mt-4 flex items-center justify-between gap-3"><Button variant="secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</Button><span className="text-sm">Página {page}</span><Button variant="secondary" disabled={!students.data || page * students.data.pageSize >= students.data.total} onClick={() => setPage(value => value + 1)}>Próxima</Button></div>
+      {user?.role === 'admin' && <Card className="mt-6"><h2 className="font-semibold">Matrículas pendentes{history && ' e canceladas'}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Aguardam cadastro ou confirmação do e-mail. Não aparecem na chamada. Para corrigir o endereço, cancele a pendência e inclua o correto.</p><ul className="mt-4 divide-y">{pending.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div><p className="break-all text-sm font-medium">{item.email}</p><p className="mt-1 text-xs text-slate-500">{labels[item.status]} · {new Date(item.createdAt).toLocaleString('pt-BR')}</p></div>{item.status === 'pending' && <Button variant="secondary" onClick={() => open('cancel', item)}>Cancelar pendência</Button>}</li>)}</ul>{!pending.length && <p className="py-5 text-sm text-slate-500">Nenhuma matrícula pendente com estes filtros.</p>}</Card>}
+      {enrollments.data && enrollments.data.total > enrollments.data.pageSize && <div className="mt-4 flex items-center justify-between gap-3"><Button variant="secondary" disabled={enrollmentPage === 1} onClick={() => setEnrollmentPage(value => value - 1)}>Vínculos anteriores</Button><span className="text-sm">Lote de vínculos {enrollmentPage}</span><Button variant="secondary" disabled={enrollmentPage * enrollments.data.pageSize >= enrollments.data.total} onClick={() => setEnrollmentPage(value => value + 1)}>Mais vínculos</Button></div>}
+    </>}
+    {selection && <EnrollmentDialog key={selection.intent} selection={selection} close={close} saved={() => { close(); void students.invalidate(); void enrollments.invalidate(); void classes.invalidate(); }} />}
   </>;
 }

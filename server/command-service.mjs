@@ -25,9 +25,9 @@ export function createCommandService({ store, resolveActor, now = () => new Date
     if (!actor || actor.active === false || actor.deletedAt) fail(401, 'SESSION_REQUIRED', 'Entre novamente para continuar.');
     return actor;
   }
-  function guard(handler) {
+  function guard(handler, successStatus = 200) {
     return async (req, res) => {
-      try { res.status(200).json(await handler(req)); }
+      try { res.status(successStatus).json(await handler(req)); }
       catch (error) {
         const status = error.status ?? 500;
         const body = { code: error.code ?? 'INTERNAL_ERROR', message: error.status ? error.message : 'Não foi possível concluir a operação.', requestId: randomUUID() };
@@ -46,7 +46,7 @@ export function createCommandService({ store, resolveActor, now = () => new Date
         return synchronous(project(structuredClone(record), actor, state));
       }));
     },
-    command({ operation, target, authorize, expected = () => [], apply, project, replayProject, requireIdempotency = false }) {
+    command({ operation, target, authorize, expected = () => [], apply, project, replayProject, requireIdempotency = false, successStatus = 200 }) {
       return guard(req => store.transact(state => {
         const actor = actorFor(req, state);
         synchronous(authorize(state, actor, req));
@@ -71,7 +71,7 @@ export function createCommandService({ store, resolveActor, now = () => new Date
           if (record.revision !== item.revision) fail(409, 'REVISION_CONFLICT', 'O registro foi alterado. Confira a versão atual.', { currentRevision: record.revision });
         }
         const before = structuredClone(state);
-        const result = synchronous(apply(state, actor, req));
+        const result = synchronous(apply(state, actor, req, { timestamp }));
         for (const [collection, rows] of Object.entries(state)) {
           if (!Array.isArray(rows) || ['audit', 'idempotency'].includes(collection)) continue;
           for (const row of rows) {
@@ -87,7 +87,7 @@ export function createCommandService({ store, resolveActor, now = () => new Date
         const response = synchronous(project(result, actor, state));
         if (key) state.idempotency.push({ id: randomUUID(), actorId: actor.id, actorRole: actor.role, key, operation, targetId, fingerprint, result: structuredClone(response), createdAt: timestamp, expiresAt: new Date(Date.parse(timestamp) + 86400000).toISOString() });
         return response;
-      }));
+      }), successStatus);
     }
   };
 }

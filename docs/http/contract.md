@@ -23,6 +23,8 @@ As páginas continuam composições estáticas do App Router, com Suspense e par
 
 ## Sessão, permissão e DTOs
 
+A revisão documental `1.0.2` da AJA-06 acrescenta conferência administrativa de inclusão em `GET /enrollments/preview?classId=…&email=…` e leitura administrativa de revisão em `GET /enrollments/{id}`. A conferência não reserva vaga nem garante escrita; o comando revalida o estado atual. A lista de alunos aplica `history` antes de total/paginação e pode incluir a matrícula autorizada do contexto em `enrollment`, sem criar datas ou IDs para vínculos sem registro. O resumo opcional de frequência conta somente marcações elegíveis e autorizadas. A consulta de matrículas aceita busca `q` e `status` como lista separada por vírgulas (um único valor continua válido); filtros são aplicados antes de paginar, inclusive na lista de pendências. Exemplos de primeira página vazia foram corrigidos para `total: 0`.
+
 A revisão documental `1.0.1` da AJA-05 acrescenta `sessionId` ao DTO de login/sessão. É um identificador opaco público, diferente do cookie e de seu hash, usado para isolar consultas. Não autentica nem autoriza uma requisição. Cada login gera uma identidade distinta mesmo para a mesma conta no mesmo instante; refresh da mesma sessão a conserva. Troca de sessão ou cargo limpa consultas do contexto anterior. O contrato `/api/v1` ainda está em implementação antes do aceite do produto; consumidores, exemplos e testes desta revisão são atualizados juntos.
 
 `aja_session` é cookie HttpOnly com validade absoluta retornada em `expiresAt`. O serviço resolve ator pelo cookie e consulta conta/vínculos atuais em cada leitura e novamente no commit. Não aceitar role, autoria, usuário-alvo da sessão ou confirmação de e-mail do navegador. `credentials: 'include'`, origens permitidas explícitas, `Access-Control-Allow-Credentials: true`, nunca origem `*`; validar Origin nas escritas. Para desenvolvimento/prévia usar o mesmo hostname (`127.0.0.1`) nas portas 3000/3001/3002. HTTPS usa Secure; local HTTP não. SameSite e origem pública precisam ser configurados de modo coerente; deployments em sites distintos exigem HTTPS e política de cookies compatível, validados em AJA-18.
@@ -93,7 +95,7 @@ Falha de upload ou publicação limpa preparação órfã e conserva seleção/t
 | 401 | `SESSION_REQUIRED`, `INVALID_CREDENTIALS` | Sem sessão, expirada/revogada ou login incorreto; limpar caches da conta anterior e pedir entrada. |
 | 403 | `FORBIDDEN` | Operação vedada no recurso visível; nenhum commit. |
 | 404 | `NOT_FOUND` | Inexistente, retirado ou oculto; não revelar qual caso. |
-| 409 | `REVISION_CONFLICT`, `IDEMPOTENCY_CONFLICT` | Conferir versão/intenção; não repetir sobrescrevendo. Invariantes de exclusividade/estrutura também usam conflito com mensagem específica. |
+| 409 | `REVISION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `BUSINESS_CONFLICT` | Conferir versão/intenção; não repetir sobrescrevendo. A administração distingue invariantes de exclusividade/estrutura por BUSINESS_CONFLICT, permitindo corrigir campos sem reconhecer revisão nova; intenção ambígua de idempotência exige conferência antes de uma nova operação. |
 | 422 | `VALIDATION_ERROR`, `TOKEN_INVALID`, `TOKEN_EXPIRED` | Entrada inválida ou token sem uso permitido; conservar campos do formulário. |
 | 500 | `PERSISTENCE_FAILED` | Estado anterior preservado; não anunciar sucesso. |
 | 503 | `API_UNAVAILABLE` | Serviço indisponível; repetir por intenção quando aplicável. |

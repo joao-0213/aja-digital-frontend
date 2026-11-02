@@ -9,7 +9,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
 
 export function ProfilePage() {
-  const { user, client, sessionKey } = useSession();
+  const { user, client, sessionKey, resourceEpoch } = useSession();
   const { notify } = useApp();
   const [restoredDraft] = useState(() => client.readProfileDraft());
   const [name, setName] = useState(restoredDraft?.name ?? user?.name ?? '');
@@ -17,7 +17,7 @@ export function ProfilePage() {
   const [conflict, setConflict] = useState<{ name: string; revision: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}` }, useCallback(signal => client.readEnrollments(signal), [client]));
+  const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` }, useCallback(signal => client.readEnrollments(signal), [client]));
   if (!user) return null;
   const save = async () => {
     if (busy || conflict) return;

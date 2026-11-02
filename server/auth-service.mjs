@@ -94,7 +94,7 @@ export function createAuthService({ store, now = () => new Date().toISOString(),
         status = 202; result = () => accepted;
       } else if (route === 'email-confirmations') {
         fields(body, ['token']); const user = consume(state, body.token, 'email-confirmation', timestamp); actorId = user.id;
-        try { executeEnrollmentCommand(state, user, { type: 'confirm' }, timestamp); }
+        try { if (user.role === 'student') executeEnrollmentCommand(state, user, { type: 'confirm' }, timestamp); else user.emailConfirmedAt ??= timestamp; }
         catch (cause) { throw new HttpError(409, 'REVISION_CONFLICT', cause.message); }
         result = () => selfUser(user);
       } else if (route === 'password-resets') {
@@ -139,5 +139,13 @@ export function createAuthService({ store, now = () => new Date().toISOString(),
       return { status, body: result?.(), cookie };
     });
   }
-  return { execute, resolveActor: (req, state) => sessionFor(req, state, now()).user.id };
+  return {
+    execute,
+    resolveActor: (req, state) => sessionFor(req, state, now()).user.id,
+    provisionAccount(state, user, timestamp) {
+      state.credentials.push(verifier(randomBytes(48).toString('hex'), user.id));
+      issue(state, user, 'password-reset', timestamp);
+      issue(state, user, 'email-confirmation', timestamp);
+    }
+  };
 }

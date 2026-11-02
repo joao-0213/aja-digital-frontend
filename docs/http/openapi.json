@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
@@ -711,7 +711,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -784,7 +784,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -1266,91 +1266,6 @@
         }
       }
     },
-    "/users/{id}/activate": {
-      "post": {
-        "operationId": "activateUser",
-        "summary": "activateUser",
-        "tags": [
-          "AJA-06"
-        ],
-        "description": "Respeita autorização, escopo e invariantes de contract.md.",
-        "x-roles": [
-          "admin"
-        ],
-        "responses": {
-          "200": {
-            "description": "Operação concluída.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminUser"
-                },
-                "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "name": "Pessoa AJA",
-                  "email": "aluno@example.test",
-                  "role": "student",
-                  "active": true,
-                  "emailConfirmedAt": "2026-11-02T14:00:00Z"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Error401"
-          },
-          "403": {
-            "$ref": "#/components/responses/Error403"
-          },
-          "404": {
-            "$ref": "#/components/responses/Error404"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error409"
-          },
-          "422": {
-            "$ref": "#/components/responses/Error422"
-          },
-          "500": {
-            "$ref": "#/components/responses/Error500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Error503"
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "example": "s1",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevisionCommand"
-              },
-              "example": {
-                "expectedRevision": 1
-              }
-            }
-          }
-        }
-      }
-    },
     "/users/{id}/withdraw": {
       "post": {
         "operationId": "withdrawUser",
@@ -1461,7 +1376,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -1877,7 +1792,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -1942,6 +1857,15 @@
               "type": "string",
               "example": "Conteúdo"
             }
+          },
+          {
+            "name": "history",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Include ended historical class membership. Applied before total and pagination."
           }
         ]
       }
@@ -2044,7 +1968,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -2117,14 +2041,32 @@
             "name": "status",
             "in": "query",
             "schema": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "active",
+                  "ended",
+                  "cancelled"
+                ]
+              },
+              "example": [
+                "pending"
+              ]
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
               "type": "string",
-              "enum": [
-                "pending",
-                "active",
-                "ended",
-                "cancelled"
-              ],
-              "example": "pending"
+              "example": "Conteúdo"
             }
           }
         ]
@@ -2510,7 +2452,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -3073,7 +3015,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -3405,7 +3347,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -3497,7 +3439,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -3590,7 +3532,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -3879,7 +3821,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -4070,7 +4012,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -4565,7 +4507,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -4859,7 +4801,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -5468,7 +5410,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -6014,7 +5956,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -6725,7 +6667,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -7191,7 +7133,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -7295,7 +7237,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -8304,7 +8246,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -8499,7 +8441,7 @@
                   "items": [],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 1
+                  "total": 0
                 }
               }
             }
@@ -8871,6 +8813,161 @@
           }
         }
       }
+    },
+    "/enrollments/{id}": {
+      "get": {
+        "operationId": "getEnrollmentForEditing",
+        "summary": "Get an enrollment for administrative editing",
+        "tags": [
+          "AJA-06"
+        ],
+        "description": "Respeita autorização, escopo e invariantes de contract.md.",
+        "x-roles": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Enrollment"
+                },
+                "example": {
+                  "id": "s1",
+                  "revision": 1,
+                  "createdAt": "2026-11-02T14:00:00Z",
+                  "updatedAt": "2026-11-02T14:00:00Z",
+                  "updatedBy": "s1",
+                  "classId": "s1",
+                  "email": "aluno@example.test",
+                  "studentId": "s1",
+                  "status": "pending",
+                  "createdBy": "s1",
+                  "enrolledAt": "2026-11-02T14:00:00Z",
+                  "endedAt": "2026-11-02T14:00:00Z",
+                  "legacy": true,
+                  "unassignedAssessmentIds": []
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "s1",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          }
+        ]
+      }
+    },
+    "/enrollments/preview": {
+      "get": {
+        "operationId": "previewEnrollment",
+        "summary": "Review an enrollment intention without saving",
+        "tags": [
+          "AJA-06"
+        ],
+        "description": "Admin-only review. A later command revalidates current state; preview never reserves or confirms enrollment.",
+        "x-roles": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Operação concluída.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentPreview"
+                },
+                "example": {
+                  "email": "novo@example.test",
+                  "classId": "c1",
+                  "account": null,
+                  "existingEnrollment": null,
+                  "otherClass": null,
+                  "canEnroll": true,
+                  "message": null
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "s1",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "aluno@example.test",
+              "format": "email"
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -9238,6 +9335,36 @@
           "active": {
             "type": "boolean",
             "example": true
+          },
+          "attendance": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "present": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "present",
+              "total"
+            ],
+            "description": "Only eligible marked lessons in the authorized context; absent marks are not absences."
+          },
+          "enrollment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enrollment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Authorized membership in the requested class; null if no class context or no membership record. Never invents dates or IDs."
           }
         },
         "required": [
@@ -14093,6 +14220,89 @@
               "question"
             ]
           }
+        ]
+      },
+      "EnrollmentPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "aluno@example.test",
+            "format": "email"
+          },
+          "classId": {
+            "type": "string",
+            "example": "s1",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "existingEnrollment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enrollment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherClass": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "example": "s1",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "canEnroll": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "classId",
+          "account",
+          "existingEnrollment",
+          "otherClass",
+          "canEnroll",
+          "message"
         ]
       }
     },

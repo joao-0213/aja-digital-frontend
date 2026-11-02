@@ -56,9 +56,10 @@ test('real API process serves documented health, blocks all raw routes and persi
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: 'ok', version: '1' });
   assert.equal((await fetch(`${first.address}/api/v1/health?unknown=1`)).status, 422);
-  for (const route of ['/db', '/users', '/api/v1/users', '/credentials', '/outbox', '/files', '/runtime/db.json', '/api/v1/health/', '/API/v1/health', '/api/v1/%68ealth']) {
+  for (const route of ['/db', '/users', '/api/v1/credentials', '/credentials', '/outbox', '/files', '/runtime/db.json', '/api/v1/health/', '/API/v1/health', '/api/v1/%68ealth']) {
     assert.equal((await fetch(first.address + route)).status, 404, route);
   }
+  assert.equal((await fetch(first.address + '/api/v1/users')).status, 401);
   assert.equal((await fetch(`${first.address}/api/v1/health`, { method: 'POST' })).status, 404);
   const allowed = await fetch(`${first.address}/api/v1/health`, { headers: { Origin: 'http://127.0.0.1:3000' } });
   assert.equal(allowed.headers.get('access-control-allow-origin'), 'http://127.0.0.1:3000');

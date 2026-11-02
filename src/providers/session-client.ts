@@ -6,6 +6,7 @@ export interface SessionState {
   user: User | null;
   expiresAt: string | null;
   sessionKey: string;
+  resourceEpoch: number;
   error?: Error;
 }
 
@@ -16,16 +17,17 @@ interface ProfileDraft { name: string; revision: number }
 /** Memory-only identity. The HTTP cookie is the sole source of session truth. */
 export function createSessionClient(http: Transport) {
   let version = 0;
-  let state: SessionState = { status: 'loading', user: null, expiresAt: null, sessionKey: 'session-0' };
+  let state: SessionState = { status: 'loading', user: null, expiresAt: null, sessionKey: 'session-0', resourceEpoch: 0 };
   let pending: AbortController | undefined;
   let sessionId: string | undefined;
   // Unpublished profile text stays in memory during a transient outage, hidden
   // until exactly the same verified session returns. No password is buffered.
   let draftOwner: string | undefined;
   let profileDraft: ProfileDraft | undefined;
-  const discardDraft = () => { draftOwner = undefined; profileDraft = undefined; };
+  const compositions = new Map<string, unknown>();
+  const discardDraft = () => { draftOwner = undefined; profileDraft = undefined; compositions.clear(); };
   const listeners = new Set<() => void>();
-  const publish = (next: SessionState) => { state = next; listeners.forEach(listener => listener()); };
+  const publish = (next: Omit<SessionState, 'resourceEpoch'> & { resourceEpoch?: number }) => { state = { ...next, resourceEpoch: next.resourceEpoch ?? state.resourceEpoch }; listeners.forEach(listener => listener()); };
   const begin = (status: SessionState['status']) => {
     pending?.abort();
     pending = new AbortController();
@@ -38,10 +40,10 @@ export function createSessionClient(http: Transport) {
   const save = (session: SessionDto, current: number, preserveKey?: string) => {
     if (current === version) {
       const owner = JSON.stringify([session.sessionId, session.user.id, session.user.role, 'profile']);
-      if (owner !== draftOwner) profileDraft = undefined;
+      if (owner !== draftOwner) { profileDraft = undefined; compositions.clear(); }
       draftOwner = owner;
       sessionId = session.sessionId;
-      publish({ status: 'authenticated', user: session.user, expiresAt: session.expiresAt, sessionKey: preserveKey ?? `session-${current}` });
+      publish({ status: 'authenticated', user: session.user, expiresAt: session.expiresAt, sessionKey: preserveKey ?? `session-${current}`, resourceEpoch: state.resourceEpoch + 1 });
     }
   };
   async function refresh() {
@@ -93,9 +95,9 @@ export function createSessionClient(http: Transport) {
       throw error;
     }
   }
-  async function protectedRead<T>(path: string, signal?: AbortSignal) {
+  async function protectedRequest<T>(path: string, options?: HttpRequestOptions) {
     const current = version;
-    try { return await http.request<T>(path, { signal }); }
+    try { return await http.request<T>(path, options); }
     catch (error: unknown) {
       if (current === version && error instanceof HttpError && error.kind === 'session') begin('anonymous');
       throw error;
@@ -114,8 +116,14 @@ export function createSessionClient(http: Transport) {
     confirmEmail: (token: string) => http.request<User>('/auth/email-confirmations', { method: 'POST', json: { token } }),
     requestRecovery: (email: string) => http.request<{ message: string }>('/auth/password-reset-requests', { method: 'POST', json: { email } }),
     resetPassword: (token: string, password: string) => http.request<{ message: string }>('/auth/password-resets', { method: 'POST', json: { token, password } }),
-    readProfile: () => protectedRead<User>('/me'),
-    readEnrollments: (signal?: AbortSignal) => protectedRead<{ items: { id: string; classId: string; className: string | null; status: string; enrolledAt: string | null }[] }>('/me/enrollments', signal),
+    request: protectedRequest,
+    readDraft: <T>(context: string): T | undefined => state.status === 'authenticated' && sessionId ? structuredClone(compositions.get(context)) as T | undefined : undefined,
+    saveDraft: <T>(context: string, value: T, expectedSessionKey: string) => {
+      if (state.status === 'authenticated' && sessionId && state.sessionKey === expectedSessionKey) compositions.set(context, structuredClone(value));
+    },
+    clearDraft: (context: string, expectedSessionKey: string) => { if (state.sessionKey === expectedSessionKey) compositions.delete(context); },
+    readProfile: () => protectedRequest<User>('/me'),
+    readEnrollments: (signal?: AbortSignal) => protectedRequest<{ items: { id: string; classId: string; className: string | null; status: string; enrolledAt: string | null }[] }>('/me/enrollments', { signal }),
     dispose: () => { version++; pending?.abort(); discardDraft(); listeners.clear(); }
   };
 }
