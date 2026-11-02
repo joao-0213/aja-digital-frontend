@@ -32,7 +32,11 @@ export function enrolledForLesson(db: MockDatabase, classId: string, studentId: 
     const value = new Date(timestamp);
     return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
   };
-  return history.some(e => (e.legacy || day(e.enrolledAt!) <= date) && (!e.endedAt || day(e.endedAt) >= date));
+  return history.some(e => {
+    // An unknown historical exit cannot establish eligibility for a new lesson.
+    if (e.status === 'ended' && !e.endedAt) return db.attendance.some(a => !a.deletedAt && a.date === date && a.records[studentId] !== undefined && db.subjects.some(s => s.id === a.subjectId && s.classId === classId));
+    return (e.legacy || day(e.enrolledAt!) <= date) && (!e.endedAt || day(e.endedAt) >= date);
+  });
 }
 
 function activate(db: MockDatabase, enrollment: Enrollment, student: User, now: string) {
@@ -79,7 +83,9 @@ export function executeEnrollmentCommand(db: MockDatabase, actor: User, command:
     if (!destination) throw new Error('Esta turma está inativa ou indisponível.');
     const student = db.users.find(u => normalizeEmail(u.email) === email);
     if (student && (!available(student) || student.role !== 'student')) throw new Error('Esta conta está inativa, excluída ou tem outro cargo. A inclusão não altera seu estado ou cargo.');
-    const previous = db.enrollments.find(e => e.classId === command.classId && (e.email === email || !!student && e.studentId === student.id));
+    const previous = db.enrollments.find(e => e.classId === command.classId && !!student && e.studentId === student.id)
+      ?? db.enrollments.find(e => e.classId === command.classId && e.email === email);
+    if (previous?.studentId && previous.studentId !== student?.id) throw new Error('Este e-mail consta no histórico de outra conta nesta turma. Solicite a conferência administrativa; nenhum vínculo foi criado ou transferido.');
     if (previous) {
       if (previous.status === 'cancelled' || previous.status === 'ended' || previous.deletedAt) throw new Error('Matrícula encerrada ou cancelada neste destino. Não há restauração pela interface.');
       if (student && previous.status === 'pending') activate(db, previous, student, now);

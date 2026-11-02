@@ -31,6 +31,27 @@ function command(db: MockDatabase, enrollment: NonNullable<MutationOptions['enro
 }
 const add = (email = 'aluno@exemplo.com', classId = 'c1') => ({ type: 'add' as const, email, classId });
 
+test('a reused old email cannot silently match the membership of another account', () => {
+  const linked = command(fixture(), add());
+  const changed = applyDemoMutation(linked, 'admin', d => { d.users[2].email = 'alterado@exemplo.com'; });
+  const registered = command(changed, { type: 'register', id: 'new', name: 'Outra pessoa', email: 'aluno@exemplo.com' });
+  const confirmed = command(registered, { type: 'confirm' }, 'new');
+  assert.throws(() => command(confirmed, add()), /outra conta|histórico/i);
+  assert.deepEqual(confirmed.classes[0].studentIds, ['student']);
+});
+
+test('legacy ended membership with unknown exit date never creates future attendance after class reactivation', () => {
+  const legacy = fixture();
+  legacy.classes[0].studentIds = ['student'];
+  legacy.classes[0].active = false;
+  legacy.attendance.push({ id: 'historic', subjectId: 's1', date: '2025-10-01', time: '19:00', records: { student: true } });
+  const migrated = migrateDatabase(legacy);
+  const reopened = applyDemoMutation(migrated, 'admin', d => { d.classes[0].active = true; });
+  assert.equal(enrolledForLesson(reopened, 'c1', 'student', '2026-11-02'), false);
+  assert.equal(enrolledForLesson(reopened, 'c1', 'student', '2025-10-01'), true);
+  assert.throws(() => applyDemoMutation(reopened, 'teacher', d => { d.attendance.push({ id: 'future', subjectId: 's1', date: '2026-11-02', time: '19:00', records: { student: false } }); }), /matrícula/i);
+});
+
 test('administrator links an existing confirmed student exactly once using normalized email', () => {
   const db = command(fixture(), add('  ALUNO@exemplo.com '));
   assert.deepEqual(db.classes[0].studentIds, ['student']);
