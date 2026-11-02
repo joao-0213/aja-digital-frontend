@@ -26,7 +26,7 @@ export function fileBytes(file) {
   return bytes;
 }
 export function fileDTO(file) {
-  if (!file || file.deletedAt || !['material', 'work', 'forum'].includes(file.purpose)) missingMaterial();
+  if (!file || file.deletedAt || !['material', 'work', 'forum', 'question'].includes(file.purpose)) missingMaterial();
   return { id: file.id, name: file.name, size: file.size, mime: file.mime, purpose: file.purpose, parentId: file.parentId, status: file.status, downloadUrl: `/api/v1/files/${encodeURIComponent(file.id)}/content` };
 }
 function uploadParent(state, actor, purpose, id, timestamp) {
@@ -49,7 +49,7 @@ function uploadParent(state, actor, purpose, id, timestamp) {
 }
 export function visibleFile(state, actor, id, timestamp) {
   const file = state.files.find(f => f.id === id && !f.deletedAt);
-  if (!file || !['material', 'work', 'forum'].includes(file.purpose)) missingMaterial();
+  if (!file || !['material', 'work', 'forum', 'question'].includes(file.purpose)) missingMaterial();
   if (file.status === 'staged') {
     if (file.authorId !== actor.id || Date.parse(file.expiresAt) <= Date.parse(timestamp)) missingMaterial();
     try { uploadParent(state, actor, file.purpose, file.contextId ?? file.parentId, timestamp); } catch { missingMaterial(); }
@@ -64,6 +64,9 @@ export function visibleFile(state, actor, id, timestamp) {
       if (!assessment) missingMaterial(); moduleContext(state, actor, assessment.moduleId);
       if (actor.role === 'student' && assessment.status !== 'published') missingMaterial();
       if (actor.role === 'student' ? submission.userId !== actor.id : !submission.submittedAt) missingMaterial();
+    } else if (file.purpose === 'question') {
+      const question = state.questions.find(q => q.id === file.parentId && !q.deletedAt && q.origin !== 'author');
+      if (!question || question.image?.src !== `/api/v1/files/${encodeURIComponent(file.id)}/content`) missingMaterial();
     } else {
       const topic = state.topics.find(t => t.id === file.parentId && !t.deletedAt);
       if (!topic || topic.attachment?.id !== id || !state.subjects.some(s => s.id === topic.subjectId && s.classId === topic.classId && !s.deletedAt) || !canAccessSubject(state, actor, topic.subjectId)) missingMaterial();

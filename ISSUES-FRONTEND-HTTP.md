@@ -101,8 +101,12 @@ Concluída a partir de `25c823f`: 254/254 testes, tipos, arquitetura (171 módul
 ### AJA-09 · Migrar o banco de questões e a prática individual
 **Depende de** AJA-05. **Entrada** feature `questions`, `src/lib/question-composition.ts`, `src/mocks/questions.ts`, imagens em `public/questions/`.
 
-- [ ] Expor pesquisa, filtros, paginação, detalhe e resolução de prática em `/questions`. Conectar lista, diálogo, link copiado e seletor compartilhado com o construtor. Questões autorais restritas à atividade ficam fora dos resultados do acervo.
-- [ ] **Aceite** filtros combinados e paginação retornam total e itens coerentes. Recarga de `/questoes?id=…`, volta à busca, imagem com descrição, resolução e ID retirado funcionam. A resposta de prática e a de uma tentativa avaliativa têm contratos distintos.
+Concluída a partir de `2898cf0`: 257/257 testes, tipos, arquitetura (175 módulos), build padrão com API desligada, OpenAPI e navegador estático aprovados. Revisão Sol independente APPROVE, sem achados pendentes. Evidências e limites em [validation-AJA-09.md](docs/http/validation-AJA-09.md).
+
+**Em andamento:** implementação e evidências em [validation-AJA-09.md](docs/http/validation-AJA-09.md); revisão independente e validação final pendentes.
+
+- [x] Expor pesquisa, filtros, paginação, detalhe e resolução de prática em `/questions`. Conectar lista, diálogo, link copiado e seletor compartilhado com o construtor. Questões autorais restritas à atividade ficam fora dos resultados do acervo.
+- [x] **Aceite** filtros combinados e paginação retornam total e itens coerentes. Recarga de `/questoes?id=…`, volta à busca, imagem com descrição, resolução e ID retirado funcionam. A resposta de prática e a de uma tentativa avaliativa têm contratos distintos.
 
 ### AJA-10 · Migrar a autoria e a publicação de atividades
 **Depende de** AJA-07, AJA-09. **Entrada** `assessments-page.tsx`, `assessment-builder.tsx` e `lib/assessment-editor.ts` na feature `assessments`.

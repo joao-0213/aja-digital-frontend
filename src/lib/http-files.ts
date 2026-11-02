@@ -2,7 +2,7 @@ import type { HttpRequestOptions } from './http-client.ts';
 
 export interface HttpFile {
   id: string; name: string; size: number; mime: string;
-  purpose: 'material' | 'work' | 'forum'; parentId: string;
+  purpose: 'material' | 'work' | 'forum' | 'question'; parentId: string;
   status: 'staged' | 'attached'; downloadUrl: string;
 }
 
@@ -11,7 +11,7 @@ interface Transport { request<T>(path: string, options?: HttpRequestOptions): Pr
 /** Shared file transport; domain rules remain on the authenticated service. */
 export function createFilesApi(client: Transport) {
   return {
-    upload: (purpose: HttpFile['purpose'], parentId: string, file: File, intent: string, signal?: AbortSignal) => {
+    upload: (purpose: Exclude<HttpFile['purpose'], 'question'>, parentId: string, file: File, intent: string, signal?: AbortSignal) => {
       const body = new FormData();
       body.set('purpose', purpose);
       body.set('parentId', parentId);

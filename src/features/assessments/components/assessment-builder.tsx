@@ -9,7 +9,7 @@ import { cn, uid } from '@/lib/utils';
 import { hasDelivery } from '@/lib/activities';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { assessmentQuestions } from '@/lib/question-composition';
-import { QuestionFilters, filterQuestions, emptyQuestionFilters } from '@/features/questions';
+import { BankSelector, toggleBankSelection, type BankQuestion } from '@/features/questions';
 import { type Question } from '@/models';
 import { canManageSubject } from '@/lib/access';
 import { useRecordRevision } from '@/hooks/use-record-revision';
@@ -49,7 +49,7 @@ export function AssessmentBuilder() {
   const [explanation, setExplanation] = useState('');
   const [originals, setOriginals] = useState<Question[]>([]);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState(emptyQuestionFilters);
+  const [bankPreview, setBankPreview] = useState<BankQuestion[]>([]);
   const [inspectedStructure, setInspectedStructure] = useState('');
   const hasDeliveries = !!existing && hasDelivery(db, existing.id);
   const structuralLocked = hasDeliveries;
@@ -63,6 +63,7 @@ export function AssessmentBuilder() {
   const all = [...(existing ? assessmentQuestions(db, existing) : []), ...db.questions, ...originals];
   const save = async (status: 'draft' | 'published') => {
     setError('');
+    if (ids.some(id => bankPreview.some(question => question.id === id))) { setError('A publicação de questões selecionadas no acervo estará disponível com a migração das atividades.'); return; }
     if (revision.conflict) { setError('Confira a versão atual antes de salvar.'); return; }
     if (needsStructureRecovery) { setError('Consulte e use a estrutura atual para manter seu texto e salvar os campos permitidos.'); return; }
     if (!title.trim() || !module || hasDeadline && !deadline) {
@@ -148,11 +149,11 @@ export function AssessmentBuilder() {
         </div>
         <div className="space-y-4">
           {ids.map((id, index) => {
-            const q = all.find(q => q.id === id);
+            const q = all.find(q => q.id === id) ?? bankPreview.find(q => q.id === id);
             return q && <Card key={id}>
             <div className="mb-4 flex items-center gap-2">
               <Badge tone="purple">Questão {index + 1}</Badge>
-              <Badge>{q.origin === 'author' ? 'Autoral desta atividade' : 'Acervo'}</Badge>
+              <Badge>{'origin' in q && q.origin === 'author' ? 'Autoral desta atividade' : 'Acervo'}</Badge>
               <Badge>
                 {q.topic}
               </Badge>
@@ -173,9 +174,9 @@ export function AssessmentBuilder() {
               {q.statement}
             </p>
             {q.image && <img src={q.image.src} alt={q.image.alt} className="my-4 max-h-72 max-w-full" />}
-            <p className="mt-3 text-sm text-slate-500">{q.explanation}</p>
+            {'explanation' in q && typeof q.explanation === 'string' && <p className="mt-3 text-sm text-slate-500">{q.explanation}</p>}
             <ol className="mt-4 space-y-2">
-              {q.options.map((o, i) => <li key={i} className={cn('rounded-lg px-3 py-2 text-sm', i === q.correct ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500')}>{String.fromCharCode(65 + i)}. {o}{i === q.correct && ' ✓'}</li>)}
+              {q.options.map((o, i) => <li key={i} className={cn('rounded-lg px-3 py-2 text-sm', 'correct' in q && i === q.correct ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500')}>{String.fromCharCode(65 + i)}. {o}{'correct' in q && i === q.correct && ' ✓'}</li>)}
             </ol>
           </Card>;
           })}
@@ -200,18 +201,7 @@ export function AssessmentBuilder() {
     </Dialog>
     <Dialog open={bank} onClose={() => setBank(false)} title="Adicionar do banco de questões">
       {structuralLocked && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm leading-6 text-amber-950">A atividade recebeu a primeira entrega. A seleção de questões foi bloqueada. Volte ao editor para manter seu texto e conferir os campos permitidos.</p>}
-      <QuestionFilters questions={db.questions} value={filters} onChange={setFilters} />
-      <fieldset disabled={structuralLocked} className="my-4 max-h-80 space-y-3 overflow-y-auto">
-        <legend className="sr-only">Selecionar questões do banco</legend>
-        {filterQuestions(db.questions, filters).map(q => <label key={q.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3">
-          <input className="mt-1 accent-brand-600" type="checkbox" checked={ids.includes(q.id)} onChange={e => { if (!structuralLocked) setIds(previous => e.target.checked ? [...previous, q.id] : previous.filter(id => id !== q.id)); }} />
-          <span className="text-sm leading-6">
-            <span className="block text-xs text-brand-600">{q.subject} · {q.topic}</span>
-            {q.statement}
-          </span>
-        </label>)}
-      </fieldset>
-      {!filterQuestions(db.questions, filters).length && <p role="status" className="my-4 text-sm text-slate-500">Nenhuma questão com estes filtros. Amplie a busca ou limpe os filtros.</p>}
+      {bank && <BankSelector selectedIds={ids} disabled={structuralLocked} onSelect={q => { if (!structuralLocked) { setBankPreview(previous => [...previous.filter(item => item.id !== q.id), q]); setIds(previous => toggleBankSelection(previous, q.id)); } }} />}
       <Button onClick={() => setBank(false)}>{structuralLocked ? 'Voltar ao editor' : `Concluir seleção (${ids.length})`}</Button>
     </Dialog>
     <Dialog open={original} onClose={() => setOriginal(false)} title="Nova questão original">

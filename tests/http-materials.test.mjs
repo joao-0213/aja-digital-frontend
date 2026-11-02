@@ -215,7 +215,7 @@ test('shared file mechanism enforces forum types, safely downloads free work for
   const free = await student.upload(Buffer.alloc(0), { purpose: 'work', parentId: 'work1', name: 'conteudo.html', mime: 'text/html' }); assert.equal(free.status, 201);
   const content = await student.call(`/files/${(await free.json()).id}/content?disposition=inline`); assert.equal(content.status, 200); assert.equal(content.headers.get('content-type'), 'application/octet-stream'); assert.match(content.headers.get('content-disposition'), /^attachment;/);
   assert.equal((await student.upload(Buffer.from('<svg/>'), { purpose: 'forum', parentId: 's1', name: 'image.svg', mime: 'image/svg+xml' })).status, 422);
-  assert.equal((await teacher.call('/files/file-question/content')).status, 404);
+  assert.equal((await teacher.call('/files/file-question/content')).status, 200);
   await admin.call('/classes/c1/close', { expectedRevision: 1 });
   assert.equal((await student.call('/files/file-material/content')).status, 404);
   assert.equal((await teacher.call('/files/file-material/content')).status, 200);

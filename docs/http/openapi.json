@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
@@ -4511,11 +4511,9 @@
                     "Alternativa B"
                   ],
                   "image": {
-                    "src": "https://example.test/material",
+                    "src": "/api/v1/files/file-question/content",
                     "alt": "Descrição da imagem"
-                  },
-                  "correct": 1,
-                  "explanation": "Conteúdo"
+                  }
                 }
               }
             }
@@ -10754,7 +10752,8 @@
             "enum": [
               "material",
               "work",
-              "forum"
+              "forum",
+              "question"
             ],
             "example": "material"
           },
@@ -10934,8 +10933,7 @@
                 "properties": {
                   "src": {
                     "type": "string",
-                    "example": "https://example.test/material",
-                    "format": "uri"
+                    "example": "/api/v1/files/file-question/content"
                   },
                   "alt": {
                     "type": "string",
@@ -10951,15 +10949,6 @@
                 "type": "null"
               }
             ]
-          },
-          "correct": {
-            "type": "integer",
-            "minimum": 0,
-            "example": 1
-          },
-          "explanation": {
-            "type": "string",
-            "example": "Conteúdo"
           }
         },
         "required": [
@@ -10970,10 +10959,7 @@
           "institution",
           "year",
           "statement",
-          "options",
-          "image",
-          "correct",
-          "explanation"
+          "options"
         ]
       },
       "PracticeCommand": {
@@ -11380,7 +11366,7 @@
           "questions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionPractice"
+              "$ref": "#/components/schemas/QuestionResolved"
             }
           },
           "hasSubmissions": {
@@ -11885,7 +11871,7 @@
           "questions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/QuestionPractice"
+              "$ref": "#/components/schemas/QuestionResolved"
             }
           }
         },
@@ -14479,6 +14465,105 @@
           "module",
           "subject",
           "canManageContent"
+        ]
+      },
+      "QuestionResolved": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "s1",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Matemática"
+          },
+          "topic": {
+            "type": "string",
+            "example": "Álgebra"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "example": "easy"
+          },
+          "institution": {
+            "type": "string",
+            "example": "AJA"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "statement": {
+            "type": "string",
+            "example": "Conteúdo"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "Alternativa"
+            },
+            "minItems": 2
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "example": "https://example.test/material",
+                    "format": "uri"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "example": "Descrição da imagem"
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "explanation": {
+            "type": "string",
+            "example": "Conteúdo"
+          }
+        },
+        "required": [
+          "id",
+          "subject",
+          "topic",
+          "difficulty",
+          "institution",
+          "year",
+          "statement",
+          "options",
+          "image",
+          "correct",
+          "explanation"
         ]
       }
     },
