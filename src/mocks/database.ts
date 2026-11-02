@@ -55,7 +55,7 @@ export const seed: MockDatabase = {
     year: 2026,
     shift: 'Tarde',
     active: true,
-    studentIds: ['u1', 'u4', 'u5']
+    studentIds: []
   }, {
     id: 'c3',
     name: 'Extensivo 2025',

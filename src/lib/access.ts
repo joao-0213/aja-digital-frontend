@@ -1,5 +1,5 @@
 import type { MockDatabase, Subject, User } from '@/models';
-import { activeEnrollment, enrolledForLesson } from './enrollment.ts';
+import { activeEnrollment, enrolledForLesson, hasEnrollmentConflict } from './enrollment.ts';
 
 export function isActiveUser(user: User | undefined): user is User {
   return !!user && user.active !== false && !user.deletedAt;
@@ -13,7 +13,7 @@ export function canAccessSubject(db: MockDatabase, user: User, subjectId: string
   if (!schoolClass) return false;
   if (user.role === 'admin') return true;
   if (user.role === 'teacher') return subject.teacherIds.includes(user.id);
-  return user.emailConfirmedAt !== null && schoolClass.active && schoolClass.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === schoolClass.id) || !!activeEnrollment(db, user.id, schoolClass.id));
+  return user.emailConfirmedAt !== null && !hasEnrollmentConflict(db, user.id) && schoolClass.active && schoolClass.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === schoolClass.id) || !!activeEnrollment(db, user.id, schoolClass.id));
 }
 
 export function canManageSubject(db: MockDatabase, user: User, subjectId: string): boolean {
@@ -29,7 +29,7 @@ export function visibleClasses(db: MockDatabase, user: User) {
   if (!isActiveUser(user)) return [];
   if (user.role === 'admin') return db.classes.filter(c => !c.deletedAt);
   const subjects = visibleSubjects(db, user);
-  return db.classes.filter(c => !c.deletedAt && (user.role === 'teacher' ? subjects.some(s => s.classId === c.id) : user.emailConfirmedAt !== null && c.active && c.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === c.id) || !!activeEnrollment(db, user.id, c.id))));
+  return db.classes.filter(c => !c.deletedAt && (user.role === 'teacher' ? subjects.some(s => s.classId === c.id) : user.emailConfirmedAt !== null && !hasEnrollmentConflict(db, user.id) && c.active && c.studentIds.includes(user.id) && (!db.enrollments?.some(e => e.studentId === user.id && e.classId === c.id) || !!activeEnrollment(db, user.id, c.id))));
 }
 
 export function canAccessStudent(db: MockDatabase, user: User, studentId: string): boolean {

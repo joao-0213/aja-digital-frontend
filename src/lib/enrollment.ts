@@ -8,6 +8,7 @@ export type EnrollmentCommand =
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 export const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+export const hasEnrollmentConflict = (db: MockDatabase, studentId: string) => db.classes.filter(c => c.active && !c.deletedAt && c.studentIds.includes(studentId)).length > 1;
 const available = (user: User) => user.active !== false && !user.deletedAt;
 
 /** The compatibility list remains persisted; dated records describe the lifecycle. */
@@ -118,7 +119,7 @@ export function reconcileEnrollments(current: MockDatabase, draft: MockDatabase,
       if (!student || !available(student) || student.role !== 'student') throw new Error('A matrícula exige uma conta de aluno ativa.');
       if (!schoolClass.active || schoolClass.deletedAt) continue;
       if (student.emailConfirmedAt === null && !previous?.studentIds.includes(studentId)) throw new Error('Confirme o e-mail em etapa simulada antes de acessar a turma.');
-      if (draft.classes.some(c => c.id !== schoolClass.id && c.active && !c.deletedAt && c.studentIds.includes(studentId))) throw new Error('O aluno já tem outra turma ativa. Regularize o vínculo; não há transferência automática.');
+      if ((!previous?.active || !previous.studentIds.includes(studentId)) && hasEnrollmentConflict(draft, studentId)) throw new Error('O aluno já tem outra turma ativa. Regularize o vínculo; não há transferência automática.');
       if (!activeEnrollment(draft, studentId, schoolClass.id) && !previous?.studentIds.includes(studentId)) {
         if (draft.enrollments.some(e => e.classId === schoolClass.id && (e.studentId === studentId || e.email === normalizeEmail(student.email)) && e.deletedAt)) throw new Error('Vínculo excluído: não há restauração pela interface.');
         const enrollment: Enrollment = { id: `enrollment-${globalThis.crypto.randomUUID()}`, classId: schoolClass.id, email: normalizeEmail(student.email), status: 'pending', createdAt: now, createdBy: actor.id, unassignedAssessmentIds: [] };
