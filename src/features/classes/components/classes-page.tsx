@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Users, GraduationCap, Pencil, Archive } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Check, Dialog, Empty, Input, LinkButton, PageHeading, Select } from '@/components/ui';
@@ -13,7 +13,8 @@ export function ClassesPage() {
     db,
     mutate,
     busy,
-    role
+    role,
+    user
   } = useApp();
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
@@ -25,7 +26,22 @@ export function ClassesPage() {
   const [shift, setShift] = useState<SchoolClass['shift']>('Noite');
   const [year, setYear] = useState(2026);
   const [error, setError] = useState('');
-  if (role === 'student') return <Empty title="Área de gestão" description="Use o perfil de administrador na demonstração para gerenciar turmas." />;
+  const [expectedRevision, setExpectedRevision] = useState(0);
+  const [compared, setCompared] = useState(false);
+  const [initial, setInitial] = useState('');
+  const dirty = open && initial !== JSON.stringify({ name, code, shift, year });
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  if (role !== 'admin' || user.active === false || user.deletedAt) return <Empty title="Área de gestão" description="Use o perfil de administrador na demonstração para gerenciar turmas." />;
+  const current = db.classes.find(item => item.id === editing?.id);
+  const conflict = !!editing && (!current || !!current.deletedAt || (current.revision ?? 0) !== expectedRevision);
+  const currentArchive = db.classes.find(item => item.id === archive?.id);
+  const archiveConflict = !!archive && (!currentArchive || !!currentArchive.deletedAt || (currentArchive.revision ?? 0) !== (archive.revision ?? 0));
+  const close = () => { if (!busy && (!dirty || window.confirm('Descartar as alterações não salvas desta turma?'))) setOpen(false); };
   const edit = (item: SchoolClass | null) => {
     setEditing(item);
     setName(item?.name ?? '');
@@ -33,15 +49,21 @@ export function ClassesPage() {
     setShift(item?.shift ?? 'Noite');
     setYear(item?.year ?? 2026);
     setError('');
+    setExpectedRevision(item?.revision ?? 0);
+    setInitial(JSON.stringify({ name: item?.name ?? '', code: item?.code ?? '', shift: item?.shift ?? 'Noite', year: item?.year ?? 2026 }));
+    setCompared(false);
     setOpen(true);
   };
   const save = async () => {
+    if (conflict) return;
     const validation = validateClassCode(code, db.classes, editing?.id);
     if (validation) {
       setError(validation);
       return;
     }
     const ok = await mutate(d => {
+      const latestValidation = validateClassCode(code, d.classes, editing?.id);
+      if (latestValidation) throw new Error(latestValidation);
       if (editing) {
         Object.assign(d.classes.find(c => c.id === editing.id)!, {
           name: name.trim(),
@@ -58,10 +80,10 @@ export function ClassesPage() {
         active: true,
         studentIds: []
       });
-    }, 'Turma salva.');
+    }, 'Turma salva.', editing ? { expected: [{ collection: 'classes', id: editing.id, revision: expectedRevision }] } : undefined);
     if (ok) setOpen(false);
   };
-  const items = db.classes.filter(c => (inactive || c.active) && textMatch(c.name + ' ' + c.code, search));
+  const items = db.classes.filter(c => !c.deletedAt && (inactive || c.active) && textMatch(c.name + ' ' + c.code, search));
   return <>
     <PageHeading eyebrow="Gestão acadêmica" title="Turmas" description="Cadastre e gerencie as turmas." action={role === 'admin' && <Button onClick={() => edit(null)}><Plus className="size-4" />Nova turma</Button>} />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -98,7 +120,7 @@ export function ClassesPage() {
         </div>
       </Card>)}
     </div> : <Empty title="Nenhuma turma encontrada" description="Tente outro nome ou inclua as turmas inativas." />}
-    <Dialog open={open} onClose={() => setOpen(false)} title={editing ? 'Editar turma' : 'Criar nova turma'}>
+    <Dialog open={open} onClose={close} title={editing ? 'Editar turma' : 'Criar nova turma'}>
       <form onSubmit={e => {
         e.preventDefault();
         void save();
@@ -114,18 +136,21 @@ export function ClassesPage() {
           </Select>
         </div>
         <div className="flex justify-end gap-2 pt-3">
-          <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button type="submit" loading={busy}>Salvar turma</Button>
+          <Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button>
+          <Button type="submit" loading={busy} disabled={conflict}>Salvar turma</Button>
         </div>
+        {conflict && <div role="alert" className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6"><p>A turma mudou desde a abertura. Seu preenchimento foi mantido.</p>{current && !current.deletedAt ? <><p>Última alteração: {db.users.find(item => item.id === current.updatedBy)?.name ?? 'Equipe administrativa'} · {current.updatedAt ? new Date(current.updatedAt).toLocaleString('pt-BR') : 'data não registrada'}.</p><Button variant="secondary" onClick={() => setCompared(true)}>Conferir versão atual</Button>{compared && <><p>{current.name} · {current.code}<br />{current.year} · {current.shift} · {current.active ? 'Ativa' : 'Inativa'}</p><Button variant="secondary" onClick={() => { setExpectedRevision(current.revision ?? 0); setCompared(false); }}>Conferi a versão atual; manter meu preenchimento</Button></>}</> : <p>A turma não está mais disponível. Feche esta edição.</p>}</div>}
       </form>
     </Dialog>
     <Dialog open={!!archive} onClose={() => setArchive(null)} title={archive?.active ? 'Inativar turma?' : 'Reativar turma?'}>
-      <p className="mb-6 text-sm leading-6 text-slate-500">O histórico de {archive?.name} será preservado. Turmas inativas não aceitam novas matrículas.</p>
-      <Button loading={busy} onClick={async () => {
+      <p className="mb-6 text-sm leading-6 text-slate-500">O histórico de {archive?.name} será preservado. Turmas inativas não aceitam novas matrículas e o acesso dos alunos à turma é encerrado.</p>
+      {archiveConflict && <div role="alert" className="mb-4 space-y-3 rounded-lg bg-amber-50 p-4 text-sm leading-6"><p>A turma mudou. {currentArchive?.name} está {currentArchive?.active ? 'ativa' : 'inativa'}. Última alteração: {db.users.find(item => item.id === currentArchive?.updatedBy)?.name ?? 'Equipe administrativa'} · {currentArchive?.updatedAt ? new Date(currentArchive.updatedAt).toLocaleString('pt-BR') : 'data não registrada'}.</p>{currentArchive && !currentArchive.deletedAt && <Button variant="secondary" onClick={() => setArchive(currentArchive)}>Conferi a versão atual</Button>}</div>}
+      <Button loading={busy} disabled={archiveConflict} onClick={async () => {
+        if (!archive || archiveConflict) return;
         if (await mutate(d => {
           const item = d.classes.find(c => c.id === archive?.id);
           if (item) item.active = !item.active;
-        }, 'Situação da turma atualizada.')) setArchive(null);
+        }, 'Situação da turma atualizada.', { expected: [{ collection: 'classes', id: archive.id, revision: archive.revision ?? 0 }] })) setArchive(null);
       }}>Confirmar</Button>
     </Dialog>
   </>;
