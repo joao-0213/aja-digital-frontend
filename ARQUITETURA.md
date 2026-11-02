@@ -1,5 +1,7 @@
 # Arquitetura do AJA Digital
 
+PP05: `src/lib/question-composition.ts` resolve as cópias de questões em `Assessment.questions` e `Attempt.questions`. O acervo preparado permanece em `MockDatabase.questions`; autorais pertencem à atividade. `src/features/questions` expõe filtros compartilhados pelo banco e construtor. Migração local copia conteúdo legado antes de separar autorais, sem mudar a chave da demo. Links do banco/fórum usam `/questoes?id=<id>`; rotas permanecem estáticas e com Suspense.
+
 O projeto organiza a interface em três camadas: elementos genéricos de UI, módulos de domínio e entradas de rota. Next.js App Router compõe as telas; React mantém as interações e os dados da demonstração no navegador. A exportação estática continua configurada em `next.config.ts`.
 
 ## Mapa para manutenção

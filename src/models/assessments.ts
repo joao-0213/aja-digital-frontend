@@ -1,4 +1,5 @@
 import type { RecordMeta } from './audit';
+import type { Question } from './questions';
 
 export interface Assessment extends RecordMeta {
   authorId?: string;
@@ -8,6 +9,7 @@ export interface Assessment extends RecordMeta {
   title: string;
   description: string;
   questionIds: string[];
+  questions?: Question[];
   deadline: string;
   required?: boolean;
   allowLate?: boolean;
@@ -23,4 +25,5 @@ export interface Attempt extends RecordMeta {
   submittedAt?: string;
   answers: Record<string, number>;
   questionOrder: string[];
+  questions?: Question[];
 }

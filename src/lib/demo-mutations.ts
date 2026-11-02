@@ -1,6 +1,7 @@
 import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
 import { videoSource } from './material-video.ts';
+import { assessmentQuestions, validateComposition } from './question-composition.ts';
 import { enrolledForLesson, executeEnrollmentCommand, isAssessmentAssigned, reconcileEnrollments, type EnrollmentCommand } from './enrollment.ts';
 
 export interface MutationOptions {
@@ -83,6 +84,26 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
   }
   const draft = structuredClone(current);
   recipe(draft);
+  if (actor.role !== 'admin' && !equal(current.questions, draft.questions)) return denied();
+  for (const a of draft.assessments) {
+    const before = current.assessments.find(item => item.id === a.id);
+    if (before && equal(before, a)) continue;
+    if (before && equal(before.questionIds, a.questionIds) && equal(before.questions, a.questions)) continue;
+    const source = before ? assessmentQuestions(current, before) : [];
+    const questions = a.questionIds.map(id => {
+      const supplied = a.questions?.find(q => q.id === id);
+      const preserved = source.find(q => q.id === id);
+      if (supplied?.origin === 'author' && (!preserved || preserved.origin === 'author') && !current.questions.some(q => q.id === id)) return supplied;
+      return preserved ?? current.questions.find(q => q.id === id && !q.deletedAt);
+    }).filter((q): q is NonNullable<typeof q> => !!q);
+    validateComposition(questions, a.questionIds);
+    a.questions = structuredClone(questions);
+  }
+  for (const t of draft.attempts) {
+    if (current.attempts.some(item => item.id === t.id)) continue;
+    const a = current.assessments.find(item => item.id === t.assessmentId);
+    if (a) { t.questions = structuredClone(assessmentQuestions(current, a)); t.questionOrder = [...a.questionIds]; }
+  }
   if (options.enrollment) {
     if (!equal(current, draft)) return denied();
     executeEnrollmentCommand(draft, actor, options.enrollment, now);
@@ -112,7 +133,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
         else if (['modules', 'materials', 'assessments', 'announcements', 'topics', 'attendance'].includes(collection)) {
           if (!canManageSubject(current, actor, subjectId(draft, collection, row) ?? '')) return denied();
           if (before && !canManageSubject(current, actor, subjectId(current, collection, before) ?? '')) return denied();
-        } else if (collection === 'questions' && !before && draft.assessments.some(a => a.questionIds.includes(String(row.id)) && canManageSubject(current, actor, subjectId(draft, 'assessments', a as unknown as Row) ?? ''))) { /* legacy authoring, isolated in PP05 */ }
+        }
         else return denied();
       }
       if (before && before.authorId !== row.authorId) throw new Error('A autoria original deve ser preservada.');
@@ -157,11 +178,12 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
     if (!draft.classes.some(c => c.id === subject.classId && !c.deletedAt)) throw new Error('Turma indisponível.');
     if (before && !equal(before.teacherIds, subject.teacherIds) && !changes.some(change => change.collection === 'subjects' && change.after.id === subject.id)) changes.push({ collection: 'subjects', before: before as unknown as Row, after: subject as unknown as Row });
   }
-  for (const change of changes.filter(item => item.collection === 'assessments' && item.before && !equal(item.before.questionIds, item.after.questionIds))) {
+  for (const change of changes.filter(item => item.collection === 'assessments' && item.before && (!equal(item.before.questionIds, item.after.questionIds) || !equal(item.before.questions, item.after.questions)))) {
     for (const attempt of draft.attempts.filter(a => a.assessmentId === change.after.id && !a.submittedAt)) {
       const before = current.attempts.find(a => a.id === attempt.id);
       attempt.answers = {};
       attempt.questionOrder = [...(change.after.questionIds as string[])];
+      attempt.questions = structuredClone(change.after.questions as NonNullable<typeof attempt.questions>);
       attempt.questionsUpdatedAt = now;
       if (!changes.some(item => item.collection === 'attempts' && item.after.id === attempt.id)) changes.push({ collection: 'attempts', before: before as unknown as Row, after: attempt as unknown as Row });
     }

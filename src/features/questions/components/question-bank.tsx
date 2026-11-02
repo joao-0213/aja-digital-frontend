@@ -1,87 +1,40 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
+import { QuestionFilters } from './question-filters';
+import { emptyQuestionFilters, filterQuestions } from '../lib/question-filters';
 import { Filter } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
-import { Badge, Button, Card, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
-import { cn, difficultyLabels, textMatch } from '@/lib/utils';
-import { type Question } from '@/models';
+import { Badge, Button, Card, Dialog, Empty, PageHeading } from '@/components/ui';
+import { cn, difficultyLabels } from '@/lib/utils';
 
 export function QuestionBank() {
   const {
-    db
+    db, notify
   } = useApp();
   const params = useSearchParams();
-  const [search, setSearch] = useState(params.get('busca') ?? '');
-  const queryText = params.get('busca') ?? '';
-  useEffect(() => setSearch(queryText), [queryText]);
-  const [subject, setSubject] = useState('all');
-  const [topic, setTopic] = useState('all');
-  const [difficulty, setDifficulty] = useState('all');
-  const [institution, setInstitution] = useState('all');
-  const [selected, setSelected] = useState<Question | null>(null);
+  const router = useRouter();
+  const [filters, setFilters] = useState({ ...emptyQuestionFilters, search: params.get('busca') ?? '' });
+  const questionId = params.get('id');
+  const selected = db.questions.find(q => q.id === questionId) ?? null;
   const [showAnswer, setShowAnswer] = useState(false);
   const [answer, setAnswer] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const items = db.questions.filter(q => (subject === 'all' || q.subject === subject) && (topic === 'all' || q.topic === topic) && (difficulty === 'all' || q.difficulty === difficulty) && (institution === 'all' || q.institution === institution) && textMatch(q.statement + ' ' + q.topic, search));
+  useEffect(() => { setShowAnswer(false); setAnswer(null); }, [questionId]);
+  const items = filterQuestions(db.questions, filters);
   const pages = Math.max(1, Math.ceil(items.length / 5));
   const current = Math.min(page, pages);
-  const reset = () => {
-    setSubject('all');
-    setTopic('all');
-    setDifficulty('all');
-    setInstitution('all');
-    setSearch('');
-    setPage(1);
-  };
+  const reset = () => { setFilters(emptyQuestionFilters); setPage(1); };
   return <>
     <PageHeading title="Banco de questões" description="Busque questões por disciplina, assunto e dificuldade." action={<Badge tone="purple">{db.questions.length} questões autorais de exemplo</Badge>} />
     <div className="grid items-start gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
       <Card className="!p-5">
-        <ResponsiveDisclosure breakpoint="lg" title={<><Filter aria-hidden="true" className="size-4" />Filtros{[subject, topic, difficulty, institution].some(value => value !== 'all') && <Badge tone="purple">Ativos</Badge>}</>}><div className="space-y-5">
-        <Select label="Matéria" value={subject} onChange={e => {
-          setSubject(e.target.value);
-          setTopic('all');
-          setPage(1);
-        }}>
-          <option value="all">Todas as matérias</option>
-          {[...new Set(db.questions.map(q => q.subject))].map(s => <option key={s}>
-            {s}
-          </option>)}
-        </Select>
-        <Select label="Tema" value={topic} onChange={e => {
-          setTopic(e.target.value);
-          setPage(1);
-        }}>
-          <option value="all">Todos os temas</option>
-          {[...new Set(db.questions.filter(q => subject === 'all' || q.subject === subject).map(q => q.topic))].map(t => <option key={t}>
-            {t}
-          </option>)}
-        </Select>
-        <Select label="Dificuldade" value={difficulty} onChange={e => {
-          setDifficulty(e.target.value);
-          setPage(1);
-        }}>
-          <option value="all">Todas</option>
-          <option value="easy">Fácil</option>
-          <option value="medium">Média</option>
-          <option value="hard">Difícil</option>
-        </Select>
-        <Select label="Instituição" value={institution} onChange={e => setInstitution(e.target.value)}>
-          <option value="all">Todas</option>
-          <option>AJA</option>
-        </Select>
-        <Button variant="ghost" onClick={reset} className="w-full">Limpar filtros</Button>
-        </div></ResponsiveDisclosure>
+        <ResponsiveDisclosure breakpoint="lg" title={<><Filter aria-hidden="true" className="size-4" />Filtros</>}><QuestionFilters questions={db.questions} value={filters} onChange={next => { setFilters(next); setPage(1); }} /></ResponsiveDisclosure>
       </Card>
       <div>
-        <Input aria-label="Buscar questão" placeholder="Busque por palavras do enunciado ou tema…" value={search} onChange={e => {
-          setSearch(e.target.value);
-          setPage(1);
-        }} />
         <p className="my-4 text-sm text-slate-400">
           {items.length}
           {items.length === 1 ? ' questão encontrada' : ' questões encontradas'}
@@ -105,11 +58,7 @@ export function QuestionBank() {
             </p>
             <div className="mt-5 flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400">{q.options.length} alternativas · Resposta única</span>
-              <Button variant="secondary" onClick={() => {
-                setSelected(q);
-                setShowAnswer(false);
-                setAnswer(null);
-              }}>Ver questão</Button>
+              <Button variant="secondary" onClick={() => router.push(`/questoes?id=${encodeURIComponent(q.id)}`, { scroll: false })}>Ver questão</Button>
             </div>
           </Card>)}
         </div>
@@ -121,7 +70,8 @@ export function QuestionBank() {
         </div>
       </div>
     </div>
-    <Dialog open={!!selected} onClose={() => setSelected(null)} title="Explorar questão">
+    {questionId && !selected && <Empty title="Questão indisponível" description="A referência não existe no acervo ou foi retirada." action={<Button onClick={() => router.push('/questoes')}>Voltar ao banco</Button>} />}
+    <Dialog open={!!selected} onClose={() => router.push('/questoes', { scroll: false })} title="Explorar questão">
       {selected && <>
         <div className="mb-4 flex gap-2">
           <Badge tone="purple">
@@ -134,6 +84,7 @@ export function QuestionBank() {
         <p className="mb-5 leading-7">
           {selected.statement}
         </p>
+        {selected.image && <img src={selected.image.src} alt={selected.image.alt} className="my-4 max-h-80 max-w-full" />}
         <div className="space-y-2" role="radiogroup" aria-label="Alternativas">
           {selected.options.map((option, index) => <label key={option} className={cn('flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm leading-6', answer === index ? 'border-brand-500 bg-brand-50' : 'border-slate-200', showAnswer && index === selected.correct && '!border-emerald-500 !bg-emerald-50')}>
             <input className="mt-1 accent-brand-600" type="radio" name="practice" checked={answer === index} onChange={() => setAnswer(index)} disabled={showAnswer} />
@@ -151,6 +102,7 @@ export function QuestionBank() {
             {selected.explanation}
           </p>
         </div> : <Button className="mt-5" onClick={() => setShowAnswer(true)}>Conferir resolução</Button>}
+        <Button variant="secondary" className="mt-4" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/questoes?id=${encodeURIComponent(selected.id)}`); notify('Link da questão copiado.'); } catch { notify('Não foi possível copiar. Copie o endereço da barra do navegador.', true); } }}>Copiar link da questão</Button>
         <Link href={`/forum?questao=${selected.id}`} className="mt-4 block text-sm font-semibold text-brand-600">Discutir esta questão no fórum</Link>
       </>}
     </Dialog>

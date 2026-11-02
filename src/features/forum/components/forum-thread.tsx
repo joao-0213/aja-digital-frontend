@@ -70,7 +70,7 @@ export function ForumThread() {
       <div className="flex flex-wrap gap-2">
         {topic.tags.map(t => <Badge key={t}>#{t}</Badge>)}
       </div>
-      {topic.reference && <Link href={`/questoes?busca=${encodeURIComponent(db.questions.find(q => q.id === topic.reference)?.topic ?? '')}`} className="mt-5 block text-sm font-semibold text-brand-600">Consultar questão {topic.reference.toUpperCase()}</Link>}
+      {topic.reference && <Link href={`/questoes?id=${encodeURIComponent(topic.reference)}`} className="mt-5 block text-sm font-semibold text-brand-600">Consultar questão {topic.reference.toUpperCase()}</Link>}
       {topic.attachmentName && <p className="mt-4 flex items-center gap-2 text-xs text-slate-400"><Paperclip className="size-4" />{topic.attachmentName} · anexo simulado</p>}
     </Card>
     <h2 className="mb-4 mt-8 text-lg font-semibold">

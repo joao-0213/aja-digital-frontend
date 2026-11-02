@@ -1,12 +1,13 @@
 import type { Question } from '@/models';
 export const questions: Question[] = [{
   id: 'q1',
+  image: { src: '/questions/transport.svg', alt: 'Tarifa fictícia: seis reais fixos mais dois reais e cinquenta centavos por quilômetro.' },
   subject: 'Matemática',
   topic: 'Função afim',
   difficulty: 'easy',
   institution: 'AJA',
   year: 2026,
-  statement: 'Um aplicativo de transporte cobra R$ 6,00 de taxa fixa e R$ 2,50 por quilômetro. Qual é o valor de uma viagem de 8 km?',
+  statement: 'Uma turma organiza uma visita de estudos e compara formas de transporte. No orçamento fictício, cada viagem tem uma parcela fixa de R$ 6,00, destinada à saída do veículo, e uma parcela variável de R$ 2,50 por quilômetro percorrido. O número de passageiros não altera esses valores. Para conferir o orçamento, considere somente a ida, sem pedágios, paradas ou outros adicionais. A figura resume a regra de cobrança. Qual é o valor de uma viagem de 8 km?',
   options: ['R$ 20,00', 'R$ 22,50', 'R$ 26,00', 'R$ 28,50', 'R$ 32,00'],
   correct: 2,
   explanation: 'A função é f(x) = 6 + 2,5x. Para x = 8, temos 6 + 20 = R$ 26,00.'

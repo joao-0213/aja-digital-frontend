@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Trash2, ChevronUp } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Dialog, Empty, Input, LinkButton, PageHeading, Select, Textarea } from '@/components/ui';
-import { cn, uid, textMatch } from '@/lib/utils';
+import { cn, uid } from '@/lib/utils';
 import { DEMO_DATE } from '@/mocks/database';
+import { assessmentQuestions } from '@/lib/question-composition';
+import { QuestionFilters, filterQuestions, emptyQuestionFilters } from '@/features/questions';
 import { type Question } from '@/models';
 import { canManageSubject } from '@/lib/access';
 import { useRecordRevision } from '@/hooks/use-record-revision';
@@ -39,7 +41,7 @@ export function AssessmentBuilder() {
   const [explanation, setExplanation] = useState('');
   const [originals, setOriginals] = useState<Question[]>([]);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(emptyQuestionFilters);
   const [inspectedStructure, setInspectedStructure] = useState('');
   const hasDeliveries = !!existing && db.attempts.some(a => a.assessmentId === existing.id && !!a.submittedAt);
   const structuralLocked = hasDeliveries;
@@ -47,7 +49,7 @@ export function AssessmentBuilder() {
   const structureSignature = existing ? JSON.stringify([existing.id, existing.revision ?? 0, existing.moduleId, existing.questionIds]) : '';
   if (role === 'student') return <Empty title="Criação de questionários" description="Escolha o perfil de professor ou administrador para acessar esta área." />;
   if (params.get('id') && !existing || params.get('modulo') && !availableModules.some(m => m.id === params.get('modulo')) || !availableModules.length) return <Empty title="Atividade indisponível" description="Seu vínculo ou atribuição não permite editar este contexto, ou o conteúdo foi retirado." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
-  const all = [...db.questions, ...originals];
+  const all = [...(existing ? assessmentQuestions(db, existing) : []), ...db.questions, ...originals];
   const save = async (status: 'draft' | 'published') => {
     setError('');
     if (revision.conflict) { setError('Confira a versão atual antes de salvar.'); return; }
@@ -68,7 +70,6 @@ export function AssessmentBuilder() {
     if (await mutate(d => {
       const current = d.assessments.find(a => a.id === existing?.id);
       if (current && d.attempts.some(a => a.assessmentId === current.id && a.submittedAt) && (current.moduleId !== module || JSON.stringify(current.questionIds) !== JSON.stringify(ids))) throw new Error('Já há uma entrega nesta atividade. Preserve as questões e o módulo; você pode corrigir título, orientações e prazo.');
-      d.questions.push(...originals.filter(q => !d.questions.some(item => item.id === q.id)));
       const record = {
         ...current,
         id: existing?.id ?? uid('assessment'),
@@ -78,6 +79,7 @@ export function AssessmentBuilder() {
         moduleId: module,
         deadline,
         questionIds: ids,
+        questions: ids.map(id => all.find(q => q.id === id)!),
         status: current?.status === 'published' ? 'published' as const : status,
         authorId: current ? current.authorId : user.id
       };
@@ -87,7 +89,7 @@ export function AssessmentBuilder() {
   return <>
     <PageHeading eyebrow="Ensino e avaliação" title={existing ? 'Editar questionário' : 'Criar questionário'} description="Selecione as questões na ordem desejada e configure o prazo." />
     {existing?.updatedAt && <p className="mb-4 text-xs text-slate-500">Última alteração: {db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} · {new Date(existing.updatedAt).toLocaleString('pt-BR')}</p>}
-    {revision.conflict && existing && <div className="mb-6"><RecordConflict key={existing.revision} author={db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={existing.updatedAt} onReviewed={revision.acknowledge}><p><strong>{existing.title}</strong></p><p>{existing.description}</p><p>Prazo: {existing.deadline}</p><p>Módulo: {db.modules.find(m => m.id === existing.moduleId)?.title}</p><p>Questões: {existing.questionIds.map(id => db.questions.find(q => q.id === id)?.statement ?? 'Questão indisponível').join('\n\n')}</p></RecordConflict></div>}
+    {revision.conflict && existing && <div className="mb-6"><RecordConflict key={existing.revision} author={db.users.find(u => u.id === existing.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={existing.updatedAt} onReviewed={revision.acknowledge}><p><strong>{existing.title}</strong></p><p>{existing.description}</p><p>Prazo: {existing.deadline}</p><p>Módulo: {db.modules.find(m => m.id === existing.moduleId)?.title}</p><p>Questões: {existing.questionIds.map(id => assessmentQuestions(db, existing).find(q => q.id === id)?.statement ?? 'Questão indisponível').join('\n\n')}</p></RecordConflict></div>}
     {structuralLocked && <p className="mb-5 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-950">Esta atividade já recebeu entrega. Apenas título, orientações e prazo podem mudar.</p>}
     {needsStructureRecovery && existing && <section role="alert" className="mb-6 space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
       <p className="font-semibold">A primeira entrega chegou durante sua edição.</p>
@@ -95,7 +97,7 @@ export function AssessmentBuilder() {
       <Button variant="secondary" onClick={() => setInspectedStructure(structureSignature)}>Consultar estrutura atual</Button>
       {inspectedStructure === structureSignature && <div className="space-y-3 border-t border-amber-200 pt-3">
         <p><strong>Módulo atual:</strong> {db.modules.find(m => m.id === existing.moduleId)?.title ?? 'Módulo indisponível'}</p>
-        <ol className="list-decimal space-y-2 pl-5">{existing.questionIds.map(id => <li key={id}>{db.questions.find(q => q.id === id)?.statement ?? 'Questão indisponível'}</li>)}</ol>
+        <ol className="list-decimal space-y-2 pl-5">{existing.questionIds.map(id => <li key={id}>{assessmentQuestions(db, existing).find(q => q.id === id)?.statement ?? 'Questão indisponível'}</li>)}</ol>
         <Button variant="secondary" onClick={() => {
           const restored = restoreAssessmentStructure({ title, description, deadline, moduleId: module, questionIds: ids, originals }, existing);
           setModule(restored.moduleId); setIds(restored.questionIds); setOriginals(restored.originals);
@@ -129,6 +131,7 @@ export function AssessmentBuilder() {
             return q && <Card key={id}>
             <div className="mb-4 flex items-center gap-2">
               <Badge tone="purple">Questão {index + 1}</Badge>
+              <Badge>{q.origin === 'author' ? 'Autoral desta atividade' : 'Acervo'}</Badge>
               <Badge>
                 {q.topic}
               </Badge>
@@ -148,6 +151,8 @@ export function AssessmentBuilder() {
             <p className="leading-7">
               {q.statement}
             </p>
+            {q.image && <img src={q.image.src} alt={q.image.alt} className="my-4 max-h-72 max-w-full" />}
+            <p className="mt-3 text-sm text-slate-500">{q.explanation}</p>
             <ol className="mt-4 space-y-2">
               {q.options.map((o, i) => <li key={i} className={cn('rounded-lg px-3 py-2 text-sm', i === q.correct ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500')}>{String.fromCharCode(65 + i)}. {o}{i === q.correct && ' ✓'}</li>)}
             </ol>
@@ -167,10 +172,10 @@ export function AssessmentBuilder() {
     </div>
     <Dialog open={bank} onClose={() => setBank(false)} title="Adicionar do banco de questões">
       {structuralLocked && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm leading-6 text-amber-950">A atividade recebeu a primeira entrega. A seleção de questões foi bloqueada. Volte ao editor para manter seu texto e conferir os campos permitidos.</p>}
-      <Input aria-label="Buscar questões" placeholder="Buscar por tema ou enunciado…" value={search} disabled={structuralLocked} onChange={e => setSearch(e.target.value)} />
+      <QuestionFilters questions={db.questions} value={filters} onChange={setFilters} />
       <fieldset disabled={structuralLocked} className="my-4 max-h-80 space-y-3 overflow-y-auto">
         <legend className="sr-only">Selecionar questões do banco</legend>
-        {db.questions.filter(q => textMatch(q.statement + ' ' + q.topic, search)).map(q => <label key={q.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3">
+        {filterQuestions(db.questions, filters).map(q => <label key={q.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3">
           <input className="mt-1 accent-brand-600" type="checkbox" checked={ids.includes(q.id)} onChange={e => { if (!structuralLocked) setIds(previous => e.target.checked ? [...previous, q.id] : previous.filter(id => id !== q.id)); }} />
           <span className="text-sm leading-6">
             <span className="block text-xs text-brand-600">{q.subject} · {q.topic}</span>
@@ -178,6 +183,7 @@ export function AssessmentBuilder() {
           </span>
         </label>)}
       </fieldset>
+      {!filterQuestions(db.questions, filters).length && <p role="status" className="my-4 text-sm text-slate-500">Nenhuma questão com estes filtros. Amplie a busca ou limpe os filtros.</p>}
       <Button onClick={() => setBank(false)}>{structuralLocked ? 'Voltar ao editor' : `Concluir seleção (${ids.length})`}</Button>
     </Dialog>
     <Dialog open={original} onClose={() => setOriginal(false)} title="Nova questão original">
@@ -187,6 +193,7 @@ export function AssessmentBuilder() {
         const id = uid('question');
         setOriginals(old => [...old, {
           id,
+          origin: 'author',
           statement,
           options,
           correct,
