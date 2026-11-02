@@ -10,7 +10,7 @@ Requer Node.js 22.6+ e npm. No PowerShell use `npm.cmd` quando a política bloqu
 - `npm run build` seguido de `npm run preview`: exportação em `out/`, prévia estática na porta 3001. O build funciona com a API desligada.
 - `curl.exe http://127.0.0.1:3002/api/v1/health` no Windows; `curl http://127.0.0.1:3002/api/v1/health` no Linux. Resposta 200: `{"status":"ok","version":"1"}`.
 
-Na AJA-02 **somente** GET `/api/v1/health` está disponível. O preflight OPTIONS dessa mesma rota permite GET de origens explícitas. O restante do OpenAPI é o contrato alvo das próximas issues. Não há endpoint de probe, escrita, reset, manutenção, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico). Até a integração das fatias seguintes, o frontend continua na versão anterior.
+Desde AJA-05, além de saúde, estão disponíveis cadastro/login/logout/sessão, confirmação de e-mail, recuperação, consulta/alteração do próprio nome e consulta de vínculos próprios. Os demais endpoints do OpenAPI permanecem alvos das próximas issues. Não há endpoint de probe, reset, manutenção, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
 
 ## Configuração de origem
 
@@ -28,7 +28,7 @@ Linux:
 API_PORT=3002 API_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:3001 npm run api
 ```
 
-Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usar `*`, caminhos ou credenciais nas origens. Requisições com Origin não permitido recebem 403 sem cabeçalho de autorização CORS; requisições de terminal sem Origin podem consultar saúde. O serviço escuta somente loopback. Para a etapa de sessão, cookies HttpOnly e controle de origem serão implementados em AJA-05; esta etapa ainda não estabelece sessão.
+Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usar `*`, caminhos ou credenciais nas origens. Requisições com Origin não permitido recebem 403 sem cabeçalho de autorização CORS; requisições de terminal sem Origin podem consultar saúde. Escritas, inclusive login/cadastro/recuperação, exigem Origin permitido. O serviço escuta somente loopback. Cookies são HttpOnly, Path `/api/v1`, SameSite=Lax; o navegador envia com `credentials: include`. Use o mesmo hostname nas portas 3000/3001/3002. `API_FRONTEND_ORIGIN` escolhe uma das origens permitidas para links da caixa local (padrão primeira origem). `API_COOKIE_SECURE=true` ativa Secure; origens HTTPS também o ativam automaticamente. Hospedagem em sites diferentes requer política de cookies própria e aceite AJA-18; a configuração local não promete esse cenário.
 
 ## Persistência e reset explícito
 
@@ -56,7 +56,7 @@ Todas as identidades abaixo são fictícias e exclusivas do ambiente local. A se
 | `student-pending` | Dora: e-mail não confirmado e matrícula pendente em `c1` |
 | `student-inactive` | Eva: conta inativa, sem sessão permitida |
 
-**Provisionado não significa endpoint disponível.** AJA-03 prepara a massa; somente saúde está no HTTP nesta etapa. Login/recuperação/confirmar e-mail chegarão em AJA-05, arquivos em AJA-08 e demais telas nas respectivas issues. O guia abaixo é o roteiro a executar quando essas integrações estiverem implementadas; não é evidência antecipada de uma jornada concluída.
+**Provisionado não significa endpoint disponível.** AJA-03 preparou a massa e AJA-05 disponibilizou identidade/sessão/perfil. Arquivos chegam em AJA-08 e demais jornadas acadêmicas nas respectivas issues. O guia abaixo é o roteiro a executar quando essas integrações estiverem implementadas; não é evidência antecipada de uma jornada acadêmica concluída.
 
 1. Administração entra como `admin`; `c1` já contém Alex/Bia e `s1` já tem Daniela/Bruno. Dora está pendente e não entra na chamada. `c-empty`/`s-empty` dão o contexto vazio. `c-closed`/`s-closed` preservam consulta histórica da equipe, com vínculo de Alex encerrado antes da matrícula atual.
 2. Docente `teacher-a` abre `/disciplinas/detalhes?id=s1`. O módulo `m1` contém texto `material-text`, PDF `material-pdf` e vídeo externo `material-video`. Há progresso de Alex concluído no texto e retomada no PDF. O vídeo é recurso externo opcional, não binário hospedado; só carregar por escolha do usuário.
@@ -68,3 +68,14 @@ Todas as identidades abaixo são fictícias e exclusivas do ambiente local. A se
 `server/fixtures/proporcoes.pdf` é um PDF de uma página com conteúdo legível; `grupos.png` é uma imagem 320×160 com dois grupos de dois pontos. A coleção `files` referencia os bytes versionados, finalidade, autoria e recurso pai; AJA-08 implementará download e autorização. O arquivo de imagem do acervo tem finalidade interna `question`, **somente de seed**, fora das finalidades de upload público do OpenAPI. AJA-09 deve projetar essa imagem conforme acesso à questão, sem habilitar upload `question` nem divulgar metadados internos indiscriminadamente. A persistência também conserva campos de anexo legados (`id`, `localFileId`) para reaproveitar regras puras; os DTOs públicos posteriores deverão mapear para `fileId` e os campos autorizados.
 
 Teste com data fixa: `generateSeed({ baseDate: '2031-06-15' })`, `openRepository(pastaIsolada, { baseDate: '2031-06-15' })` ou `resetRepository(pastaIsolada, { allowedRoot: pastaIsolada, baseDate: '2031-06-15' })` no módulo interno, nunca uma rota pública. A CLI de reset permanece sem parâmetros. Dois resets com a mesma data produzem os mesmos cenários e verificadores; reinício conserva a data inicial. Não há relógio fixo no processo da API: o gerador só determina datas dos registros iniciais.
+
+## Confirmação e recuperação pelo operador
+
+1. Abra `/cadastro`, cadastre uma conta ou solicite nova confirmação. O cadastro não inicia sessão; o servidor prepara uma mensagem na caixa de saída local.
+2. Em outro terminal, execute `npm run api:outbox` (equivalente: `node server/outbox.mjs`). Escolha a mensagem mais recente da conta/finalidade. A CLI imprime destinatário fictício e link com token; não há envio de e-mail externo nem endpoint HTTP para consultar essa caixa. Trate esses links como credenciais temporárias, mesmo neste ambiente fictício.
+3. Abra o link `/cadastro?token=…` na origem configurada. Confirme e entre separadamente. Se havia uma única pendência válida, a confirmação efetiva o vínculo usando a mesma regra de matrícula do produto. Conflitos ou turma inativa preservam conta/token para regularização; pendências canceladas não são restauradas.
+4. Em `/recuperar-senha`, solicite instruções e repita a consulta da caixa local. A resposta pública é igual para e-mail conhecido ou desconhecido. O link `/recuperar-senha?token=…` permite escolher nova senha. Um reset bem-sucedido encerra todas as sessões da conta; entre com a senha nova.
+
+Tokens expiram em 30 minutos, são de uso único e uma nova solicitação invalida os links anteriores da mesma finalidade. Uma alteração do e-mail da conta também invalida o token emitido para o endereço antigo. Sessões expiram em oito horas e logout invalida apenas a sessão corrente. Login incorreto encerra a sessão que estava nesse navegador para evitar reabrir a identidade anterior por recarga. No serviço somente hashes de tokens/sessões e verificadores scrypt são persistidos; a caixa local privada conserva links para a operação manual autorizada.
+
+O script de API usa `--experimental-strip-types` para Node 22.6+, pois reutiliza as regras TypeScript de matrícula sem transportar o seed para o frontend. Não iniciar `server/index.mjs` em Node 22.6 sem essa opção. A CLI de outbox não aceita caminhos/argumentos e não depende de TypeScript; consulta somente a pasta de execução fixa do projeto.

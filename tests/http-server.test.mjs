@@ -15,7 +15,7 @@ async function fixture(t) {
 }
 
 async function start(t, directory) {
-  const child = spawn(process.execPath, ['server/index.mjs'], {
+  const child = spawn(process.execPath, ['--experimental-strip-types', 'server/index.mjs'], {
     env: { ...process.env, API_PORT: '0', AJA_TEST_RUNTIME: directory, NODE_ENV: 'test' },
     stdio: ['ignore', 'pipe', 'pipe']
   });

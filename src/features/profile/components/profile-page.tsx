@@ -1,45 +1,62 @@
 'use client';
 
-import { useState } from 'react';
-import { useApp } from '@/providers/app-context';
-import { Avatar, Badge, Button, Card, Input, PageHeading } from '@/components/ui';
+import { useCallback, useState } from 'react';
+import { useApp, useSession } from '@/providers/app-context';
+import { Avatar, Badge, Button, Card, Input, PageHeading, ErrorState, Skeleton } from '@/components/ui';
 import { roleLabels } from '@/lib/utils';
-import { useRecordRevision } from '@/hooks/use-record-revision';
-import { RecordConflict } from '@/components/shared/record-conflict';
+import { HttpError } from '@/lib/http-client';
+import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
-import { EnrollmentStatus } from '@/features/students';
 
 export function ProfilePage() {
-  const { db, user, role, mutate, busy } = useApp();
-  const [name, setName] = useState(user.name);
-  const revision = useRecordRevision('users', user);
+  const { user, client, sessionKey } = useSession();
+  const { notify } = useApp();
+  const [restoredDraft] = useState(() => client.readProfileDraft());
+  const [name, setName] = useState(restoredDraft?.name ?? user?.name ?? '');
+  const [revision, setRevision] = useState(restoredDraft?.revision ?? user?.revision ?? 1);
+  const [conflict, setConflict] = useState<{ name: string; revision: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}` }, useCallback(signal => client.readEnrollments(signal), [client]));
+  if (!user) return null;
+  const save = async () => {
+    if (busy || conflict) return;
+    setBusy(true); setError('');
+    try {
+      const saved = await client.updateProfile(name.trim(), revision);
+      setRevision(saved.revision ?? revision + 1);
+      notify('Perfil atualizado.');
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível salvar. Seu preenchimento foi mantido.');
+      if (cause instanceof HttpError && cause.kind === 'conflict') {
+        try {
+          const current = await client.readProfile();
+          setConflict({ name: current.name, revision: current.revision ?? 1 });
+        } catch { setError('Não foi possível consultar a versão atual. Seu preenchimento foi mantido. Tente salvar novamente para conferir.'); }
+      }
+    } finally { setBusy(false); }
+  };
+  const requestConfirmation = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { notify((await client.requestConfirmation(user.email)).message); }
+    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível solicitar a confirmação.'); }
+    finally { setBusy(false); }
+  };
   return <>
     <PageHeading title="Meu perfil" description="Consulte e atualize seus dados cadastrais." />
-    <EnrollmentStatus />
+    {user.emailConfirmedAt === null && <Card className="mb-6"><h2 className="font-semibold">Confirme seu e-mail</h2><p className="mb-4 mt-2 text-sm leading-6 text-slate-600">Solicite as instruções para confirmar o endereço da sua conta. O vínculo acadêmico será verificado após a confirmação.</p><Button loading={busy} onClick={() => void requestConfirmation()}>Solicitar confirmação de e-mail</Button></Card>}
     <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <Card className="text-center">
-        <div className="mb-4 flex justify-center"><Avatar name={user.name} size="lg" /></div>
-        <h2 className="text-lg font-semibold">{user.name}</h2>
-        <p className="mt-1 break-all text-sm text-slate-500">{user.email}</p>
-        <div className="my-4"><Badge tone="purple">{roleLabels[role]}</Badge></div>
-        <div className="mt-6 border-t border-slate-100 pt-5 text-left">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Minhas turmas</h3>
-          {db.classes.filter(c => c.studentIds.includes(user.id)).map(c => <p key={c.id} className="py-1 text-sm text-slate-600">{c.name}</p>)}
-          {!db.classes.some(c => c.studentIds.includes(user.id)) && <p className="text-sm text-slate-500">Nenhuma matrícula nesta demonstração.</p>}
+      <Card className="text-center"><div className="mb-4 flex justify-center"><Avatar name={user.name} size="lg" /></div><h2 className="text-lg font-semibold">{user.name}</h2><p className="mt-1 break-all text-sm text-slate-500">{user.email}</p><div className="my-4"><Badge tone="purple">{roleLabels[user.role]}</Badge></div>
+        <div className="mt-6 border-t border-slate-100 pt-5 text-left"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Meus vínculos</h3>
+          {enrollments.loading ? <Skeleton /> : enrollments.error ? <ErrorState message={enrollments.error.message} retry={() => void enrollments.retry()} /> : !enrollments.data?.items.length ? <p className="text-sm text-slate-500">Nenhum vínculo cadastrado.</p> : enrollments.data.items.map(item => <p key={item.id} className="py-1 text-sm text-slate-600">{item.className ?? 'Turma indisponível'} · {({ active: 'Matrícula ativa', pending: 'Matrícula pendente', ended: 'Vínculo encerrado', cancelled: 'Matrícula cancelada' } as Record<string, string>)[item.status] ?? item.status}</p>)}
         </div>
       </Card>
-      <Card>
-        <h2 className="mb-6 text-lg font-semibold">Dados cadastrais</h2>
-        {revision.conflict && <RecordConflict key={user.revision} author={db.users.find(u => u.id === user.updatedBy)?.name ?? 'Equipe AJA'} updatedAt={user.updatedAt} onReviewed={revision.acknowledge}><p>Nome atual: {user.name}. E-mail: {user.email}. Seu nome em edição foi preservado.</p></RecordConflict>}
-        <form className="space-y-5" onSubmit={async e => {
-          e.preventDefault();
-          if (await mutate(d => { d.users.find(u => u.id === user.id)!.name = name.trim(); }, 'Perfil atualizado.', revision.expected)) revision.capture({ ...user, revision: (user.revision ?? 0) + 1 });
-        }}>
-          <Input label="Nome completo" value={name} onChange={e => setName(e.target.value)} required minLength={3} maxLength={100} />
-          <Input label="E-mail" type="email" value={user.email} readOnly />
-          <div className="flex justify-end"><Button loading={busy} disabled={revision.conflict} type="submit">Salvar alterações</Button></div>
-        </form>
+      <Card><h2 className="mb-6 text-lg font-semibold">Dados cadastrais</h2>
+        {conflict && <div role="alert" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>O perfil mudou. Nome atual: {conflict.name}. Seu nome em edição foi mantido.</p><Button variant="secondary" onClick={() => { setRevision(conflict.revision); client.saveProfileDraft({ name, revision: conflict.revision }); setConflict(null); }}>Conferi a versão atual</Button></div>}
+        <form className="space-y-5" onSubmit={event => { event.preventDefault(); void save(); }}><fieldset disabled={busy} className="space-y-5"><Input label="Nome completo" value={name} onChange={event => { setName(event.target.value); client.saveProfileDraft({ name: event.target.value, revision }); }} required minLength={3} maxLength={100} /><Input label="E-mail" type="email" value={user.email} readOnly /><div className="flex justify-end"><Button loading={busy} disabled={!!conflict} type="submit">Salvar alterações</Button></div></fieldset></form>
+        {error && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       </Card>
     </div>
   </>;

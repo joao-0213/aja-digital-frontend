@@ -1,129 +1,87 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, FlaskConical, CheckCircle2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
-import { Button, Input, Check } from '@/components/ui';
-import { useApp } from '@/providers/app-context';
-import { mockRequest } from '@/mocks/api';
-import { uid } from '@/lib/utils';
+import { Button, Input, Skeleton } from '@/components/ui';
+import { useSession } from '@/providers/app-context';
 import { PrivacyNotice } from '@/features/privacy';
 
-export function AuthPage({
-  mode
-}: {
-  mode: 'login' | 'register' | 'recover';
-}) {
-  const {
-    lookupAccount,
-    mutate,
-    signIn,
-    busy: appBusy
-  } = useApp();
+type Mode = 'login' | 'register' | 'recover';
+
+function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
+  const { client } = useSession();
   const router = useRouter();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState(mode === 'login' ? 'fernando@exemplo.com' : '');
-  const [password, setPassword] = useState(mode === 'login' ? 'Aja@2026' : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
-  const [terms, setTerms] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
-  useEffect(() => {
-    if (mode === 'login') try {
-      const remembered = localStorage.getItem('aja-demo-email');
-      if (remembered) {
-        setEmail(remembered);
-        setRemember(true);
-      }
-    } catch {}
-  }, [mode]);
-  const title = mode === 'login' ? 'Entrar no AJA Digital' : mode === 'register' ? 'Criar conta' : 'Recuperar acesso';
+  const [message, setMessage] = useState('');
+  const confirming = mode === 'register' && !!token;
+  const resetting = mode === 'recover' && !!token;
+  const title = confirming ? 'Confirmar e-mail' : resetting ? 'Definir nova senha' : mode === 'login' ? 'Entrar no AJA Digital' : mode === 'register' ? 'Criar conta' : 'Recuperar acesso';
   const submit = async () => {
-    if (busy || appBusy) return;
-    setError('');
-    setBusy(true);
+    if (busy) return;
+    setError(''); setBusy(true);
     try {
-      if (mode === 'recover') {
-        await mockRequest(() => true);
-        setSent(true);
+      if (confirming) {
+        await client.confirmEmail(token!);
+        setMessage('E-mail confirmado. Entre na sua conta para continuar.');
+      } else if (resetting) {
+        setMessage((await client.resetPassword(token!, password)).message);
       } else if (mode === 'login') {
-        await mockRequest(() => true);
-        const person = lookupAccount(email);
-        if (!person || password !== 'Aja@2026') throw new Error('Use um e-mail cadastrado na demonstração e a senha de teste Aja@2026.');
-        signIn(person.id, person.role);
-        try {
-          if (remember) localStorage.setItem('aja-demo-email', email);else localStorage.removeItem('aja-demo-email');
-        } catch {}
-        router.push('/');
+        await client.login(email, password);
+        router.replace('/perfil');
+      } else if (mode === 'recover') {
+        setMessage((await client.requestRecovery(email)).message);
       } else {
-        if (!terms) throw new Error('Confirme que usará somente dados fictícios nesta demonstração.');
-        if (password.length < 8 || !/[0-9]/.test(password) || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[\W_]/.test(password)) throw new Error('Use 8 caracteres, maiúscula, minúscula, número e símbolo.');
-        const id = uid('user');
-        const ok = await mutate(() => {}, 'Conta criada. Continue na confirmação simulada do e-mail.', { enrollment: { type: 'register', id, name, email } });
-        if (ok) { signIn(id, 'student'); router.push('/'); }
-        else setError('Não foi possível criar a conta. Confira a mensagem apresentada e tente novamente. Seus dados foram mantidos.');
+        await client.register(name, email, password);
+        setMessage('Conta criada. Solicite as instruções de confirmação do e-mail para continuar.');
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Tente novamente.');
-    } finally {
-      setBusy(false);
-    }
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível concluir. Tente novamente.');
+    } finally { setBusy(false); }
   };
-  return <div className="min-h-dvh bg-white">
-    <main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-8">
-      <div className="mx-auto w-full max-w-md">
-        <div className="mb-9">
-          <Logo />
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          {title}
-        </h1>
-        <p className="mb-8 mt-3 text-base leading-6 text-slate-500">
-          {mode === 'login' ? 'Informe seu e-mail e senha para acessar.' : mode === 'register' ? 'Preencha os dados para criar sua conta.' : 'Informe seu e-mail para simular uma solicitação de recuperação.'}
-        </p>
-        {sent ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-6">
-          <CheckCircle2 className="mb-3 size-8 text-emerald-600" />
-          <h3 className="font-semibold">Solicitação simulada</h3>
-          <p className="mt-2 text-sm leading-6">Em uma aplicação real, um link seria enviado caso o e-mail estivesse cadastrado. Nenhum e-mail foi enviado nesta demonstração.</p>
-          <Link href="/login" className="mt-5 inline-block font-semibold text-brand-600">Voltar para o login</Link>
-        </div> : <form onSubmit={event => {
-          event.preventDefault();
-          void submit();
-        }} className="space-y-5">
-          {mode === 'register' && <Input label="Nome completo" autoComplete="name" value={name} onChange={e => setName(e.target.value)} required minLength={3} maxLength={100} />}
-          <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="voce@exemplo.com" />
-          {mode !== 'recover' && <div className="relative">
-            <Input label="Senha de demonstração" type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required className="pr-12" />
-            <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={show} className="absolute bottom-0 right-0 flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100">
-              {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-            </button>
-          </div>}
-          {mode === 'login' && <div className="flex flex-wrap items-center justify-between gap-2">
-            <Check label="Lembrar meu e-mail" checked={remember} onChange={setRemember} />
-            <Link href="/recuperar-senha" className="text-sm font-medium text-brand-600">Esqueci minha senha</Link>
-          </div>}
-          {mode === 'register' && <>
-            <p className="text-xs leading-5 text-slate-500">Use 8 caracteres, maiúscula, minúscula, número e símbolo. A senha digitada não é armazenada. Para entrar novamente e retomar a confirmação, use Aja@2026. Criar conta não garante matrícula.</p>
-            <Check label="Entendo que esta é uma demonstração local e não usarei dados reais." checked={terms} onChange={setTerms} />
-          </>}
-          {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
-            {error}
-          </p>}
-          <Button type="submit" loading={busy} disabled={mode === 'register' && !terms} className="w-full">
-            {mode === 'login' ? 'Entrar' : mode === 'register' ? 'Criar conta' : 'Simular envio do link'}
-          </Button>
-        </form>}
-        <p className="mt-6 text-center text-sm text-slate-500">
-          {mode === 'login' ? <>Ainda não tem uma conta? <Link href="/cadastro" className="font-semibold text-brand-600">Cadastre-se</Link></> : <Link href="/login" className="font-semibold text-brand-600">Voltar para o login</Link>}
-        </p>
-        <div className="mt-4 flex justify-center"><PrivacyNotice /></div>
-        <div className="mt-8 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600"><p className="mb-2 flex items-center gap-2 font-semibold text-slate-700"><FlaskConical aria-hidden="true" className="size-4" />Contas de demonstração</p>Aluno: fernando@exemplo.com<br />Professora: mariana@exemplo.com<br />Admin: rafael@exemplo.com<br />Senha de teste: <span className="font-semibold">Aja@2026</span>. Não use dados reais.</div>
-        <Link href="/" className="mt-5 block text-center text-sm text-slate-500 underline underline-offset-4">Explorar a demonstração sem login</Link>
-      </div>
-    </main>
-  </div>;
+  const requestConfirmation = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { setMessage((await client.requestConfirmation(email)).message); }
+    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível solicitar a confirmação.'); }
+    finally { setBusy(false); }
+  };
+  return <div className="min-h-dvh bg-white"><main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-8"><div className="mx-auto w-full max-w-md">
+    <div className="mb-9"><Logo /></div>
+    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+    <p className="mb-8 mt-3 text-base leading-6 text-slate-500">{confirming ? 'Confirme o endereço vinculado à sua conta.' : resetting ? 'Escolha uma nova senha para acessar sua conta.' : mode === 'login' ? 'Informe seu e-mail e senha para acessar.' : mode === 'register' ? 'Preencha os dados para criar sua conta.' : 'Informe seu e-mail para solicitar as instruções de recuperação.'}</p>
+    {message ? <div role="status" className="rounded-xl border border-emerald-100 bg-emerald-50 p-6"><CheckCircle2 aria-hidden="true" className="mb-3 size-8 text-emerald-600" /><p className="text-sm leading-6">{message}</p>
+      {mode === 'register' && !token && <Button loading={busy} onClick={() => void requestConfirmation()} className="mt-4">Solicitar confirmação de e-mail</Button>}
+      <Link href="/login" className="mt-5 block font-semibold text-brand-700">Voltar para o login</Link>
+    </div> : <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-5">
+      <fieldset disabled={busy} className="space-y-5">
+        {mode === 'register' && !token && <Input label="Nome completo" autoComplete="name" value={name} onChange={event => setName(event.target.value)} required minLength={3} maxLength={100} />}
+        {!token && <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} required placeholder="voce@exemplo.com" />}
+        {(!confirming && mode !== 'recover' || resetting) && <div className="relative"><Input label={resetting ? 'Nova senha' : 'Senha'} type={show ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? undefined : 8} maxLength={128} className="pr-12" /><button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={show} className="absolute bottom-0 right-0 flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100">{show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button></div>}
+        {mode === 'login' && <Link href="/recuperar-senha" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Esqueci minha senha</Link>}
+        {(resetting || mode === 'register' && !token) && <p className="text-xs leading-5 text-slate-500">Use ao menos 8 caracteres. Criar uma conta não garante matrícula.</p>}
+        <Button type="submit" loading={busy} className="w-full">{confirming ? 'Confirmar e-mail' : resetting ? 'Salvar nova senha' : mode === 'login' ? 'Entrar' : mode === 'register' ? 'Criar conta' : 'Solicitar recuperação'}</Button>
+      </fieldset>
+    </form>}
+    {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+    <p className="mt-6 text-center text-sm text-slate-500">{mode === 'login' ? <>Ainda não tem uma conta? <Link href="/cadastro" className="font-semibold text-brand-700">Cadastre-se</Link></> : <Link href="/login" className="font-semibold text-brand-700">Voltar para o login</Link>}</p>
+    <div className="mt-4 flex justify-center"><PrivacyNotice /></div>
+  </div></main></div>;
+}
+
+function AuthContent({ mode }: { mode: Mode }) {
+  const params = useSearchParams();
+  const token = mode !== 'login' ? params.get('token') : null;
+  return <AuthForm key={JSON.stringify([mode, token])} mode={mode} token={token} />;
+}
+
+export function AuthPage({ mode }: { mode: Mode }) {
+  return <Suspense fallback={<Skeleton />}><AuthContent mode={mode} /></Suspense>;
 }

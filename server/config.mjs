@@ -8,5 +8,10 @@ export function readConfig(env = process.env) {
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin || parsed.username || parsed.password) throw new Error('API_ALLOWED_ORIGINS exige origens HTTP explícitas.');
   }
   if (env.AJA_TEST_RUNTIME && env.NODE_ENV !== 'test') throw new Error('Runtime isolado disponível somente em testes.');
-  return { port, origins, testRuntime: env.NODE_ENV === 'test' ? env.AJA_TEST_RUNTIME : undefined };
+  const frontendOrigin = env.API_FRONTEND_ORIGIN ?? origins[0];
+  const frontendUrl = new URL(frontendOrigin);
+  if (!origins.includes(frontendOrigin) || frontendUrl.origin !== frontendOrigin) throw new Error('API_FRONTEND_ORIGIN deve ser uma das origens permitidas.');
+  if (env.API_COOKIE_SECURE !== undefined && !['true', 'false'].includes(env.API_COOKIE_SECURE)) throw new Error('API_COOKIE_SECURE deve ser true ou false.');
+  const secureCookie = env.API_COOKIE_SECURE === 'true' || frontendUrl.protocol === 'https:';
+  return { port, origins, frontendOrigin, secureCookie, testRuntime: env.NODE_ENV === 'test' ? env.AJA_TEST_RUNTIME : undefined };
 }

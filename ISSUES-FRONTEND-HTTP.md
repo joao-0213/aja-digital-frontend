@@ -54,7 +54,7 @@ Concluída nos commits `d51327e` e `683137b`, a partir de `88b40db`, revisão in
 ### AJA-04 · Compartilhar transporte, controle de acesso e gravação consistente
 **Depende de** AJA-02, AJA-03. **Entrada** `src/mocks/api.ts`, `src/hooks/use-mock-query.ts`, `src/lib/demo-mutations.ts`, `src/lib/access.ts`, `src/components/shared/record-conflict.tsx`.
 
-Concluída a partir de `683137b`: 164/164 testes, revisão independente APPROVE e gates aprovados. Evidências e limites em [docs/http/validation-AJA-04.md](docs/http/validation-AJA-04.md). Sessão real e telas são entregas seguintes.
+Concluída no commit `43549c1`, a partir de `683137b`: 164/164 testes, revisão independente APPROVE e gates aprovados. Evidências e limites em [docs/http/validation-AJA-04.md](docs/http/validation-AJA-04.md). Sessão real e telas são entregas seguintes.
 
 - [x] Criar cliente HTTP tipado com URL configurável, sinal de cancelamento, leitura de respostas vazias/binárias e erros tipados. Conectar carregamento, nova tentativa e invalidação às requisições efetivas. Limpar dados da sessão anterior e descartar respostas obsoletas. Verificar com servidor em porta de teste.
 - [x] Criar no serviço o ponto comum para resolver o ator, projetar campos autorizados, revalidar vínculos e comparar revisões durante a gravação. Reaproveitar regras puras. Para comandos com vários registros, serializar a validação e a gravação no mesmo estado, incluindo auditoria. Uma falha preserva o estado anterior. Vincular repetições de operações de envio ao ator e à operação.
@@ -63,9 +63,11 @@ Concluída a partir de `683137b`: 164/164 testes, revisão independente APPROVE 
 ### AJA-05 · Migrar identidade, sessão, perfil, privacidade e shell
 **Depende de** AJA-04. **Entrada** features `auth`, `profile`, `privacy`, `src/components/layout/`, `src/components/providers.tsx`, `src/providers/`.
 
-- [ ] Implementar cadastro, login, sessão atual e logout, confirmação de e-mail e recuperação com token de uso único no JSON Server. Usar cookie de sessão HttpOnly, expiração, origens explícitas e controle de origem nas escritas. Guardar verificador de senha só no serviço. Uma caixa de saída local acessível ao operador pelo terminal permite completar os fluxos sem provedor externo.
-- [ ] Migrar `/login`, `/cadastro`, `/recuperar-senha`, `/perfil`, entrada protegida e saída. Cobrir alteração do nome e consulta dos vínculos. Substituir conta pré-selecionada, senha preenchida, seleção de papel, checkbox de dados fictícios, entrada sem login e painel de controles por sessão obtida via HTTP. Atualizar aviso de privacidade conforme os dados e as funções disponíveis.
-- [ ] **Aceite** testar senha incorreta, cadastro duplicado, recuperação com resposta neutra, token inválido/expirado/reutilizado, login após redefinição, logout seguido de “voltar”, usuário inativado e recarga. Uma sessão nova não herda dados da anterior. Papel informado no corpo ou no navegador não concede acesso. Texto de confirmação distingue solicitação aceita de entrega de e-mail.
+Concluída a partir de `43549c1`: 185/185 testes, gates e revisão independente APPROVE. Evidências em [docs/http/validation-AJA-05.md](docs/http/validation-AJA-05.md). Exportação anterior preservada separadamente; identidade HTTP não mistura dados legados.
+
+- [x] Implementar cadastro, login, sessão atual e logout, confirmação de e-mail e recuperação com token de uso único no JSON Server. Usar cookie de sessão HttpOnly, expiração, origens explícitas e controle de origem nas escritas. Guardar verificador de senha só no serviço. Uma caixa de saída local acessível ao operador pelo terminal permite completar os fluxos sem provedor externo.
+- [x] Migrar `/login`, `/cadastro`, `/recuperar-senha`, `/perfil`, entrada protegida e saída. Cobrir alteração do nome e consulta dos vínculos. Substituir conta pré-selecionada, senha preenchida, seleção de papel, checkbox de dados fictícios, entrada sem login e painel de controles por sessão obtida via HTTP. Atualizar aviso de privacidade conforme os dados e as funções disponíveis.
+- [x] **Aceite** testar senha incorreta, cadastro duplicado, recuperação com resposta neutra, token inválido/expirado/reutilizado, login após redefinição, logout seguido de “voltar”, usuário inativado e recarga. Uma sessão nova não herda dados da anterior. Papel informado no corpo ou no navegador não concede acesso. Texto de confirmação distingue solicitação aceita de entrega de e-mail.
 
 ## Migração das jornadas
 

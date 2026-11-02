@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AJA Digital HTTP API",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Contrato alvo fixado em AJA-01. Endpoints ainda serão implementados em AJA-02 a AJA-16; este arquivo não comprova disponibilidade. Regras normativas adicionais em contract.md e route-matrix.md."
   },
   "servers": [
@@ -162,7 +162,8 @@
                     "active": true,
                     "emailConfirmedAt": "2026-11-02T14:00:00Z"
                   },
-                  "expiresAt": "2026-11-02T14:00:00Z"
+                  "expiresAt": "2026-11-02T14:00:00Z",
+                  "sessionId": "session-example-1"
                 }
               }
             }
@@ -482,7 +483,8 @@
                     "active": true,
                     "emailConfirmedAt": "2026-11-02T14:00:00Z"
                   },
-                  "expiresAt": "2026-11-02T14:00:00Z"
+                  "expiresAt": "2026-11-02T14:00:00Z",
+                  "sessionId": "session-example-1"
                 }
               }
             }
@@ -9026,11 +9028,19 @@
             "type": "string",
             "example": "2026-11-02T14:00:00Z",
             "format": "date-time"
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Opaque identifier for query isolation, never a credential. Only the HttpOnly cookie authenticates requests.",
+            "example": "session-example-1"
           }
         },
         "required": [
           "user",
-          "expiresAt"
+          "expiresAt",
+          "sessionId"
         ]
       },
       "SelfUser": {
@@ -9825,6 +9835,13 @@
               "maxLength": 128,
               "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
             }
+          },
+          "className": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Authorized linked class display name, or null when unavailable. Not an identifier."
           }
         },
         "required": [
