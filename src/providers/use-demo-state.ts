@@ -153,6 +153,7 @@ export function useDemoState(notify: AppContextValue['notify']): Omit<AppContext
     } catch {}
   };
   const reset = () => {
+    try { Object.keys(sessionStorage).filter(key => key.startsWith('aja-forum-')).forEach(key => sessionStorage.removeItem(key)); } catch { notify('Não foi possível limpar os rascunhos do fórum.', true); }
     try { clearDrafts(sessionStorage); } catch { notify('Não foi possível limpar as composições de avisos desta sessão.', true); }
     void removeMaterialFiles().catch(() => notify('Os dados foram restaurados, mas não foi possível remover os PDFs locais.', true));
     const fresh = migrateDatabase(seed);

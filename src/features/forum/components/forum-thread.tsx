@@ -3,15 +3,22 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, ThumbsUp, Paperclip } from 'lucide-react';
+import { CheckCircle2, ThumbsUp } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
 import { cn, dateLabel, uid } from '@/lib/utils';
-import { compareTimestamps } from '@/lib/study-order';
+import { forumReplies, forumTarget } from '@/lib/forum';
+import { ForumAttachments } from './forum-attachments';
 import { RichText } from '@/components/ui/rich-text';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 export function ForumThread() {
+  const { user } = useApp();
+  const params = useSearchParams();
+  return <ForumThreadContent key={`${user.id}:${params.toString()}`} />;
+}
+
+function ForumThreadContent() {
   const {
     db,
     user,
@@ -23,23 +30,28 @@ export function ForumThread() {
   const topic = db.topics.find(t => t.id === id);
   const canInteract = !!topic && (role === 'admin' || db.classes.some(c => c.id === topic.classId && c.active));
   const [body, setBody] = useState('');
+  const [draftReady, setDraftReady] = useState('');
+  const draftKey = `aja-forum-reply:${user.id}:${id}`;
+  useEffect(() => { try { setBody(sessionStorage.getItem(draftKey) ?? ''); } catch {} setDraftReady(draftKey); }, [draftKey]);
+  useEffect(() => { if (draftReady === draftKey) { try { sessionStorage.setItem(draftKey, body); } catch {} } }, [body, draftKey, draftReady]);
   useEffect(() => {
     if (topic && canInteract && !topic.readBy.includes(user.id)) void mutate(d => {
       const t = d.topics.find(t => t.id === id);
       if (t && !t.readBy.includes(user.id)) t.readBy.push(user.id);
     });
-  }, [id, user.id, mutate, canInteract]);
-  if (!topic) return <Empty title="Pergunta não encontrada" action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>} />;
+  }, [id, user.id, mutate, canInteract, topic?.replies.length, topic?.readBy.includes(user.id)]);
+  if (!topic) return <Empty title="Pergunta indisponível" description="A pergunta foi retirada ou seu acesso à turma/disciplina foi encerrado." action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>} />;
   const author = db.users.find(u => u.id === topic.authorId);
-  const replies = [...topic.replies].sort((a, b) => compareTimestamps(a.createdAt, b.createdAt));
+  const replies = forumReplies(topic);
+  const target = forumTarget(db, topic);
   const canAccept = canInteract && (user.id === topic.authorId || role === 'admin' || role === 'teacher' && db.subjects.find(s => s.id === topic.subjectId)?.teacherIds.includes(user.id));
   const vote = async (replyId: string, value: 1) => void mutate(d => {
     const r = d.topics.find(t => t.id === id)?.replies.find(r => r.id === replyId);
     if (r) {
       if (r.votes[user.id] === value) delete r.votes[user.id];else r.votes[user.id] = value;
     }
-  });
-  return <div className="mx-auto max-w-4xl">
+  }, undefined, { requirePersistence: true });
+  return <div className="mx-auto max-w-4xl [overflow-wrap:anywhere]">
     <Link href="/forum" className="mb-6 inline-block text-sm font-semibold text-brand-600">Fórum de dúvidas / {db.subjects.find(s => s.id === topic.subjectId)?.name}</Link>
     <Card>
       <div className="mb-5 flex items-center gap-3">
@@ -70,8 +82,12 @@ export function ForumThread() {
       <div className="flex flex-wrap gap-2">
         {topic.tags.map(t => <Badge key={t}>#{t}</Badge>)}
       </div>
-      {topic.reference && <Link href={`/questoes?id=${encodeURIComponent(topic.reference)}`} className="mt-5 block text-sm font-semibold text-brand-600">Consultar questão {topic.reference.toUpperCase()}</Link>}
-      {topic.attachmentName && <p className="mt-4 flex items-center gap-2 text-xs text-slate-400"><Paperclip className="size-4" />{topic.attachmentName} · anexo simulado</p>}
+      {target ? <div className="mt-5 rounded-lg bg-slate-50 p-4"><Link href={target.href} className="font-semibold text-brand-700">{target.title}</Link><p className="mt-2 whitespace-pre-line text-sm text-slate-600">{target.preview}</p></div> : target === null ? <p className="mt-5 text-sm text-amber-800">Referência indisponível: o alvo foi retirado ou não está acessível neste contexto. A conversa continua disponível.</p> : null}
+      {topic.attachment && <ForumAttachments items={[{ ...topic.attachment, kind: 'file' }]} />}
+      {!topic.attachment && topic.attachmentName && <p className="mt-4 text-sm text-slate-500">{topic.attachmentName} · registro antigo sem arquivo. Peça ao autor para compartilhar novamente.</p>}
+      {canInteract && (user.id === topic.authorId || role !== 'student') && <Button className="mt-4" variant="ghost" onClick={() => {
+        if (window.confirm('Retirar esta pergunta e suas respostas da consulta? O histórico permanece para auditoria, sem restauração pela interface.')) void mutate(d => { d.topics.find(t => t.id === id)!.deletedAt = new Date().toISOString(); }, 'Pergunta retirada.', { requirePersistence: true });
+      }}>Retirar pergunta</Button>}
     </Card>
     <h2 className="mb-4 mt-8 text-lg font-semibold">
       {replies.length}
@@ -91,6 +107,7 @@ export function ForumThread() {
             <Badge tone="green"><CheckCircle2 className="size-3" />Solução aceita</Badge>
           </span>}
         </div>
+        <p className="mb-3 text-xs text-slate-500">{dateLabel(r.createdAt, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
         <RichText text={r.body} />
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Button variant="ghost" aria-label="Votar positivamente" aria-pressed={r.votes[user.id] === 1} disabled={!canInteract || busy || r.authorId === user.id} className={cn(r.votes[user.id] === 1 && '!bg-brand-50 !text-brand-600')} onClick={() => void vote(r.id, 1)}>
@@ -99,11 +116,14 @@ export function ForumThread() {
           <span className="text-sm font-semibold">
             {Object.values(r.votes).reduce<number>((a, b) => a + b, 0)}
           </span>
+          {canInteract && (r.authorId === user.id || role !== 'student') && <Button variant="ghost" onClick={() => {
+            if (window.confirm('Retirar esta resposta? A solução será desmarcada se necessário. O histórico permanece sem restauração pela interface.')) void mutate(d => { d.topics.find(t => t.id === id)!.replies.find(reply => reply.id === r.id)!.deletedAt = new Date().toISOString(); }, 'Resposta retirada.', { requirePersistence: true });
+          }}>Retirar resposta</Button>}
           {canAccept && <Button variant="ghost" className="ml-auto" loading={busy} onClick={() => void mutate(d => {
               const t = d.topics.find(t => t.id === id)!;
               const was = t.replies.find(reply => reply.id === r.id)?.accepted;
               for (const reply of t.replies) reply.accepted = reply.id === r.id && !was;
-            }, r.accepted ? 'Solução desmarcada.' : 'Solução aceita.')}>
+            }, r.accepted ? 'Solução desmarcada.' : 'Solução aceita.', { requirePersistence: true })}>
             <CheckCircle2 className="size-4" />
             {r.accepted ? 'Desmarcar solução' : 'Aceitar como solução'}
           </Button>}
@@ -123,11 +143,11 @@ export function ForumThread() {
             votes: {},
             accepted: false
           });
-        }, 'Resposta publicada.')) setBody('');
+        }, 'Resposta publicada.', { requirePersistence: true })) setBody('');
       }}>
         <RichTextEditor label="Sua resposta" placeholder="Compartilhe seu raciocínio. Uma boa explicação ajuda todo mundo." value={body} onChange={setBody} />
         <div className="mt-4 flex justify-end">
-          <Button type="submit" loading={busy}>Publicar resposta</Button>
+          <Button type="submit" disabled={!body.trim()} loading={busy}>Publicar resposta</Button>
         </div>
       </form>
     </Card> : <p className="mt-6 text-sm text-slate-500">Esta turma está inativa. O histórico permanece disponível para consulta da equipe autorizada.</p>}

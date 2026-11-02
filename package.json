@@ -12,7 +12,7 @@
     "preview": "node scripts/preview.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "check:architecture": "node scripts/check-architecture.mjs",
-    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/api.test.ts tests/subject-updates.test.ts tests/scope.test.ts tests/permissions.test.ts tests/attendance.test.ts tests/teaching-team.test.ts tests/assessment-editor.test.ts tests/enrollment.test.ts tests/material-video.test.ts tests/question-composition.test.ts tests/activities.test.ts tests/announcements.test.ts tests/announcement-draft.test.ts"
+    "test": "node --experimental-strip-types --test tests/domain.test.ts tests/api.test.ts tests/subject-updates.test.ts tests/scope.test.ts tests/permissions.test.ts tests/attendance.test.ts tests/teaching-team.test.ts tests/assessment-editor.test.ts tests/enrollment.test.ts tests/material-video.test.ts tests/question-composition.test.ts tests/activities.test.ts tests/announcements.test.ts tests/announcement-draft.test.ts tests/forum.test.ts"
   },
   "dependencies": {
     "next": "^16.0.0",

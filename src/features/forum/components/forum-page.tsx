@@ -1,15 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { MessageSquare, Plus, CheckCircle2 } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
-import { dateLabel, textMatch, uid } from '@/lib/utils';
+import { dateLabel, uid } from '@/lib/utils';
+import { forumMatches, forumReplies, forumTarget, validateForumAttachment } from '@/lib/forum';
+import { saveMaterialFiles } from '@/lib/material-files';
+import type { ForumTopic } from '@/models';
+import { ForumAttachments } from './forum-attachments';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 export function ForumPage() {
+  const { user } = useApp();
+  const params = useSearchParams();
+  return <ForumPageContent key={`${user.id}:${params.toString()}`} />;
+}
+
+function ForumPageContent() {
   const {
     db,
     user,
@@ -22,15 +32,32 @@ export function ForumPage() {
   const [subject, setSubject] = useState(params.get('disciplina') ?? 'all');
   const [filter, setFilter] = useState('all');
   const [classId, setClassId] = useState(db.subjects.find(s => s.id === params.get('disciplina'))?.classId ?? db.classes[0]?.id ?? '');
-  const [open, setOpen] = useState(!!params.get('questao'));
+  const [open, setOpen] = useState(!!params.get('questao') || !!params.get('material'));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [targetSubject, setTargetSubject] = useState(publishableSubjects.find(s => s.id === params.get('disciplina'))?.id ?? publishableSubjects[0]?.id ?? '');
   const [tags, setTags] = useState('');
-  const [attachment, setAttachment] = useState('');
-  const [reference, setReference] = useState(params.get('questao') ?? '');
+  const [attachment, setAttachment] = useState<ForumTopic['attachment']>();
+  const [uploading, setUploading] = useState(false);
+  const [reference, setReference] = useState(params.get('material') ? `material:${params.get('material')}` : params.get('questao') ? `question:${params.get('questao')}` : '');
   const [error, setError] = useState('');
-  const topics = db.topics.filter(t => t.classId === classId && (subject === 'all' || t.subjectId === subject) && textMatch(t.title + ' ' + t.body + ' ' + t.tags.join(' '), search) && (filter === 'all' || filter === 'unread' && !t.readBy.includes(user.id) || filter === 'unanswered' && !t.replies.length || filter === 'solved' && t.replies.some(r => r.accepted))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const topics = db.topics.filter(t => t.classId === classId && (subject === 'all' || t.subjectId === subject) && forumMatches(t, search) && (filter === 'all' || filter === 'unread' && !t.readBy.includes(user.id) || filter === 'unanswered' && !forumReplies(t).length || filter === 'solved' && forumReplies(t).some(r => r.accepted))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const draftKey = `aja-forum-compose:${user.id}:${params.get('material') ?? params.get('questao') ?? 'new'}`;
+  const [loadedKey, setLoadedKey] = useState('');
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
+      if (saved) { setTitle(saved.title ?? ''); setBody(saved.body ?? ''); setTags(saved.tags ?? ''); setAttachment(saved.attachment); setReference(saved.reference ?? ''); setTargetSubject(saved.targetSubject ?? ''); }
+    } catch { setError('Não foi possível retomar o rascunho desta sessão.'); }
+    setLoadedKey(draftKey);
+  }, [draftKey]);
+  useEffect(() => {
+    if (loadedKey !== draftKey) return;
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ title, body, tags, attachment, reference, targetSubject })); }
+    catch { setError('Não foi possível guardar o rascunho. Mantenha esta tela aberta para não perder o preenchimento.'); }
+  }, [draftKey, loadedKey, title, body, tags, attachment, reference, targetSubject]);
+  const target = reference ? { type: reference.startsWith('material:') ? 'material' as const : 'question' as const, id: reference.slice(reference.indexOf(':') + 1) } : undefined;
+  const resolved = forumTarget(db, { target, subjectId: targetSubject });
   return <>
     <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => {
       setError('');
@@ -62,7 +89,7 @@ export function ForumPage() {
     <div className="space-y-4">
       {topics.map(t => {
         const author = db.users.find(u => u.id === t.authorId);
-        const solved = t.replies.some(r => r.accepted);
+        const solved = forumReplies(t).some(r => r.accepted);
         return <Link key={t.id} href={`/forum/topico?id=${t.id}`} className="block rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6">
         <div className="flex items-start gap-4">
           <Avatar name={author?.name ?? 'Aluno'} />
@@ -85,7 +112,7 @@ export function ForumPage() {
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {t.tags.map(tag => <Badge key={tag}>#{tag}</Badge>)}
-              <span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400">{solved && <CheckCircle2 className="size-4 text-emerald-500" />}<MessageSquare className="size-4" />{t.replies.length} respostas</span>
+              <span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400">{solved && <CheckCircle2 className="size-4 text-emerald-500" />}<MessageSquare className="size-4" />{forumReplies(t).length} respostas</span>
             </div>
           </div>
         </div>
@@ -102,6 +129,8 @@ export function ForumPage() {
           setError('Selecione uma disciplina.');
           return;
         }
+        if (!body.trim()) { setError('Conte sua dúvida antes de publicar.'); return; }
+        if (target && !resolved) { setError('Referência indisponível. Confira a disciplina e o alvo ou escolha Sem referência.'); return; }
         if (await mutate(d => {
           d.topics.unshift({
             id: uid('topic'),
@@ -114,15 +143,15 @@ export function ForumPage() {
             createdAt: new Date().toISOString(),
             replies: [],
             readBy: [user.id],
-            reference: reference || undefined,
-            attachmentName: attachment || undefined
+            target,
+            attachment
           });
-        }, 'Pergunta publicada.')) {
+        }, 'Pergunta publicada.', { requirePersistence: true })) {
           setOpen(false);
           setTitle('');
           setBody('');
           setTags('');
-          setAttachment('');
+          setAttachment(undefined);
           setReference('');
           setFilter('all');
           setSubject('all');
@@ -135,26 +164,30 @@ export function ForumPage() {
         </Select>
         <RichTextEditor label="Conte sua dúvida" placeholder="Explique o que você já tentou e onde encontrou dificuldade." value={body} onChange={setBody} />
         <Input label="Tags (separe por vírgulas, até 5)" value={tags} onChange={e => setTags(e.target.value)} placeholder="funções, gráficos" />
-        <Select label="Referenciar uma questão (opcional)" value={reference} onChange={e => setReference(e.target.value)}>
+        <Select label="Referência (opcional)" value={reference} onChange={e => setReference(e.target.value)}>
           <option value="">Sem referência</option>
-          {db.questions.map(q => <option key={q.id} value={q.id}>{q.id.toUpperCase()} · {q.topic}</option>)}
+          {db.materials.filter(m => db.modules.some(mod => mod.id === m.moduleId && mod.subjectId === targetSubject)).map(m => <option key={m.id} value={`material:${m.id}`}>Material · {m.title}</option>)}
+          {db.questions.map(q => <option key={q.id} value={`question:${q.id}`}>{q.id.toUpperCase()} · {q.topic}</option>)}
         </Select>
-        <Input label="Anexo de exemplo (somente o nome será salvo)" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => {
+        {target && <p className="rounded-lg bg-slate-50 p-3 text-sm">{resolved ? `${resolved.title}: ${resolved.preview}` : 'Referência indisponível. Confira a disciplina ou remova a referência.'}</p>}
+        <p className="text-sm text-slate-600">A pergunta e seu anexo ficam visíveis à turma e à equipe autorizada. Evite dados pessoais. Um PDF, PNG, JPEG ou WebP de até 5 MB; arquivo disponível somente neste navegador.</p>
+        <Input label="Anexo (opcional)" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={uploading || busy} onChange={async e => {
           const file = e.target.files?.[0];
-          if (file && file.size > 5 * 1024 * 1024) {
-            setError('Escolha um arquivo de até 5 MB.');
-            e.target.value = '';
-            return;
-          }
-          setAttachment(file?.name ?? '');
-          setError('');
+          if (!file) return;
+          const item = { id: uid('forum-file'), name: file.name, mime: file.type, size: file.size };
+          setUploading(true); setError('');
+          try { validateForumAttachment(item); await saveMaterialFiles([{ id: item.id, file }]); setAttachment(item); }
+          catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível guardar o arquivo. Selecione novamente.'); }
+          finally { setUploading(false); }
         }} />
-        {error && <p className="text-sm text-rose-600">
+        {uploading && <p role="status">Guardando arquivo…</p>}
+        {attachment && <ForumAttachments items={[{ ...attachment, kind: 'file' }]} onRemove={() => setAttachment(undefined)} />}
+        {error && <p role="alert" className="text-sm text-rose-600">
           {error}
         </p>}
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button type="submit" loading={busy}>Publicar pergunta</Button>
+          <Button variant="secondary" onClick={() => setOpen(false)}>Continuar depois</Button><Button variant="ghost" onClick={() => { setTitle(''); setBody(''); setTags(''); setAttachment(undefined); setReference(''); setOpen(false); }}>Descartar</Button>
+          <Button type="submit" loading={busy || uploading}>Publicar pergunta</Button>
         </div>
       </form>
     </Dialog>
