@@ -23,7 +23,8 @@ export function validateForumAttachment(item: NonNullable<ForumTopic['attachment
 }
 /** Shared checks for every persona, always against the current state. */
 export function validateForum(db: MockDatabase, actor: User, before: ForumTopic | undefined, next: ForumTopic, now: string) {
-  if (!canAccessSubject(db, actor, next.subjectId) || !db.classes.some(c => c.id === next.classId && c.active && !c.deletedAt) || !db.subjects.some(s => s.id === next.subjectId && s.classId === next.classId)) return deny();
+  if (!canAccessSubject(db, actor, next.subjectId) || !db.classes.some(c => c.id === next.classId && !c.deletedAt) || !db.subjects.some(s => s.id === next.subjectId && s.classId === next.classId)) return deny();
+  if (!db.classes.some(c => c.id === next.classId && c.active) && (!before || !same({ ...before, readBy: [] }, { ...next, readBy: [] }))) return deny();
   const manager = actor.role === 'admin' || actor.role === 'teacher';
   if (!next.title.trim() || !next.body.trim()) throw new Error('Informe título e texto da pergunta.');
   if (!before) {

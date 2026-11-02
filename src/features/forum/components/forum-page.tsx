@@ -8,6 +8,7 @@ import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Dialog, Empty, Input, PageHeading, Select } from '@/components/ui';
 import { dateLabel, uid } from '@/lib/utils';
 import { forumMatches, forumReplies, forumTarget, validateForumAttachment } from '@/lib/forum';
+import { readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { saveMaterialFiles } from '@/lib/material-files';
 import type { ForumTopic } from '@/models';
 import { ForumAttachments } from './forum-attachments';
@@ -41,28 +42,33 @@ function ForumPageContent() {
   const [uploading, setUploading] = useState(false);
   const [reference, setReference] = useState(params.get('material') ? `material:${params.get('material')}` : params.get('questao') ? `question:${params.get('questao')}` : '');
   const [error, setError] = useState('');
+  const [draftError, setDraftError] = useState('');
   const topics = db.topics.filter(t => t.classId === classId && (subject === 'all' || t.subjectId === subject) && forumMatches(t, search) && (filter === 'all' || filter === 'unread' && !t.readBy.includes(user.id) || filter === 'unanswered' && !forumReplies(t).length || filter === 'solved' && forumReplies(t).some(r => r.accepted))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const draftKey = `aja-forum-compose:${user.id}:${params.get('material') ?? params.get('questao') ?? 'new'}`;
   const [loadedKey, setLoadedKey] = useState('');
   useEffect(() => {
     try {
-      const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
+      const restored = readForumDraft({ getItem: key => sessionStorage.getItem(key) }, draftKey);
+      if (restored.error) { setDraftError(restored.error); return; }
+      const saved = JSON.parse(restored.value ?? 'null');
       if (saved) { setTitle(saved.title ?? ''); setBody(saved.body ?? ''); setTags(saved.tags ?? ''); setAttachment(saved.attachment); setReference(saved.reference ?? ''); setTargetSubject(saved.targetSubject ?? ''); }
-    } catch { setError('Não foi possível retomar o rascunho desta sessão.'); }
+    } catch { setDraftError('Não foi possível retomar o rascunho desta sessão.'); return; }
     setLoadedKey(draftKey);
   }, [draftKey]);
   useEffect(() => {
     if (loadedKey !== draftKey) return;
-    try { sessionStorage.setItem(draftKey, JSON.stringify({ title, body, tags, attachment, reference, targetSubject })); }
-    catch { setError('Não foi possível guardar o rascunho. Mantenha esta tela aberta para não perder o preenchimento.'); }
+    const storageError = saveForumDraft({ setItem: (key, value) => sessionStorage.setItem(key, value) }, draftKey, JSON.stringify({ title, body, tags, attachment, reference, targetSubject }));
+    setDraftError(storageError ?? '');
   }, [draftKey, loadedKey, title, body, tags, attachment, reference, targetSubject]);
   const target = reference ? { type: reference.startsWith('material:') ? 'material' as const : 'question' as const, id: reference.slice(reference.indexOf(':') + 1) } : undefined;
   const resolved = forumTarget(db, { target, subjectId: targetSubject });
+  const canPublishHere = db.classes.some(c => c.id === classId && c.active) && publishableSubjects.some(s => s.classId === classId);
   return <>
     <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => {
       setError('');
       setOpen(true);
-    }} disabled={!publishableSubjects.length}><Plus className="size-4" />Nova pergunta</Button>} />
+    }} disabled={!canPublishHere}><Plus className="size-4" />Nova pergunta</Button>} />
+    {!open && draftError && <p role="alert" className="mb-4 text-sm text-rose-700">{draftError}</p>}
     <div className="mb-6 grid gap-3 md:grid-cols-[1fr_220px_200px]">
       <Input aria-label="Buscar no fórum" value={search} onChange={e => setSearch(e.target.value)} placeholder="Busque uma dúvida ou um assunto…" />
       <Select aria-label="Turma do fórum" value={classId} onChange={e => {
@@ -70,8 +76,8 @@ function ForumPageContent() {
         setSubject('all');
         setTargetSubject(publishableSubjects.find(s => s.classId === e.target.value)?.id ?? '');
       }}>
-        {db.classes.filter(c => c.active).map(c => <option key={c.id} value={c.id}>
-          {c.name}
+        {db.classes.map(c => <option key={c.id} value={c.id}>
+          {c.name}{!c.active && ' · Encerrada'}
         </option>)}
       </Select>
       <Select aria-label="Disciplina do fórum" value={subject} onChange={e => setSubject(e.target.value)}>
@@ -118,10 +124,10 @@ function ForumPageContent() {
         </div>
       </Link>;
       })}
-      {!topics.length && <Empty title="A conversa pode começar com você" description="Nenhuma pergunta encontrada nesta seleção." action={<Button onClick={() => setOpen(true)}>Fazer uma pergunta</Button>} />}
+      {!topics.length && <Empty title={canPublishHere ? 'A conversa pode começar com você' : 'Nenhuma pergunta disponível'} description={canPublishHere ? 'Nenhuma pergunta encontrada nesta seleção.' : 'Este contexto está disponível apenas para consulta. Selecione uma turma ativa para publicar.'} action={canPublishHere ? <Button onClick={() => setOpen(true)}>Fazer uma pergunta</Button> : undefined} />}
     </div>
     <Dialog open={open} onClose={() => setOpen(false)} title="O que você quer entender melhor?">
-      <form className="space-y-4" onSubmit={async e => {
+      <form onSubmit={async e => {
         e.preventDefault();
         setError('');
         const selected = publishableSubjects.find(s => s.id === targetSubject);
@@ -158,6 +164,7 @@ function ForumPageContent() {
           setClassId(selected.classId);
         }
       }}>
+        <fieldset disabled={busy || uploading} className="min-w-0 space-y-4">
         <Input label="Título da pergunta" value={title} onChange={e => setTitle(e.target.value)} required minLength={8} maxLength={180} />
         <Select label="Disciplina" value={targetSubject} onChange={e => setTargetSubject(e.target.value)}>
           {publishableSubjects.map(s => <option key={s.id} value={s.id}>{s.name} · {db.classes.find(c => c.id === s.classId)?.name}</option>)}
@@ -185,10 +192,12 @@ function ForumPageContent() {
         {error && <p role="alert" className="text-sm text-rose-600">
           {error}
         </p>}
+        {draftError && <p role="alert" className="text-sm text-rose-700">{draftError}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={() => setOpen(false)}>Continuar depois</Button><Button variant="ghost" onClick={() => { setTitle(''); setBody(''); setTags(''); setAttachment(undefined); setReference(''); setOpen(false); }}>Descartar</Button>
           <Button type="submit" loading={busy || uploading}>Publicar pergunta</Button>
         </div>
+        </fieldset>
       </form>
     </Dialog>
   </>;

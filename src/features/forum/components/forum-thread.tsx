@@ -8,6 +8,7 @@ import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
 import { cn, dateLabel, uid } from '@/lib/utils';
 import { forumReplies, forumTarget } from '@/lib/forum';
+import { readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { ForumAttachments } from './forum-attachments';
 import { RichText } from '@/components/ui/rich-text';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -28,14 +29,22 @@ function ForumThreadContent() {
   } = useApp();
   const id = useSearchParams().get('id') ?? 't1';
   const topic = db.topics.find(t => t.id === id);
-  const canInteract = !!topic && (role === 'admin' || db.classes.some(c => c.id === topic.classId && c.active));
+  const canInteract = !!topic && db.classes.some(c => c.id === topic.classId && c.active);
   const [body, setBody] = useState('');
   const [draftReady, setDraftReady] = useState('');
+  const [draftError, setDraftError] = useState('');
   const draftKey = `aja-forum-reply:${user.id}:${id}`;
-  useEffect(() => { try { setBody(sessionStorage.getItem(draftKey) ?? ''); } catch {} setDraftReady(draftKey); }, [draftKey]);
-  useEffect(() => { if (draftReady === draftKey) { try { sessionStorage.setItem(draftKey, body); } catch {} } }, [body, draftKey, draftReady]);
   useEffect(() => {
-    if (topic && canInteract && !topic.readBy.includes(user.id)) void mutate(d => {
+    const restored = readForumDraft({ getItem: key => sessionStorage.getItem(key) }, draftKey);
+    if (restored.error) { setDraftError(restored.error); return; }
+    setBody(restored.value ?? '');
+    setDraftReady(draftKey);
+  }, [draftKey]);
+  useEffect(() => {
+    if (draftReady === draftKey) setDraftError(saveForumDraft({ setItem: (key, value) => sessionStorage.setItem(key, value) }, draftKey, body) ?? '');
+  }, [body, draftKey, draftReady]);
+  useEffect(() => {
+    if (topic && !topic.readBy.includes(user.id)) void mutate(d => {
       const t = d.topics.find(t => t.id === id);
       if (t && !t.readBy.includes(user.id)) t.readBy.push(user.id);
     });
@@ -145,10 +154,13 @@ function ForumThreadContent() {
           });
         }, 'Resposta publicada.', { requirePersistence: true })) setBody('');
       }}>
+        <fieldset disabled={busy} className="min-w-0">
         <RichTextEditor label="Sua resposta" placeholder="Compartilhe seu raciocínio. Uma boa explicação ajuda todo mundo." value={body} onChange={setBody} />
+        {draftError && <p role="alert" className="mt-3 text-sm text-rose-700">{draftError}</p>}
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={!body.trim()} loading={busy}>Publicar resposta</Button>
         </div>
+        </fieldset>
       </form>
     </Card> : <p className="mt-6 text-sm text-slate-500">Esta turma está inativa. O histórico permanece disponível para consulta da equipe autorizada.</p>}
   </div>;
