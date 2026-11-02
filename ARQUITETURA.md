@@ -16,6 +16,9 @@ O projeto organiza a interface em três camadas: elementos genéricos de UI, mó
 | Tipos compartilhados e contrato dos dados | `src/models/` |
 | Dados iniciais e transporte simulado | `src/mocks/` |
 | Regras puras e infraestrutura compartilhada | `src/lib/` |
+| Visibilidade e permissões por contexto | `src/lib/access.ts` |
+| Validação de comandos, revisões e auditoria local | `src/lib/demo-mutations.ts` |
+| Revisão aberta nos editores e apresentação de conflitos | `src/hooks/use-record-revision.ts` e `src/components/shared/record-conflict.tsx` |
 | Consulta simulada e integração com ferramentas de estudo | `src/hooks/` |
 
 ## Tipos compartilhados
@@ -24,8 +27,8 @@ Os modelos ficam separados por assunto em `src/models/`. `index.ts` mantém a en
 
 | Arquivo | Tipos |
 | --- | --- |
-| `user.ts` | `Role`, `User`, `DocumentStatus` e `StudentDocument` |
-| `academic.ts` | `SchoolClass`, `Subject`, `SubjectIcon` e `TrailModule` |
+| `user.ts` | `Role` e `User` (identificação mínima, estado de conta e metadados operacionais, sem foto ou documentos) |
+| `academic.ts` | `SchoolClass`, `Subject` com `teacherIds`, `SubjectIcon` e `TrailModule` |
 | `materials.ts` | `Material`, `MaterialKind` e `Progress` |
 | `questions.ts` | `Question` e `Difficulty` |
 | `assessments.ts` | `Assessment` e `Attempt` |
@@ -33,6 +36,7 @@ Os modelos ficam separados por assunto em `src/models/`. `index.ts` mantém a en
 | `announcements.ts` | `Announcement` |
 | `calendar.ts` | `CalendarEvent` |
 | `attendance.ts` | `Attendance` |
+| `audit.ts` | `RecordMeta` e `AuditEvent` |
 | `database.ts` | `MockDatabase`, que compõe os modelos dos outros arquivos |
 
 Esses arquivos contêm somente tipos. Dependências entre modelos usam `import type` diretamente do arquivo responsável, mantendo a composição do banco em `database.ts` e evitando referências de volta ao índice público. Tipos específicos de apresentação continuam próximos dos componentes que os utilizam.
@@ -44,19 +48,19 @@ Cada módulo em `src/features/` expõe seus componentes compartilhados e entrada
 | Módulo | Rotas e responsabilidades |
 | --- | --- |
 | `auth` | `/login`, `/cadastro`, `/recuperar-senha` |
-| `dashboard` | `/`, painéis de aluno e equipe, preferências por usuário |
+| `dashboard` | `/`, painéis fixos de aluno e equipe |
 | `classes` | `/turmas`, cadastro e inativação de turmas |
-| `subjects` | `/disciplinas`, `/disciplinas/detalhes`, cards, mural, módulos e visitas |
+| `subjects` | `/disciplinas`, `/disciplinas/detalhes`, gestão administrativa de disciplinas/equipe, cards, mural, módulos e visitas |
 | `materials` | `/materiais`, leitura e publicação local de materiais |
 | `assessments` | `/questionarios`, criação, resposta, recuperação e resultado |
 | `questions` | `/questoes`, busca e resolução de questões |
 | `forum` | `/forum`, `/forum/topico`, perguntas, respostas, votos e soluções |
 | `calendar` | `/calendario` |
 | `announcements` | `/avisos` |
-| `profile` | `/perfil`, dados e documentos do próprio usuário |
-| `students` | `/alunos`, `/alunos/perfil`, matrícula e revisão de documentos |
+| `profile` | `/perfil`, nome, e-mail, papel e matrículas do próprio usuário |
+| `students` | `/alunos`, `/alunos/perfil`, matrícula e identificação mínima |
 | `attendance` | `/frequencia` |
-| `users` | `/usuarios`, alteração dos perfis da demonstração |
+| `users` | `/usuarios`, cargos globais e cadastro, edição, inativação e exclusão lógica de docentes pela administração |
 
 ## Direção das dependências
 
@@ -77,14 +81,44 @@ Estado da demonstração, formulários, APIs do navegador, leitura de parâmetro
 
 ## Contratos que devem ser preservados
 
-- `useApp()`: dados, usuário, perfil, `ready`, `busy`, troca de perfil, entrada, mutação, notificação e restauração.
+- `useApp()`: dados projetados para o usuário, conta atual, perfil, `ready`, `busy`, troca de perfil, entrada, busca de conta para login simulado, mutação, notificação e restauração. A mutação aceita uma revisão esperada opcional para conferir a versão aberta no formulário.
 - `aja-digital-demo-v1`: banco serializado em localStorage, com versão e formato existentes. A validação e as chaves centrais vivem em `src/lib/demo-storage.ts`.
 - `aja-demo-role`: perfil da demonstração em sessionStorage. O comportamento de entrada e troca de perfil continua definido pelo estado da demonstração.
+- `aja-demo-user`: identificador da conta selecionada na mesma sessão, acrescentado pelo PP02 para distinguir docentes do mesmo cargo. Sessões antigas apenas com o papel continuam legíveis; uma conta selecionada que foi inativada ou excluída não é substituída silenciosamente por outra.
 - `aja-attempt-<id>`: recuperação de respostas em sessionStorage, mantida na sessão do questionário.
+- `aja-attempt-<id>:questions-updated`: marcador complementar para descartar a recuperação anterior quando o professor altera as questões e reinicia os rascunhos. A chave original de respostas permanece.
 - `aja-subject-seen:<userId>:<subjectId>`: publicações visitadas, com sincronização pelo hook de disciplinas.
-- Preferências do painel, e-mail lembrado e IndexedDB `aja-material-files`: mantêm seus formatos e comportamento atuais.
+- Preferências antigas do painel `aja-dashboard-<id>` ficam inertes após PP01; o painel tem composição fixa. E-mail lembrado e IndexedDB `aja-material-files` mantêm seus formatos e comportamento atuais.
 - Rotas de detalhes por query string, como `/disciplinas/detalhes?id=s1`, e todos os parâmetros, âncoras e links existentes.
 - Ordem das mutações, latência e falhas do mock, salvamento automático, limpeza dos arquivos em falhas e mensagens de feedback.
+
+## Redução do escopo — PP01
+
+O [complemento de escopo](docs/ESCOPO-PP01.md) registra as histórias e diagramas incorporados ao DOCX acadêmico indicado pelo usuário. `demo-storage.ts` migra o banco local na mesma chave e versão, descartando atributos pessoais dispensados, documentos de adaptação, configurações de sorteio/tentativas e votos negativos. O banco migrado é regravado no carregamento, preservando contas, vínculos e registros compatíveis. Falha de regravação não impede restaurar o papel da sessão nem descarta o banco migrado em memória.
+
+`assessment-attempts.ts` concentra início/retomada em ordem fixa e envio único, revalidando a regra dentro da mutação. Histórico antigo, respostas e ordens gravadas permanecem consultáveis. A consulta de materiais mantém índice, acesso direto, retorno à disciplina, última visita e conclusão individual, sem progresso agregado ou percurso automático. Votos positivos e solução permanecem no fórum, sem alterar a cronologia.
+
+`study-order.ts` reúne comparação de instantes e seleção do último material acessado. Datas inválidas ficam no final da cronologia e não são selecionadas como último acesso. Datas antigas sem fuso mantêm o significado local original; conclusão não exclui um material da retomada.
+
+## Administração e docência — PP02
+
+O [complemento do PP02](docs/ESCOPO-PP02.md) registra as histórias HU004/HU007, a matriz de acesso e os diagramas desta etapa, incorporados ao DOCX acadêmico. A edição de 50 páginas foi renderizada e conferida; cópia anterior e relatório estão em `output/reviews/`. Essa evidência documental complementa os testes do frontend, sem substituí-los.
+
+`User` mantém nome, e-mail e cargo global e acrescenta `active` opcional: a ausência preserva a interpretação de conta ativa dos dados anteriores. `RecordMeta` reúne revisão, autor/data da última alteração e marca de exclusão lógica, todos opcionais para compatibilidade. `Subject.teacherIds` substitui o campo singular; a migração transforma a atribuição antiga em uma lista, sem reiniciar o banco nem alterar sua chave/versão. A inativação, exclusão ou perda do cargo de professor retira as atribuições atuais, preservando os conteúdos e a autoria anteriores.
+
+`access.ts` concentra consulta e ação: administração gerencia estrutura e equipe; docentes compartilham a gestão de conteúdos nas disciplinas atribuídas; alunos consultam os conteúdos de turmas ativas às quais estão vinculados e os próprios registros privados. A projeção entregue por `useApp()` limita coleções, destinos e detalhes por URL, retira registros excluídos das visões operacionais e preserva os nomes necessários à autoria. E-mails de terceiros só são expostos à equipe no contexto permitido. Docentes consultam envios concluídos; os rascunhos de resposta não são expostos pela projeção da equipe. Turmas inativas permanecem consultáveis pela equipe autorizada, com gestão de conteúdo bloqueada.
+
+`demo-mutations.ts` opera sobre o banco interno completo e revalida o ator atual, o cargo, a atribuição, o contexto de destino e a disponibilidade antes de concluir uma receita. Impede alterações de estrutura por docentes, troca da autoria original, remoção física de registros e perda do último administrador ativo. Confere a revisão esperada e gera a nova revisão com autor/data. `AuditEvent` registra identificadores, coleção, ação e momento; mudanças de atribuição também geram eventos `teachingAssignments`, com alvo composto pelos IDs da disciplina e do docente. O log não copia nome, e-mail, respostas ou arquivos.
+
+O estado do navegador coordena leitura da versão mais recente, validação e gravação com Web Locks. O evento `storage` sincroniza outras abas a partir do valor atualmente persistido, evitando reintroduzir um evento antigo. Carregamento/migração usa a mesma coordenação. Sem suporte a Web Locks, gravações persistidas são recusadas com orientação; se o armazenamento estiver indisponível, o aviso existente explica a persistência limitada à visita. Não há sincronização entre dispositivos.
+
+Os editores conservam os campos locais e a revisão aberta. Uma alteração concorrente bloqueia o salvamento, mostra responsável/momento e permite consultar a versão atual antes de reconhecer a nova revisão. A conferência não salva automaticamente. A mutação também revalida acesso após a latência do mock, impedindo concluir uma operação com atribuição retirada ou conta inativa.
+
+As correções de recuperação usam funções puras próximas do domínio: `subjects/lib/teaching-team.ts` conserva seleções indisponíveis visíveis e removíveis; `assessments/lib/assessment-editor.ts` recupera somente a estrutura vigente após a primeira entrega, sem reconhecer a revisão e sem perder os campos ainda editáveis. `compareAttendanceRecords`, em `lib/attendance.ts`, apresenta a união das marcações salvas/locais por aluno, distinguindo ausência de falta de registro. Essas transformações não alteram os formatos persistidos e possuem regressões unitárias, complementadas pelos roteiros de navegador.
+
+Como proteção necessária à edição compartilhada de questionários, a primeira entrega bloqueia alterações estruturais; título, orientações e prazo continuam editáveis. Antes da primeira entrega, mudar as questões exige confirmação e reinicia respostas/ordem de todos os rascunhos da atividade, registrando `questionsUpdatedAt`. A sessão do aluno descarta a recuperação antiga e informa a atualização. O envio anterior nunca é reaberto nem sobrescrito. Essa aplicação da regra D11 não conclui as demais entregas do PP06.
+
+A demo conserva o banco completo com dados fictícios no navegador de quem a utiliza. Projeções e comandos locais demonstram comportamento; não constituem autorização de servidor ou auditoria inviolável. Exclusão lógica não equivale à eliminação por privacidade nem autoriza retenção permanente. Matrícula pendente, entrega de arquivos/retorno docente, isolamento das questões autorais e avisos com calendário opcional permanecem nos respectivos pacotes posteriores. As evidências reais, sem presumir aceite apenas pela documentação, ficam no plano, em `VALIDACAO.md` e no relatório do pacote.
 
 ## Como alterar uma funcionalidade
 

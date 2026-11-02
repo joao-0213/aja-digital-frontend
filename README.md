@@ -34,6 +34,8 @@ ngrok http 3001
 
 Gere o build novamente após alterar o código.
 
+Se o Turbopack falhar ao iniciar o processo de compilação do CSS, execute `npm run build -- --webpack` para gerar a exportação estática com Webpack.
+
 ## Verificação
 
 ```sh
@@ -58,11 +60,19 @@ Os testes usam `node:test`. A checagem de tipos gera os tipos do Next.js antes d
 
 Consulte [ARQUITETURA.md](ARQUITETURA.md) para localizar cada domínio, entender as fronteiras entre módulos e validar mudanças estruturais.
 
+O PP01 reduz o perfil a nome/e-mail e dados operacionais, mantém painéis fixos, materiais com acesso direto e questionários com ordem fixa e envio único. O resultado individual permanece disponível. Bancos locais antigos são migrados na mesma chave, preservando respostas e histórico compatível. As histórias e os diagramas revisados estão no complemento local `docs/ESCOPO-PP01.md` e foram incorporados ao DOCX acadêmico indicado pelo usuário. A entrega de redação como arquivo permanece pendente do PP06.
+
+O PP02 acrescenta cadastro, edição, inativação e exclusão lógica de docentes pela administração, além de vários professores por disciplina, com permissões iguais. Turmas, disciplinas, vínculos e atribuições são gerenciados pelo administrador. Consultas, destinos de formulários, URLs e mutações usam regras comuns para limitar o professor às disciplinas atribuídas e o aluno aos próprios registros privados. Os formulários de edição preservam o preenchimento diante de conflito e exigem conferir a versão atual antes de salvar novamente. Histórias, matriz de acesso e diagramas estão em [docs/ESCOPO-PP02.md](docs/ESCOPO-PP02.md) e foram incorporados ao DOCX acadêmico, renderizado e conferido com cópia anterior preservada.
+
 ## Demonstração
 
 A aplicação usa dados fictícios e armazenamento no navegador. Autenticação, permissões e envio de notificações são simulados. Materiais enviados ficam disponíveis apenas no navegador em que foram publicados.
 
 O botão **Demonstração**, na parte inferior do menu, permite alternar entre aluno, professor e administrador.
+
+Para testar colaboração, entre como administrador, cadastre outro docente em **Usuários e docentes** e atribua ambos à mesma disciplina. Use o login com o e-mail fictício cadastrado para acessar o segundo professor; a conta selecionada permanece na sessão após recarregar. Inativar ou excluir a conta encerra o acesso sem entrar automaticamente como outro usuário. A autoria das publicações anteriores é preservada.
+
+As alterações entre abas do mesmo navegador são coordenadas com Web Locks e conferência da versão persistida. Use um navegador com suporte a essa API em `localhost` ou HTTPS; quando a coordenação não está disponível, a aplicação explica a limitação e bloqueia a gravação persistida. Isso não oferece colaboração entre dispositivos nem substitui permissões no futuro serviço de dados. Os resultados efetivamente executados ficam em [VALIDACAO.md](VALIDACAO.md) e nos relatórios por pacote em `output/reviews/`.
 
 | Perfil | E-mail de exemplo |
 | --- | --- |
