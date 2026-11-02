@@ -9,6 +9,7 @@ import { DEMO_DATABASE_KEY, DEMO_ROLE_KEY, DEMO_USER_KEY, readDemoState } from '
 import { isDatabase, migrateDatabase } from '@/lib/demo-storage';
 import { isActiveUser, scopeDatabase } from '@/lib/access';
 import { applyDemoMutation, type MutationOptions } from '@/lib/demo-mutations';
+import { clearDrafts } from '@/lib/announcement-draft';
 import type { AppContextValue } from './app-context';
 
 const ids: Record<Role, string> = {
@@ -152,6 +153,7 @@ export function useDemoState(notify: AppContextValue['notify']): Omit<AppContext
     } catch {}
   };
   const reset = () => {
+    try { clearDrafts(sessionStorage); } catch { notify('Não foi possível limpar as composições de avisos desta sessão.', true); }
     void removeMaterialFiles().catch(() => notify('Os dados foram restaurados, mas não foi possível remover os PDFs locais.', true));
     const fresh = migrateDatabase(seed);
     current.current = fresh;
