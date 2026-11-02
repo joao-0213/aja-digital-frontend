@@ -10,17 +10,18 @@ import { gradeAttempt } from '@/lib/domain';
 export function AssessmentResult() {
   const {
     db,
-    user
+    user,
+    role
   } = useApp();
   const id = useSearchParams().get('id');
-  const attempt = db.attempts.find(t => t.id === id && t.userId === user.id && t.submittedAt);
+  const attempt = db.attempts.find(t => t.id === id && (role !== 'student' || t.userId === user.id) && t.submittedAt);
   if (!attempt) return <Empty title="Resultado não encontrado" description="Conclua um questionário para ver seu desempenho." action={<LinkButton href="/questionarios">Ver questionários</LinkButton>} />;
   const a = db.assessments.find(a => a.id === attempt.assessmentId)!;
   const {
     correct
   } = gradeAttempt(attempt.questionOrder, attempt.answers, db.questions);
   return <div className="mx-auto max-w-3xl">
-    <PageHeading eyebrow="Questionário" title="Resultado" description={a.title} />
+    <PageHeading eyebrow="Questionário" title="Resultado" description={`${a.title}${role !== 'student' ? ` · ${db.users.find(u => u.id === attempt.userId)?.name ?? 'Aluno'}` : ''}`} />
     <Card className="mb-6 text-center">
       <Trophy className="mx-auto mb-4 size-10 text-brand-500" />
       <p className="text-5xl font-bold text-brand-700">
@@ -30,7 +31,7 @@ export function AssessmentResult() {
       <p className="mt-3 text-slate-500">{correct} de {attempt.questionOrder.length} questões corretas</p>
       <p className="mt-2 text-sm text-slate-400">Confira suas respostas e o gabarito abaixo.</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <LinkButton href={`/questionarios/responder?id=${a.id}`}>Ver tentativas</LinkButton>
+        <LinkButton href={`/questionarios/responder?id=${a.id}`}>Ver envios</LinkButton>
         <LinkButton secondary href="/disciplinas">Voltar aos estudos</LinkButton>
       </div>
     </Card>

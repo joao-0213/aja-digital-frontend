@@ -43,14 +43,15 @@ export function AssessmentsPage() {
           {a.description}
         </p>
         <div className="mb-5 space-y-2 text-sm text-slate-500">
-          <p>{a.questionIds.length} {a.questionIds.length === 1 ? 'questão' : 'questões'} · {a.attempts} {a.attempts === 1 ? 'tentativa' : 'tentativas'}</p>
+          <p>{a.questionIds.length} {a.questionIds.length === 1 ? 'questão' : 'questões'} · envio único</p>
           <p className="text-xs text-slate-500"><PublicationDate value={a.publishedAt} /></p>
           <p className="flex items-center gap-2"><Clock3 className="size-4" />Até {dateLabel(a.deadline)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {a.status === 'draft' ? <LinkButton secondary href={`/questionarios/criar?id=${a.id}`}>Editar rascunho</LinkButton> : <LinkButton href={`/questionarios/responder?id=${a.id}`}>
-            {last ? 'Ver tentativas' : 'Começar'}
+            {role !== 'student' ? 'Consultar envios' : last ? 'Ver envios' : 'Começar'}
           </LinkButton>}
+          {role !== 'student' && a.status === 'published' && <LinkButton secondary href={`/questionarios/criar?id=${a.id}`}>Editar atividade</LinkButton>}
           {last && <LinkButton secondary href={`/questionarios/resultado?id=${last.id}`}>Resultado</LinkButton>}
         </div>
       </Card>;

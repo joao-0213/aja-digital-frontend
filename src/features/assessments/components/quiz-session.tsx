@@ -6,6 +6,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Dialog, PageHeading, ProgressBar } from '@/components/ui';
 import { cn, percent } from '@/lib/utils';
+import { saveAttemptAnswers, submitAttempt } from '@/lib/assessment-attempts';
 import { type Attempt } from '@/models';
 
 export function QuizSession({
@@ -22,6 +23,10 @@ export function QuizSession({
   const recoveryKey = `aja-attempt-${attempt.id}`;
   const [answers, setAnswers] = useState<Record<string, number>>(() => {
     if (typeof window !== 'undefined') try {
+      if (attempt.questionsUpdatedAt && sessionStorage.getItem(`${recoveryKey}:questions-updated`) !== attempt.questionsUpdatedAt) {
+        sessionStorage.removeItem(recoveryKey);
+        return attempt.answers;
+      }
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw) {
         const value: unknown = JSON.parse(raw);
@@ -42,15 +47,13 @@ export function QuizSession({
   useEffect(() => {
     try {
       sessionStorage.setItem(recoveryKey, JSON.stringify(answers));
+      if (attempt.questionsUpdatedAt) sessionStorage.setItem(`${recoveryKey}:questions-updated`, attempt.questionsUpdatedAt);
     } catch {}
     setSaveStatus('saving');
     let cancelled = false;
     const timer = setTimeout(() => {
       void mutate(d => {
-        const item = d.attempts.find(t => t.id === attempt.id);
-        if (item && !item.submittedAt) item.answers = {
-          ...answers
-        };
+        saveAttemptAnswers(d, attempt.id, answers, attempt.questionsUpdatedAt);
       }).then(ok => {
         if (!cancelled) setSaveStatus(ok ? 'saved' : 'error');
       });
@@ -62,22 +65,18 @@ export function QuizSession({
   }, [answers, attempt.id, mutate, retry, recoveryKey]);
   const submit = async () => {
     const ok = await mutate(d => {
-      const item = d.attempts.find(t => t.id === attempt.id);
-      if (item) {
-        item.answers = {
-          ...answers
-        };
-        item.submittedAt = new Date().toISOString();
-      }
+      submitAttempt(d, attempt.id, answers, new Date().toISOString(), attempt.questionsUpdatedAt);
     }, 'Questionário enviado.');
     if (ok) {
       try {
         sessionStorage.removeItem(recoveryKey);
+        sessionStorage.removeItem(`${recoveryKey}:questions-updated`);
       } catch {}
       router.push(`/questionarios/resultado?id=${attempt.id}`);
     }
   };
   return <div className="mx-auto max-w-4xl">
+    {attempt.questionsUpdatedAt && <p role="status" className="mb-5 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-900">O professor atualizou as questões em {new Date(attempt.questionsUpdatedAt).toLocaleString('pt-BR')}. Todo o rascunho anterior foi reiniciado. Confira as questões e responda novamente antes do seu único envio.</p>}
     <PageHeading eyebrow="Questionário" title={a.title} action={<Badge tone={saveStatus === 'error' ? 'red' : 'neutral'}>
         {saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'error' ? 'Falha ao salvar' : 'Salvo neste navegador'}
       </Badge>} />
@@ -126,7 +125,7 @@ export function QuizSession({
       {index < attempt.questionOrder.length - 1 ? <Button onClick={() => setIndex(i => i + 1)}>Próxima questão</Button> : <Button onClick={() => setConfirm(true)}>Revisar e enviar</Button>}
     </div>
     <Dialog open={confirm} onClose={() => setConfirm(false)} title="Enviar suas respostas?">
-      <p className="mb-5 leading-7 text-slate-500">Você respondeu {Object.keys(answers).length} de {attempt.questionOrder.length} questões. Após o envio, esta tentativa não poderá ser alterada.</p>
+      <p className="mb-5 leading-7 text-slate-500">Você respondeu {Object.keys(answers).length} de {attempt.questionOrder.length} questões. Após o envio, suas respostas não poderão ser alteradas e não haverá novo envio.</p>
       {Object.keys(answers).length < attempt.questionOrder.length && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Há {attempt.questionOrder.length - Object.keys(answers).length} questões em branco. Elas não receberão pontos.</p>}
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={() => setConfirm(false)}>Revisar</Button>
