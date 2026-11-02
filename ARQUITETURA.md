@@ -125,6 +125,12 @@ A demo conserva o banco completo com dados fictícios no navegador de quem a uti
 
 ## Como alterar uma funcionalidade
 
+### Materiais — PP04
+
+`Material.videoUrl` é opcional para preservar registros antigos sem endereço. `lib/material-video.ts` aceita fontes HTTPS sem credenciais e constrói incorporações somente por IDs reconhecidos de YouTube/Vimeo. O formulário e `demo-mutations.ts` validam o endereço; materiais antigos sem URL permanecem consultáveis, com orientação para a equipe atualizar a fonte. O componente `MaterialVideo` só carrega o provedor por escolha do usuário, conserva o link externo e oferece saída explícita para bloqueios que não disparam erro de iframe. Não há player fictício ou hospedagem própria.
+
+O leitor retorna à aba de materiais e à âncora do módulo de origem; PDF apresenta nome/tamanho e alternativa de download, preservando IndexedDB, publicação em lote, progresso individual e último acesso. Não há nova chave, reinicialização de banco ou migração de blobs. Histórias/diagramas do complemento estão em `docs/ESCOPO-PP04.md`; resultados e limites reais em `output/reviews/VALIDACAO-PP04.md`.
+
 No PP03, `enrollments` registra pendência, efetivação e encerramento; `studentIds` permanece como projeção compatível do vínculo. Cadastro cria `emailConfirmedAt: null`; o comando de confirmação simula a etapa e resolve a pendência atomicamente. As mutações genéricas não confirmam e-mail nem editam essa coleção diretamente. Encerramento da turma deriva cancelamento das pendências e saída dos alunos, com auditoria. O instante da matrícula registra atividades já vencidas como não atribuídas, mesmo com aceitação de atraso; a chamada usa a data local do vínculo. Esses atributos não concluem o editor completo ou os tipos de entrega planejados no PP06.
 
 Vínculos migrados sem data confiável são marcados como legados e exibem “data não registrada”. Múltiplas turmas ativas antigas permanecem preservadas para regularização explícita: nenhuma turma é escolhida automaticamente, e o contexto acadêmico do aluno fica bloqueado enquanto houver ambiguidade. O conflito não impede operações administrativas independentes. Nome/e-mail, respostas e demais registros permanecem na mesma chave e versão do banco.

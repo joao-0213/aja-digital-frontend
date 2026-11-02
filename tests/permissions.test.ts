@@ -32,6 +32,32 @@ function fixture(): MockDatabase {
   };
 }
 
+test('video mutations reject unsafe sources without changing existing data and preserve legacy materials', () => {
+  const db = fixture();
+  const original = structuredClone(db);
+  assert.throws(() => applyDemoMutation(db, 't1', d => { Object.assign(d.materials[0], { kind: 'video', videoUrl: 'javascript:alert(1)' }); }), /URL HTTPS/);
+  assert.deepEqual(db, original);
+  const legacy = applyDemoMutation(db, 't1', d => { d.materials[0].kind = 'video'; });
+  assert.equal(legacy.materials[0].videoUrl, undefined);
+  const valid = applyDemoMutation(db, 't1', d => { Object.assign(d.materials[0], { kind: 'video', videoUrl: 'https://example.org/video' }); });
+  assert.equal(valid.materials[0].videoUrl, 'https://example.org/video');
+  assert.equal(migrateDatabase(valid).materials[0].videoUrl, 'https://example.org/video');
+});
+
+test('material editing preserves colleagues changes, refuses revoked access and hides soft deleted content', () => {
+  const db = fixture();
+  const first = applyDemoMutation(db, 't1', d => { d.materials[0].title = 'Versão atual'; }, { expected: [{ collection: 'materials', id: 'p1', revision: 0 }] });
+  assert.throws(() => applyDemoMutation(first, 't2', d => { d.materials[0].content = 'Local'; }, { expected: [{ collection: 'materials', id: 'p1', revision: 0 }] }), /alterad|versão/i);
+  assert.equal(first.materials[0].title, 'Versão atual');
+  const revoked = structuredClone(first);
+  revoked.subjects[0].teacherIds = ['t1'];
+  assert.throws(() => applyDemoMutation(revoked, 't2', d => { d.materials[0].title = 'Sem acesso'; }), /permissão/);
+  const removed = applyDemoMutation(first, 't1', d => { d.materials[0].deletedAt = '2026-11-02T08:00:00Z'; });
+  assert.equal(removed.materials.length, 1);
+  assert.equal(scopeDatabase(removed, removed.users[3]).materials.length, 0);
+  assert.equal(removed.audit.at(-1)?.action, 'delete');
+});
+
 test('assigned colleagues have equal access without gaining another discipline', () => {
   const db = fixture();
   assert.equal(canManageSubject(db, db.users[1], 'd1'), true);

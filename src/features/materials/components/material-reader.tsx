@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { BookOpen, CheckCircle2, Download, Pause, Play, Clock3, Pencil } from 'lucide-react';
+import { BookOpen, CheckCircle2, Download, Clock3, Pencil } from 'lucide-react';
 import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
 import { PublicationDate } from '@/components/ui/publication-date';
 import { useApp } from '@/providers/app-context';
@@ -11,6 +11,7 @@ import { Badge, Button, Card, Empty, LinkButton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { readMaterialFile } from '@/lib/material-files';
 import { canManageSubject } from '@/lib/access';
+import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
 
 export function MaterialReader() {
@@ -24,9 +25,7 @@ export function MaterialReader() {
   const material = db.materials.find(m => m.id === id);
   const mod = db.modules.find(m => m.id === material?.moduleId);
   const subject = db.subjects.find(s => s.id === mod?.subjectId);
-  const [playing, setPlaying] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [position, setPosition] = useState(0);
   const [localFile, setLocalFile] = useState<{ id: string; url?: string; error?: string } | null>(null);
   useEffect(() => {
     const fileId = material?.localFileId;
@@ -42,8 +41,6 @@ export function MaterialReader() {
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
   }, [material?.localFileId]);
   useEffect(() => {
-    setPlaying(false);
-    setPosition(0);
     if (material) void mutate(d => {
       const existing = d.progress.find(p => p.userId === user.id && p.materialId === id);
       if (existing) existing.lastAccess = new Date().toISOString();else d.progress.push({
@@ -54,17 +51,6 @@ export function MaterialReader() {
       });
     });
   }, [id, user.id, mutate]);
-  useEffect(() => {
-    if (!playing) return;
-    const timer = setInterval(() => setPosition(p => {
-      if (p >= 100) {
-        setPlaying(false);
-        return 100;
-      }
-      return p + 1;
-    }), 1000);
-    return () => clearInterval(timer);
-  }, [playing]);
   if (!material || !mod || !subject) return <Empty title="Material indisponível" description="O material pode ter sido retirado ou seu acesso à disciplina foi encerrado. Consulte as disciplinas disponíveis." action={<LinkButton href="/disciplinas">Voltar às disciplinas</LinkButton>} />;
   const modules = db.modules.filter(m => m.subjectId === subject.id).sort((a, b) => a.order - b.order);
   const materials = modules.flatMap(m => db.materials.filter(a => a.moduleId === m.id).sort((a, b) => a.order - b.order));
@@ -81,7 +67,7 @@ export function MaterialReader() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return <>
-    <Link href={`/disciplinas/detalhes?id=${subject.id}`} className="mb-6 inline-block text-sm font-medium text-brand-600">{subject.name} / {mod.title}</Link>
+    <Link href={`/disciplinas/detalhes?id=${subject.id}&aba=materiais#module-${mod.id}`} className="mb-6 inline-block text-sm font-medium text-brand-600">{subject.name} / {mod.title}</Link>
     {canManageSubject(db, user, subject.id) && <div className="mb-5 flex flex-wrap items-center gap-3"><Button variant="secondary" onClick={() => setEditing(true)}><Pencil aria-hidden="true" className="size-4" />Editar material</Button><p className="text-xs text-slate-500">Publicado por {db.users.find(u => u.id === material.authorId)?.name ?? 'Equipe AJA'}{material.updatedAt && ` · Última alteração: ${db.users.find(u => u.id === material.updatedBy)?.name ?? 'Equipe AJA'}, ${new Date(material.updatedAt).toLocaleString('pt-BR')}`}</p></div>}
     {editing && <MaterialComposer key={material.id} materialId={material.id} moduleId={mod.id} onClose={() => setEditing(false)} />}
     <div className="grid items-start gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
@@ -100,17 +86,7 @@ export function MaterialReader() {
       </aside>
       <div>
         <Card className="!p-0 overflow-hidden">
-          {material.kind === 'video' && <div className="bg-slate-900 px-6 py-10 text-center text-white sm:px-10">
-            <Badge tone="purple">Player demonstrativo</Badge>
-            <h2 className="mx-auto mb-5 mt-6 max-w-lg text-2xl font-semibold">
-              {material.title}
-            </h2>
-            <Button aria-label={playing ? 'Pausar simulação' : 'Reproduzir simulação'} onClick={() => setPlaying(!playing)} className="mx-auto !size-16 rounded-full !p-0">
-              {playing ? <Pause className="size-6" /> : <Play className="size-6" />}
-            </Button>
-            <p className="mb-6 mt-4 text-xs text-slate-300">Simulação visual · consulte a transcrição abaixo</p>
-            <input type="range" aria-label="Posição do player demonstrativo" min={0} max={100} value={position} onChange={e => setPosition(Number(e.target.value))} className="w-full accent-brand-500" />
-          </div>}
+          {material.kind === 'video' && <MaterialVideo key={`${material.id}:${material.videoUrl}`} url={material.videoUrl} title={material.title} />}
           <div className="p-6 sm:p-8">
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <Badge tone="purple">
@@ -125,13 +101,13 @@ export function MaterialReader() {
             <p className="mb-5 text-xs text-slate-500"><PublicationDate value={material.createdAt} /></p>
             {material.localFileId && <div className="mb-6">
               {localFile?.id === material.localFileId && localFile.url ? <>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-50 p-4"><span className="min-w-0 break-all text-sm text-brand-900">{material.fileName}</span><a href={localFile.url} download={material.fileName} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"><Download aria-hidden="true" className="size-4" />Baixar PDF</a></div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-50 p-4"><span className="min-w-0 break-all text-sm text-brand-900">{material.fileName}{material.fileSize ? ` · ${(material.fileSize / 1024).toFixed(0)} KB` : ''}</span><a href={localFile.url} download={material.fileName} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"><Download aria-hidden="true" className="size-4" />Baixar PDF</a></div>
                 <iframe title={`PDF: ${material.title}`} src={localFile.url} className="hidden h-[560px] w-full rounded-lg border border-slate-200 sm:block" />
                 <p className="mt-3 text-xs leading-5 text-slate-500">Arquivo salvo nesta demonstração, apenas neste navegador. Se a prévia não abrir, use Baixar PDF.</p>
               </> : localFile?.id === material.localFileId && localFile.error ? <p role="alert" className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">{localFile.error}</p> : <p role="status" className="p-4 text-sm text-slate-500">Abrindo PDF…</p>}
             </div>}
-            {material.kind !== 'lesson' && !material.localFileId && <p className="mb-5 rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
-              {material.kind === 'video' ? 'Transcrição de exemplo. Nenhum vídeo externo é carregado.' : 'Prévia textual do documento de exemplo. O arquivo original não foi enviado.'}
+            {material.kind === 'pdf' && !material.localFileId && <p className="mb-5 rounded-xl bg-slate-50 p-3 text-sm text-slate-500">
+              Prévia textual do documento de exemplo. O arquivo original não foi enviado.
             </p>}
             <article className="space-y-5 leading-8 text-slate-600">
               {material.content.split('\n\n').map((p, i) => <p key={i} className="whitespace-pre-line">
@@ -157,7 +133,7 @@ export function MaterialReader() {
         </Card>
         <div className="mt-5 flex flex-wrap justify-between gap-3">
           <LinkButton secondary href={`/forum?disciplina=${subject.id}`}>Fiquei com uma dúvida</LinkButton>
-          <LinkButton href={`/disciplinas/detalhes?id=${subject.id}`}>Voltar à disciplina</LinkButton>
+          <LinkButton href={`/disciplinas/detalhes?id=${subject.id}&aba=materiais#module-${mod.id}`}>Voltar à disciplina</LinkButton>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { MockDatabase, RecordMeta, User } from '@/models';
 import { canAccessSubject, canManageSubject, isActiveUser } from './access.ts';
+import { videoSource } from './material-video.ts';
 import { enrolledForLesson, executeEnrollmentCommand, isAssessmentAssigned, reconcileEnrollments, type EnrollmentCommand } from './enrollment.ts';
 
 export interface MutationOptions {
@@ -119,6 +120,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (collection === 'attempts' && before?.submittedAt) throw new Error('Este questionário já foi enviado. O conteúdo e a data devem ser preservados.');
       if (['announcements', 'topics'].includes(collection) && row.subjectId && draft.subjects.find(s => s.id === row.subjectId)?.classId !== row.classId) throw new Error('A disciplina não pertence à turma selecionada. Confira o destino.');
       if (['materials', 'assessments'].includes(collection) && !draft.modules.some(m => m.id === row.moduleId && !m.deletedAt)) throw new Error('O módulo de destino está indisponível.');
+      if (collection === 'materials' && row.kind === 'video' && row.videoUrl !== undefined && (typeof row.videoUrl !== 'string' || !videoSource(row.videoUrl))) throw new Error('Informe uma URL HTTPS válida para o vídeo, sem credenciais.');
       if (collection === 'attendance') {
         const subject = draft.subjects.find(s => s.id === row.subjectId && !s.deletedAt);
         const schoolClass = draft.classes.find(c => c.id === subject?.classId && !c.deletedAt);
