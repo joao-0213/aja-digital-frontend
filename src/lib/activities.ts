@@ -31,6 +31,7 @@ export function saveWork(db: MockDatabase, assessmentId: string, userId: string,
   if (submit && activityClosed(a, now)) throw new Error('Prazo encerrado. Seus anexos foram preservados.');
   db.submissions ??= [];
   const existing = db.submissions.find(s => s.assessmentId === assessmentId && s.userId === userId);
+  if (existing && existing.id !== id) throw new Error('Outra aba criou um rascunho. Confira a versão atual antes de salvar. Seu preenchimento foi preservado.');
   if (existing?.deletedAt) throw new Error('Entrega indisponível. Não há reabertura de envio.');
   if (existing) { existing.attachments = structuredClone(attachments); if (submit) existing.submittedAt = now; }
   else db.submissions.push({ id, assessmentId, userId, attachments: structuredClone(attachments), ...(submit && { submittedAt: now }), feedbackHistory: [] });
