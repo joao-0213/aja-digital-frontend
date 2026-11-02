@@ -9,6 +9,7 @@ import { canManageSubject } from '@/lib/access';
 import { useRecordRevision } from '@/hooks/use-record-revision';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { compareAttendanceRecords, recordAttendance } from '@/lib/attendance';
+import { enrolledForLesson } from '@/lib/enrollment';
 
 export function AttendancePage() {
   const {
@@ -30,7 +31,7 @@ export function AttendancePage() {
   const [confirm, setConfirm] = useState(false);
   const s = db.subjects.find(s => s.id === subject);
   const c = db.classes.find(c => c.id === s?.classId);
-  const students = db.users.filter(u => u.role === 'student' && u.active !== false && !u.deletedAt && c?.studentIds.includes(u.id));
+  const students = db.users.filter(u => u.role === 'student' && c && enrolledForLesson(db, c.id, u.id, date));
   const existing = db.attendance.find(a => a.subjectId === subject && a.date === date && a.time === time);
   const revision = useRecordRevision('attendance', existing);
   if (role === 'student') return <Empty title="Registro de frequência" description="Esta tela está disponível para professores e administradores." />;
@@ -98,7 +99,7 @@ export function AttendancePage() {
           }))} />
         </div>)}
       </div>
-      {!students.length && <p className="py-8 text-sm text-slate-500">Esta turma ainda não tem alunos.</p>}
+      <p className="py-5 text-sm text-slate-500">Somente alunos vinculados na data da aula. Aulas anteriores à matrícula não geram faltas.</p>
       <div className="mt-5 flex justify-end">
         <Button disabled={!students.length || revision.conflict || !canManageSubject(db, user, subject)} onClick={() => setConfirm(true)}>
           {existing ? 'Atualizar chamada' : 'Salvar chamada'}

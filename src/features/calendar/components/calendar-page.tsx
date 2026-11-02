@@ -6,6 +6,7 @@ import { useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Dialog, LinkButton, PageHeading } from '@/components/ui';
 import { cn, dateLabel } from '@/lib/utils';
 import { type CalendarEvent } from '@/models';
+import { isAssessmentAssigned } from '@/lib/enrollment';
 
 type Entry = CalendarEvent & {
   assessmentId?: string;
@@ -13,13 +14,13 @@ type Entry = CalendarEvent & {
 
 export function CalendarPage() {
   const {
-    db
+    db, user, role
   } = useApp();
   const [month, setMonth] = useState(9);
   const [year, setYear] = useState(2026);
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<Entry | null>(null);
-  const entries: Entry[] = [...db.events, ...db.assessments.filter(a => a.status === 'published').map(a => ({
+  const entries: Entry[] = [...db.events, ...db.assessments.filter(a => a.status === 'published' && a.deadline && (role !== 'student' || isAssessmentAssigned(db, a, user.id))).map(a => ({
     id: a.id,
     assessmentId: a.id,
     title: a.title,

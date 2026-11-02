@@ -6,6 +6,8 @@ import { Avatar, Badge, Button, Card, Input, PageHeading } from '@/components/ui
 import { roleLabels } from '@/lib/utils';
 import { useRecordRevision } from '@/hooks/use-record-revision';
 import { RecordConflict } from '@/components/shared/record-conflict';
+import { PrivacyNotice } from '@/features/privacy';
+import { EnrollmentStatus } from '@/features/students';
 
 export function ProfilePage() {
   const { db, user, role, mutate, busy } = useApp();
@@ -13,6 +15,8 @@ export function ProfilePage() {
   const revision = useRecordRevision('users', user);
   return <>
     <PageHeading title="Meu perfil" description="Consulte e atualize seus dados cadastrais." />
+    <EnrollmentStatus />
+    <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Card className="text-center">
         <div className="mb-4 flex justify-center"><Avatar name={user.name} size="lg" /></div>

@@ -66,6 +66,10 @@ O PP02 acrescenta cadastro, edição, inativação e exclusão lógica de docent
 
 ## Demonstração
 
+O PP03 completa a matrícula por e-mail: a administração confere conta e destino, cria vínculo ou pendência; o cadastro posterior exige confirmação simulada. Sem matrícula, o aluno recebe orientação para aguardar inclusão. Cancelamento, saída e encerramento da turma preservam histórico e retiram acesso; não há restauração pela interface. Atividades vencidas antes da entrada ficam só para consulta e aulas anteriores não geram falta. O aviso de privacidade é acessível antes e depois do cadastro. Documentação local em `docs/ESCOPO-PP03.md` e `output/reviews/VALIDACAO-PP03.md`.
+
+Os exemplos novos têm uma turma ativa por aluno. Bancos antigos com múltiplos vínculos ativos são preservados, com orientação para regularização explícita pela administração; o acesso acadêmico ambíguo permanece bloqueado até encerrar o vínculo incorreto. A migração não escolhe turma nem transfere alunos automaticamente.
+
 A aplicação usa dados fictícios e armazenamento no navegador. Autenticação, permissões e envio de notificações são simulados. Materiais enviados ficam disponíveis apenas no navegador em que foram publicados.
 
 O botão **Demonstração**, na parte inferior do menu, permite alternar entre aluno, professor e administrador.

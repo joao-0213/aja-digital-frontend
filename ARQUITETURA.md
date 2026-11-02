@@ -18,6 +18,7 @@ O projeto organiza a interface em três camadas: elementos genéricos de UI, mó
 | Regras puras e infraestrutura compartilhada | `src/lib/` |
 | Visibilidade e permissões por contexto | `src/lib/access.ts` |
 | Validação de comandos, revisões e auditoria local | `src/lib/demo-mutations.ts` |
+| Matrícula por e-mail, confirmação simulada e recorte de entrada | `src/lib/enrollment.ts` |
 | Revisão aberta nos editores e apresentação de conflitos | `src/hooks/use-record-revision.ts` e `src/components/shared/record-conflict.tsx` |
 | Consulta simulada e integração com ferramentas de estudo | `src/hooks/` |
 
@@ -36,6 +37,7 @@ Os modelos ficam separados por assunto em `src/models/`. `index.ts` mantém a en
 | `announcements.ts` | `Announcement` |
 | `calendar.ts` | `CalendarEvent` |
 | `attendance.ts` | `Attendance` |
+| `enrollment.ts` | `Enrollment`, pendências e ciclo dos vínculos com datas |
 | `audit.ts` | `RecordMeta` e `AuditEvent` |
 | `database.ts` | `MockDatabase`, que compõe os modelos dos outros arquivos |
 
@@ -58,7 +60,8 @@ Cada módulo em `src/features/` expõe seus componentes compartilhados e entrada
 | `calendar` | `/calendario` |
 | `announcements` | `/avisos` |
 | `profile` | `/perfil`, nome, e-mail, papel e matrículas do próprio usuário |
-| `students` | `/alunos`, `/alunos/perfil`, matrícula e identificação mínima |
+| `students` | `/alunos`, `/alunos/perfil`, inclusão por e-mail, pendências, histórico e confirmação retomável no painel/perfil |
+| `privacy` | Aviso demonstrativo reutilizado no cadastro/login e no perfil, sem canal real de atendimento |
 | `attendance` | `/frequencia` |
 | `users` | `/usuarios`, cargos globais e cadastro, edição, inativação e exclusão lógica de docentes pela administração |
 
@@ -81,7 +84,7 @@ Estado da demonstração, formulários, APIs do navegador, leitura de parâmetro
 
 ## Contratos que devem ser preservados
 
-- `useApp()`: dados projetados para o usuário, conta atual, perfil, `ready`, `busy`, troca de perfil, entrada, busca de conta para login simulado, mutação, notificação e restauração. A mutação aceita uma revisão esperada opcional para conferir a versão aberta no formulário.
+- `useApp()`: dados projetados para o usuário, conta atual, perfil, `ready`, `busy`, troca de perfil, entrada, busca de conta para login simulado, mutação, notificação e restauração. A mutação aceita revisão esperada e comandos tipados de matrícula; ambos são conferidos no estado mais recente.
 - `aja-digital-demo-v1`: banco serializado em localStorage, com versão e formato existentes. A validação e as chaves centrais vivem em `src/lib/demo-storage.ts`.
 - `aja-demo-role`: perfil da demonstração em sessionStorage. O comportamento de entrada e troca de perfil continua definido pelo estado da demonstração.
 - `aja-demo-user`: identificador da conta selecionada na mesma sessão, acrescentado pelo PP02 para distinguir docentes do mesmo cargo. Sessões antigas apenas com o papel continuam legíveis; uma conta selecionada que foi inativada ou excluída não é substituída silenciosamente por outra.
@@ -121,6 +124,10 @@ Como proteção necessária à edição compartilhada de questionários, a prime
 A demo conserva o banco completo com dados fictícios no navegador de quem a utiliza. Projeções e comandos locais demonstram comportamento; não constituem autorização de servidor ou auditoria inviolável. Exclusão lógica não equivale à eliminação por privacidade nem autoriza retenção permanente. Matrícula pendente, entrega de arquivos/retorno docente, isolamento das questões autorais e avisos com calendário opcional permanecem nos respectivos pacotes posteriores. As evidências reais, sem presumir aceite apenas pela documentação, ficam no plano, em `VALIDACAO.md` e no relatório do pacote.
 
 ## Como alterar uma funcionalidade
+
+No PP03, `enrollments` registra pendência, efetivação e encerramento; `studentIds` permanece como projeção compatível do vínculo. Cadastro cria `emailConfirmedAt: null`; o comando de confirmação simula a etapa e resolve a pendência atomicamente. As mutações genéricas não confirmam e-mail nem editam essa coleção diretamente. Encerramento da turma deriva cancelamento das pendências e saída dos alunos, com auditoria. O instante da matrícula registra atividades já vencidas como não atribuídas, mesmo com aceitação de atraso; a chamada usa a data local do vínculo. Esses atributos não concluem o editor completo ou os tipos de entrega planejados no PP06.
+
+Vínculos migrados sem data confiável são marcados como legados e exibem “data não registrada”. Múltiplas turmas ativas antigas permanecem preservadas para regularização explícita: nenhuma turma é escolhida automaticamente, e o contexto acadêmico do aluno fica bloqueado enquanto houver ambiguidade. O conflito não impede operações administrativas independentes. Nome/e-mail, respostas e demais registros permanecem na mesma chave e versão do banco.
 
 1. Localize o domínio na tabela e leia a entrada pública e os componentes envolvidos.
 2. Preserve regras compartilhadas existentes; mantenha regras específicas junto ao domínio quando uma nova extração for justificada.
