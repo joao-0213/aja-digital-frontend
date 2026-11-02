@@ -122,7 +122,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (collection === 'attendance') {
         const subject = draft.subjects.find(s => s.id === row.subjectId && !s.deletedAt);
         const schoolClass = draft.classes.find(c => c.id === subject?.classId && !c.deletedAt);
-        if (!schoolClass || Object.keys(row.records as object).some(id => !enrolledForLesson(draft, schoolClass.id, id, String(row.date)))) throw new Error('A chamada só pode registrar alunos vinculados na data da aula, sem faltas anteriores à matrícula.');
+        if (!schoolClass || Object.keys(row.records as object).some(id => !enrolledForLesson(current, schoolClass.id, id, String(row.date)))) throw new Error('A chamada só pode registrar alunos vinculados na data da aula, sem faltas anteriores à matrícula.');
       }
       if (collection === 'assessments' && before && current.attempts.some(a => a.assessmentId === row.id && a.submittedAt) && !onlyFields(before, row, ['title', 'description', 'deadline', 'deletedAt'])) throw new Error('Já existe uma entrega. Apenas título, instruções e prazo podem mudar.');
       changes.push({ collection, before, after: row });

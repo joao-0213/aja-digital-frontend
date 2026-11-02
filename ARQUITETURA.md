@@ -129,6 +129,8 @@ No PP03, `enrollments` registra pendência, efetivação e encerramento; `studen
 
 Vínculos migrados sem data confiável são marcados como legados e exibem “data não registrada”. Múltiplas turmas ativas antigas permanecem preservadas para regularização explícita: nenhuma turma é escolhida automaticamente, e o contexto acadêmico do aluno fica bloqueado enquanto houver ambiguidade. O conflito não impede operações administrativas independentes. Nome/e-mail, respostas e demais registros permanecem na mesma chave e versão do banco.
 
+A identidade de um vínculo efetivado é a conta referenciada: reutilizar o e-mail histórico de outra conta não pode confirmar uma matrícula inexistente ou transferir o vínculo. Para vínculos legados encerrados sem data de saída, a frequência conserva os dias já documentados, sem admitir novas chamadas futuras com base na data desconhecida. Essa elegibilidade é conferida contra o estado anterior à mutação, para que o novo registro não sirva como prova de si próprio.
+
 1. Localize o domínio na tabela e leia a entrada pública e os componentes envolvidos.
 2. Preserve regras compartilhadas existentes; mantenha regras específicas junto ao domínio quando uma nova extração for justificada.
 3. Reutilize os elementos de UI e extraia componentes ou hooks por responsabilidade. Crie apenas arquivos necessários.
