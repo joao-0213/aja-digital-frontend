@@ -1,6 +1,8 @@
+import type { RecordMeta } from './audit';
+
 export type MaterialKind = 'lesson' | 'pdf' | 'video';
 
-export interface Material {
+export interface Material extends RecordMeta {
   id: string;
   moduleId: string;
   title: string;
@@ -15,7 +17,7 @@ export interface Material {
   order: number;
 }
 
-export interface Progress {
+export interface Progress extends RecordMeta {
   userId: string;
   materialId: string;
   completed: boolean;

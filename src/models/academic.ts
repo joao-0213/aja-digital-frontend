@@ -1,6 +1,8 @@
+import type { RecordMeta } from './audit';
+
 export type SubjectIcon = 'book' | 'calculator' | 'atom' | 'flask' | 'leaf' | 'globe' | 'languages' | 'landmark' | 'palette' | 'graduation';
 
-export interface SchoolClass {
+export interface SchoolClass extends RecordMeta {
   id: string;
   name: string;
   code: string;
@@ -10,17 +12,17 @@ export interface SchoolClass {
   studentIds: string[];
 }
 
-export interface Subject {
+export interface Subject extends RecordMeta {
   id: string;
   classId: string;
   name: string;
-  teacherId: string;
+  teacherIds: string[];
   color: 'violet' | 'blue' | 'amber' | 'green';
   icon?: SubjectIcon;
   description: string;
 }
 
-export interface TrailModule {
+export interface TrailModule extends RecordMeta {
   id: string;
   subjectId: string;
   title: string;

@@ -1,4 +1,7 @@
-export interface Assessment {
+import type { RecordMeta } from './audit';
+
+export interface Assessment extends RecordMeta {
+  authorId?: string;
   id: string;
   publishedAt?: string;
   moduleId: string;
@@ -6,12 +9,11 @@ export interface Assessment {
   description: string;
   questionIds: string[];
   deadline: string;
-  attempts: number;
-  shuffle: boolean;
   status: 'draft' | 'published';
 }
 
-export interface Attempt {
+export interface Attempt extends RecordMeta {
+  questionsUpdatedAt?: string;
   id: string;
   assessmentId: string;
   userId: string;

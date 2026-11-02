@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from 'react';
 import type { MockDatabase, Role, User } from '@/models';
+import type { MutationOptions } from '@/lib/demo-mutations';
 
 export interface AppContextValue {
   db: MockDatabase;
@@ -11,7 +12,8 @@ export interface AppContextValue {
   role: Role;
   setRole: (role: Role) => void;
   signIn: (id: string, role: Role) => void;
-  mutate: (recipe: (draft: MockDatabase) => void, message?: string) => Promise<boolean>;
+  lookupAccount: (email: string) => User | undefined;
+  mutate: (recipe: (draft: MockDatabase) => void, message?: string, options?: MutationOptions) => Promise<boolean>;
   notify: (message: string, error?: boolean) => void;
   reset: () => void;
 }

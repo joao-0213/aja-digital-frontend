@@ -1,4 +1,5 @@
-import type { User, StudentDocument } from './user';
+import type { AuditEvent } from './audit';
+import type { User } from './user';
 import type { SchoolClass, Subject, TrailModule } from './academic';
 import type { Material, Progress } from './materials';
 import type { Question } from './questions';
@@ -10,6 +11,7 @@ import type { Attendance } from './attendance';
 
 export interface MockDatabase {
   version: 1;
+  audit: AuditEvent[];
   users: User[];
   classes: SchoolClass[];
   subjects: Subject[];
@@ -22,6 +24,5 @@ export interface MockDatabase {
   announcements: Announcement[];
   events: CalendarEvent[];
   attendance: Attendance[];
-  documents: StudentDocument[];
   progress: Progress[];
 }

@@ -1,4 +1,4 @@
-export type { Role, DocumentStatus, User, StudentDocument } from './user';
+export type { Role, User } from './user';
 export type { SubjectIcon, SchoolClass, Subject, TrailModule } from './academic';
 export type { MaterialKind, Material, Progress } from './materials';
 export type { Difficulty, Question } from './questions';
@@ -8,3 +8,4 @@ export type { Announcement } from './announcements';
 export type { CalendarEvent } from './calendar';
 export type { Attendance } from './attendance';
 export type { MockDatabase } from './database';
+export type { RecordMeta, AuditEvent } from './audit';

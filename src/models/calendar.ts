@@ -1,4 +1,6 @@
-export interface CalendarEvent {
+import type { RecordMeta } from './audit';
+
+export interface CalendarEvent extends RecordMeta {
   id: string;
   title: string;
   kind: 'class' | 'exam' | 'event';

@@ -1,6 +1,8 @@
+import type { RecordMeta } from './audit';
+
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
-export interface Question {
+export interface Question extends RecordMeta {
   id: string;
   subject: string;
   topic: string;

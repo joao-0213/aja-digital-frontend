@@ -1,13 +1,15 @@
+import type { RecordMeta } from './audit';
+
 export interface ForumReply {
   id: string;
   authorId: string;
   body: string;
   createdAt: string;
-  votes: Record<string, -1 | 1>;
+  votes: Record<string, 1>;
   accepted: boolean;
 }
 
-export interface ForumTopic {
+export interface ForumTopic extends RecordMeta {
   id: string;
   classId: string;
   subjectId: string;

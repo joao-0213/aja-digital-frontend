@@ -3,69 +3,42 @@ import { questions } from './questions';
 export const DEMO_DATE = '2026-10-05';
 export const seed: MockDatabase = {
   version: 1,
+  audit: [],
   users: [{
     id: 'u1',
     name: 'Fernando Santos',
     email: 'fernando@exemplo.com',
-    role: 'student',
-    course: 'Ciência da Computação',
-    institution: 'UFPR',
-    quota: 'public_school',
-    bio: 'Um passo por dia rumo à universidade.'
+    role: 'student'
   }, {
     id: 'u2',
     name: 'Mariana Costa',
     email: 'mariana@exemplo.com',
-    role: 'teacher',
-    course: '',
-    institution: 'UFPR',
-    quota: 'none',
-    bio: 'Professora de Matemática. Aprender fica melhor quando compartilhamos.'
+    role: 'teacher'
   }, {
     id: 'u3',
     name: 'Rafael Oliveira',
     email: 'rafael@exemplo.com',
-    role: 'admin',
-    course: '',
-    institution: 'AJA',
-    quota: 'none',
-    bio: 'Coordenação pedagógica do Cursinho Solidário AJA.'
+    role: 'admin'
   }, {
     id: 'u4',
     name: 'Ana Luiza Ribeiro',
     email: 'ana@exemplo.com',
-    role: 'student',
-    course: 'Medicina',
-    institution: 'UFPR',
-    quota: 'public_school',
-    bio: 'Apaixonada por biologia e pela possibilidade de cuidar de pessoas.'
+    role: 'student'
   }, {
     id: 'u5',
     name: 'Lucas Almeida',
     email: 'lucas@exemplo.com',
-    role: 'student',
-    course: 'Engenharia Civil',
-    institution: 'UTFPR',
-    quota: 'none',
-    bio: ''
+    role: 'student'
   }, {
     id: 'u6',
     name: 'Beatriz Lima',
     email: 'beatriz@exemplo.com',
-    role: 'student',
-    course: 'Direito',
-    institution: 'UFPR',
-    quota: 'income',
-    bio: ''
+    role: 'student'
   }, {
     id: 'u7',
     name: 'Pedro Martins',
     email: 'pedro@exemplo.com',
-    role: 'student',
-    course: 'História',
-    institution: 'UFPR',
-    quota: 'none',
-    bio: ''
+    role: 'student'
   }],
   classes: [{
     id: 'c1',
@@ -97,7 +70,7 @@ export const seed: MockDatabase = {
     icon: 'calculator',
     classId: 'c1',
     name: 'Matemática',
-    teacherId: 'u2',
+    teacherIds: ['u2'],
     color: 'violet',
     description: 'Do raciocínio lógico à resolução de problemas.'
   }, {
@@ -105,7 +78,7 @@ export const seed: MockDatabase = {
     icon: 'leaf',
     classId: 'c1',
     name: 'Biologia',
-    teacherId: 'u2',
+    teacherIds: ['u2'],
     color: 'green',
     description: 'A vida, suas relações e transformações.'
   }, {
@@ -113,7 +86,7 @@ export const seed: MockDatabase = {
     icon: 'atom',
     classId: 'c1',
     name: 'Física',
-    teacherId: 'u2',
+    teacherIds: ['u2'],
     color: 'blue',
     description: 'Entenda os movimentos do mundo ao seu redor.'
   }, {
@@ -121,7 +94,7 @@ export const seed: MockDatabase = {
     icon: 'languages',
     classId: 'c2',
     name: 'Língua Portuguesa',
-    teacherId: 'u2',
+    teacherIds: ['u2'],
     color: 'amber',
     description: 'Leitura, interpretação e construção de sentidos.'
   }],
@@ -230,8 +203,6 @@ export const seed: MockDatabase = {
     description: 'Aplique o que aprendeu sobre funções afins em situações do cotidiano.',
     questionIds: ['q1', 'q2', 'q3'],
     deadline: '2026-10-08T23:59',
-    attempts: 3,
-    shuffle: false,
     status: 'published'
   }, {
     id: 'a2',
@@ -241,8 +212,6 @@ export const seed: MockDatabase = {
     description: 'Vamos testar seu raciocínio?',
     questionIds: ['q4', 'q8'],
     deadline: '2026-10-14T23:59',
-    attempts: 2,
-    shuffle: false,
     status: 'published'
   }, {
     id: 'a3',
@@ -252,8 +221,6 @@ export const seed: MockDatabase = {
     description: 'Uma revisão rápida dos conceitos de ecologia.',
     questionIds: ['q5'],
     deadline: '2026-10-12T23:59',
-    attempts: 2,
-    shuffle: false,
     status: 'published'
   }],
   attempts: [],
@@ -363,21 +330,6 @@ export const seed: MockDatabase = {
       u6: true,
       u7: true
     }
-  }],
-  documents: [{
-    id: 'd1',
-    userId: 'u1',
-    name: 'comprovante-escolar.pdf',
-    size: 245760,
-    status: 'approved',
-    uploadedAt: '2026-09-02T12:00:00'
-  }, {
-    id: 'd2',
-    userId: 'u1',
-    name: 'solicitacao-adaptacao.pdf',
-    size: 182300,
-    status: 'pending',
-    uploadedAt: '2026-10-02T12:00:00'
   }],
   progress: [{
     userId: 'u1',

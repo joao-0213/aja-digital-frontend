@@ -1,4 +1,6 @@
-export interface Announcement {
+import type { RecordMeta } from './audit';
+
+export interface Announcement extends RecordMeta {
   id: string;
   classId: string;
   subjectId?: string;
