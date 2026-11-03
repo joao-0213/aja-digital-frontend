@@ -38,7 +38,7 @@ export function canAccessStudent(db: MockDatabase, user: User, studentId: string
   return user.role === 'teacher' && visibleClasses(db, user).some(c => c.studentIds.includes(studentId) || db.enrollments?.some(e => e.classId === c.id && e.studentId === studentId && (e.enrolledAt || e.legacy === true)));
 }
 
-/** A projection for UI queries. The demo still stores fictitious data locally, not server authorization. */
+/** A legacy projection helper for tests; API authorization is enforced by the service. */
 export function scopeDatabase(db: MockDatabase, user: User): MockDatabase {
   const admin = isActiveUser(user) && user.role === 'admin';
   const subjects = visibleSubjects(db, user);

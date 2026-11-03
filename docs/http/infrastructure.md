@@ -1,5 +1,7 @@
 # Infraestrutura HTTP — AJA-04
 
+> **Registro histórico da fundação AJA-04.** Descrições de “etapas seguintes”, provider anterior e API pública limitada à saúde descrevem o estado em que este documento foi escrito; não descrevem o sistema atual. Para manutenção vigente, consulte `README.md`, `ARQUITETURA.md`, `VALIDACAO.md` e `docs/http/contract.md`. O frontend atual usa sessão e endpoints HTTP em JSON Server separado, sem provider ou fallback de estado local. As garantias de fila, validação e persistência abaixo continuam sendo o contrato interno do serviço.
+
 Esta etapa entrega mecanismos compartilhados e testes contra HTTP real. O processo público continua expondo apenas saúde até as fatias seguintes: não há endpoint de teste, cabeçalho para escolher ator ou receita de mutação enviada pelo navegador. Sessões reais entram em AJA-05; permissões concretas e DTOs de cada recurso entram com suas integrações.
 
 ## Cliente

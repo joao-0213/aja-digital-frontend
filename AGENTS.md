@@ -2,22 +2,22 @@
 
 ## Project Structure & Module Organization
 
-AJA Digital is a Portuguese-language educational demo built with Next.js 16 App Router, React 19, strict TypeScript, and Tailwind CSS 4.
+AJA Digital is a Portuguese-language educational platform built with Next.js 16 App Router, React 19, strict TypeScript, and Tailwind CSS 4. The frontend is a static export and uses a separate JSON Server under `/api/v1` for institutional data.
 
 - `src/app/`: route entry points, global styles, layouts, and loading/error states.
 - `src/features/<domain>/`: domain modules, with screens in `components/`, domain hooks in `hooks/`, and an explicit public entry in `index.ts`.
 - `src/components/ui/`: generic controls, one responsibility per file; `shared/` contains generic compositions and `layout/` contains the application shell.
-- `src/components/providers.tsx`: application composition. `src/providers/` owns the shared context and browser demo state; generic notifications live in `components/shared/`.
-- `src/models/`, `src/mocks/`, `src/hooks/`, and `src/lib/`: types, simulated data/transport, hooks, and pure rules/utilities.
-- `tests/`: domain and mock-transport tests. `public/`: static assets, including the favicon.
+- `src/components/providers.tsx`: application composition. `src/providers/` owns the in-memory HTTP session and interface context; generic notifications live in `components/shared/`.
+- `src/models/`, `src/hooks/`, and `src/lib/`: API DTOs, HTTP hooks/transport, and pure client rules/utilities. Seeds and local fixtures belong in `server/`, never in the frontend import graph.
+- `tests/`: domain, HTTP contract, and client-boundary tests. `public/`: static assets, including the favicon.
 
-Keep route files thin and reusable UI independent of mock transport.
+Keep route files thin and reusable UI independent of transport. Institutional reads/writes must use the HTTP API; never fall back to a local seed after failure.
 
-Shared data models are grouped by domain in `src/models/`; `index.ts` exposes explicit type-only exports. Keep existing `@/models` consumer imports stable, and use direct `import type` dependencies between model files. `database.ts` composes the complete demo data contract.
+Shared API models are grouped by domain in `src/models/`; `index.ts` exposes explicit type-only exports. Keep existing `@/models` consumer imports stable, and use direct `import type` dependencies between model files. The client must not import a full database, seed, mock transport, or generic local mutation pipeline.
 
-Read `ARQUITETURA.md` for the domain map and dependency rules before changing structure. Routes compose public feature entries. Inside a feature, use direct internal imports; across features, use `@/features/<domain>` rather than private files. UI elements never import features, application state, routes, or mocks. Keep generic UI imports within `ui/` direct to avoid barrel cycles. Features consume `useApp` from `@/providers/app-context`; only the root layout composes `Providers`.
+Read `ARQUITETURA.md` for the domain map and dependency rules before changing structure. Routes compose public feature entries. Inside a feature, use direct internal imports; across features, use `@/features/<domain>` rather than private files. UI elements never import features, application state, routes, or server data. Keep generic UI imports within `ui/` direct to avoid barrel cycles. Features use `useApp` from `@/providers/app-context` only for interface notifications and `useSession` for authenticated session/client access; only the root layout composes `Providers`.
 
-Preserve browser persistence keys and formats for the legacy version, query-string routes and Suspense boundaries. During the HTTP migration, ISSUES-FRONTEND-HTTP.md and docs/http/ take precedence for affected flows: institutional reads and writes move to the separate JSON Server under /api/v1; no artificial delays or local-success fallback. Keep the static export, with authenticated requests made in the browser. Do not introduce Server Actions or a Next.js runtime backend. Keep unmigrated flows available until their integrated replacement is validated; never dual-write or merge divergent snapshots. Existing local data must remain intact and must not be uploaded automatically.
+Preserve query-string routes, Suspense boundaries, and existing local browser data. The current frontend must not read, migrate, overwrite, delete, or upload legacy identity, database, draft, or attachment stores on first open. During the HTTP migration, ISSUES-FRONTEND-HTTP.md and docs/http/ take precedence for affected flows: institutional reads and writes use the separate JSON Server under `/api/v1`; no artificial delays or local-success fallback. Keep the static export, with authenticated requests made in the browser. Do not introduce Server Actions or a Next.js runtime backend; never dual-write or merge divergent snapshots.
 
 ## Build, Test, and Development Commands
 
@@ -25,7 +25,7 @@ Use Node.js 22.6+ and npm. On Windows PowerShell, use `npm.cmd` if script execut
 
 - `npm ci`: install dependencies from `package-lock.json`.
 - `npm run dev`: start development at `http://127.0.0.1:3000`.
-- `npm test`: run the domain and API test files.
+- `npm test`: run the domain, HTTP, and client-boundary test files.
 - `npm run typecheck`: check TypeScript without emitting JavaScript.
 - `npm run check:architecture`: validate internal imports, dependency boundaries, and static import cycles.
 - `npm run build`: generate the static site in `out/`.
@@ -34,7 +34,7 @@ Serve `out/` with a static HTTP server; this export configuration does not use `
 
 ## Coding Style & Naming Conventions
 
-Follow existing two-space indentation, single-quoted TypeScript strings, and semicolons. Use PascalCase component names, camelCase functions, and kebab-case filenames such as `use-mock-query.ts`. Use `@/` imports for source modules and keep user-facing text in Portuguese. No ESLint or Prettier configuration is present; match surrounding code and run type checking.
+Follow existing two-space indentation, single-quoted TypeScript strings, and semicolons. Use PascalCase component names, camelCase functions, and kebab-case filenames. Use `@/` imports for source modules and keep user-facing text in Portuguese. No ESLint or Prettier configuration is present; match surrounding code and run type checking.
 
 ## Testing Guidelines
 
@@ -68,9 +68,9 @@ Use Conventional Commits with a short, imperative subject in the form `type(scop
 
 Report the commit hashes, validation results, and any remaining uncommitted changes at the end of the task. If checks fail, report the failure and resolve it when it belongs to the task; do not describe unverified work as validated. PRs should explain behavior changes, link relevant issues, report validation results, and include screenshots for UI changes.
 
-## Demo Data & Security
+## Local API Data & Security
 
-Authentication and persistence are browser-side simulations. Use fictitious data only; never add real credentials or personal documents. Preserve clear demo labels and avoid treating role switching as authorization.
+Use fictitious data only in the local API fixtures; never add real credentials or personal documents. Keep test credentials and reset instructions in `docs/http/operator.md`, not in product copy. Authentication and authorization come from the HTTP service; a browser role or legacy storage key is never authorization.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

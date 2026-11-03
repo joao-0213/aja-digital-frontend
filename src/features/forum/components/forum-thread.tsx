@@ -9,7 +9,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Card, Empty, LinkButton, Textarea } from '@/components/ui';
 import { cn, dateLabel } from '@/lib/utils';
-import { readForumDraft, saveForumDraft } from '@/lib/forum-draft';
+import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
 import { createForumApi } from '../api';
 import { ForumAttachments } from './forum-attachments';
@@ -26,7 +26,7 @@ function ForumThreadContent() {
   const api = useMemo(() => createForumApi(client), [client]);
   const query = useHttpQuery({ sessionKey, key: `forum-topic:${id}` }, useCallback(signal => api.read(id, signal), [api, id]), !!user && !!id);
   const topic = query.data;
-  const draftKey = user ? `aja-forum-reply:${user.id}:${id}` : '';
+  const draftKey = user ? forumReplyDraftKey(user.id, id) : '';
   const [body, setBody] = useState('');
   const [pendingReply, setPendingReply] = useState<{ key: string; body: string }>();
   const [loadedKey, setLoadedKey] = useState('');

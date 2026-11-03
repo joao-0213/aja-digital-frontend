@@ -9,7 +9,6 @@ import { Avatar, Button, Dialog, Skeleton, ErrorState } from '@/components/ui';
 import { cn, roleLabels } from '@/lib/utils';
 import { nav } from './navigation';
 import { Logo } from '@/components/shared/logo';
-import { httpRoutes } from '@/lib/http-routes';
 const publicRoutes = new Set(['/login', '/cadastro', '/recuperar-senha']);
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -59,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="lg:pl-20">
       <Button variant="secondary" className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))] z-20 bg-white shadow-md lg:absolute lg:left-4 lg:top-4 lg:z-20 lg:hidden" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-7 pt-20 sm:px-8 lg:py-9 xl:px-10">
-        {httpRoutes.has(path) ? <div key={sessionKey}>{children}</div> : <section className="rounded-xl border border-slate-200 bg-white p-6"><h1 className="text-xl font-semibold">Esta área está temporariamente indisponível.</h1><p className="mt-3 text-sm text-slate-600">Tente novamente mais tarde.</p><Link href="/perfil" className="mt-5 inline-flex min-h-11 items-center font-semibold text-brand-700">Ver meu perfil</Link></section>}
+        <div key={sessionKey}>{children}</div>
       </main>
       <footer className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 pb-12 pt-3 text-xs text-slate-500 sm:px-8 xl:px-10"><span>AJA Digital</span><Button variant="ghost" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-3.5" />Sair</Button></footer>
     </div>

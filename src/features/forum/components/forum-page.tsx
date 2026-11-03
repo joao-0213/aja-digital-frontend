@@ -50,8 +50,7 @@ function ForumPageContent() {
   const questionId = params.get('questao');
   const context = materialId ? `material:${materialId}` : questionId ? `question:${questionId}` : 'new';
   const composeKeys = user ? forumComposeDraftKeys(user.id, materialId, questionId) : undefined;
-  const composeKey = composeKeys?.legacy ?? '';
-  const compatibleComposeKey = composeKeys?.compatible ?? '';
+  const composeKey = composeKeys?.current ?? '';
   const filters: ForumFilter = { ...(classId !== 'all' ? { classId } : {}), ...(subjectId !== 'all' ? { subjectId } : {}), ...(search.trim() ? { q: search.trim() } : {}), ...(filter === 'unread' ? { unread: true } : {}), ...(filter === 'solved' ? { solved: true } : {}), sort: '-createdAt' };
   const topics = useHttpQuery({ sessionKey, key: `forum:${JSON.stringify(filters)}` }, useCallback(signal => api.all(filters, signal), [api, JSON.stringify(filters)]), !!user);
   const activeSubjects = (options.data?.subjects ?? []).filter(item => options.data?.classes.some(row => row.id === item.classId && row.active));
@@ -68,7 +67,7 @@ function ForumPageContent() {
   useEffect(() => {
     if (!composeKey || draftKey === composeKey || typeof window === 'undefined') return;
     const storage = { getItem: (key: string) => window.sessionStorage.getItem(key) };
-    const restored = readForumComposeDraft(storage, { legacy: composeKey, compatible: compatibleComposeKey });
+    const restored = readForumComposeDraft(storage, composeKey);
     if (restored.error) { setDraftError(restored.error); return; }
     const saved = restored.value as ComposeDraft | null;
     if (saved) {
@@ -81,7 +80,7 @@ function ForumPageContent() {
       }
     }
     setDraftKey(composeKey);
-  }, [api, compatibleComposeKey, composeKey, draftKey]);
+  }, [api, composeKey, draftKey]);
   useEffect(() => {
     if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
     const failure = saveForumComposeDraft({ setItem: (key, value) => window.sessionStorage.setItem(key, value) }, composeKey, { ...composition(), pendingCreate });
@@ -118,7 +117,6 @@ function ForumPageContent() {
     try {
       await api.create(fields, intent.key);
       if (composeKey) window.sessionStorage.removeItem(composeKey);
-      if (compatibleComposeKey && compatibleComposeKey !== composeKey) window.sessionStorage.removeItem(compatibleComposeKey);
       setOpen(false); setTitle(''); setBody(''); setTags(''); setReference(''); setAttachment(undefined); setLegacyAttachment(undefined); setPendingCreate(undefined); setDraftKey(''); topics.invalidate();
     } catch (cause) {
       if (cause instanceof HttpError && ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)) setPendingCreate(undefined);
