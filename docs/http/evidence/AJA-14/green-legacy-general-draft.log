@@ -1,0 +1,47 @@
+### Ran Playwright code
+```js
+await (async (page) => {
+  await page.goto('http://127.0.0.1:3000/login/');
+  await page.getByRole('textbox', { name: 'E-mail' }).fill('teacher-a@aja.local.test');
+  await page.getByRole('textbox', { name: 'Senha' }).fill('[demo password redacted]');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('heading', { name: 'Dados cadastrais' }).waitFor();
+  const setup = await page.evaluate(async () => {
+    const [subjectsResponse, classesResponse] = await Promise.all([
+      fetch('http://127.0.0.1:3002/api/v1/subjects?page=1&pageSize=100', { credentials: 'include' }),
+      fetch('http://127.0.0.1:3002/api/v1/classes?page=1&pageSize=100', { credentials: 'include' })
+    ]);
+    const [subjects, classes] = await Promise.all([subjectsResponse.json(), classesResponse.json()]);
+    const activeClasses = new Set(classes.items.filter(row => row.active).map(row => row.id));
+    const activeSubjects = subjects.items.filter(row => activeClasses.has(row.classId));
+    return { first: activeSubjects[0]?.id, target: activeSubjects.find(row => row.id !== activeSubjects[0]?.id)?.id };
+  });
+  if (!setup.target) throw new Error("Fixture setup data: " + JSON.stringify(setup));
+  await page.evaluate(targetSubject => sessionStorage.setItem('aja-forum-compose:teacher-a:new', JSON.stringify({ title: 'Rascunho legado geral', body: 'Corpo geral deve manter seu público.', tags: 'geral', reference: '', targetSubject })), setup.target);
+  await page.goto('http://127.0.0.1:3000/forum/');
+  await page.getByRole('button', { name: 'Nova pergunta' }).click();
+  const title = page.getByRole('textbox', { name: 'Título da pergunta' });
+  await title.waitFor();
+  if (await title.inputValue() !== 'Rascunho legado geral') throw new Error(`Old general draft key was not recovered: ${await title.inputValue()}`);
+  if (await page.getByLabel('Disciplina', { exact: true }).inputValue() !== setup.target) throw new Error(`Legacy targetSubject ${setup.target} was not restored; current audience ${await page.getByLabel('Disciplina', { exact: true }).inputValue()}.`);
+  const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('aja-forum-compose:teacher-a:new')));
+  if (saved.targetSubject !== setup.target) throw new Error('Legacy general audience was not kept in sessionStorage.');
+  await page.getByRole('button', { name: 'Continuar depois' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Nova pergunta' }).click();
+  if (await title.inputValue() !== 'Rascunho legado geral' || await page.getByLabel('Disciplina', { exact: true }).inputValue() !== setup.target) throw new Error('Legacy general draft/audience did not survive reload.');
+  let publication;
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/v1\/topics$/.test(request.url())) publication = request.postDataJSON(); });
+  await page.getByRole('button', { name: 'Publicar pergunta' }).click();
+  await page.getByRole('heading', { name: 'Fazer uma pergunta' }).waitFor({ state: 'detached' });
+  if (publication?.subjectId !== setup.target) throw new Error(`Published to ${publication?.subjectId}, expected legacy targetSubject ${setup.target}.`);
+  console.log(JSON.stringify({ firstSubject: setup.first, restoredTargetSubject: setup.target, publishedSubject: publication.subjectId }));
+}
+
+)(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3000/forum/
+- Page Title: AJA Digital · Portal acadêmico
+### Events
+- New console entries: .playwright-cli\console-2026-11-03T02-42-59-063Z.log#L322-L327

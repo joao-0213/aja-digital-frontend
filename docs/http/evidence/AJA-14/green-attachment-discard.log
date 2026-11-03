@@ -1,0 +1,40 @@
+### Ran Playwright code
+```js
+await (async (page) => {
+  await page.goto('http://127.0.0.1:3000/login/');
+  await page.getByRole('textbox', { name: 'E-mail' }).fill('student@aja.local.test');
+  await page.getByRole('textbox', { name: 'Senha' }).fill('[demo password redacted]');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('heading', { name: 'Dados cadastrais' }).waitFor();
+  await page.evaluate(() => sessionStorage.removeItem('aja-forum-compose:student:material:material-text'));
+  let uploadStatus = 0, discardStatus = 0, created;
+  page.on('response', async response => {
+    const request = response.request(), url = response.url();
+    if (request.method() === 'POST' && /\/api\/v1\/files$/.test(url)) uploadStatus = response.status();
+    if (request.method() === 'POST' && /\/api\/v1\/files\/[^/]+\/discard$/.test(url)) discardStatus = response.status();
+    if (request.method() === 'POST' && /\/api\/v1\/topics$/.test(url)) { created = { status: response.status(), body: await response.json() }; }
+  });
+  await page.goto('http://127.0.0.1:3000/forum/?material=material-text');
+  await page.getByRole('heading', { name: 'Fazer uma pergunta' }).waitFor();
+  await page.getByLabel('Anexo (opcional)').setInputFiles({ name: 'descartar.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZL8AAAAASUVORK5CYII=', 'base64') });
+  const preview = page.getByRole('button', { name: 'Prévia de descartar.png' });
+  await preview.waitFor();
+  if (!await page.getByRole('button', { name: 'Remover anexo' }).count()) throw new Error('Discard action is missing.');
+  await page.getByRole('button', { name: 'Remover anexo' }).click();
+  await preview.waitFor({ state: 'detached' });
+  if (await page.getByLabel('Anexo (opcional)').inputValue() !== '') throw new Error('File picker was not reset after discard.');
+  await page.getByRole('textbox', { name: 'Título da pergunta' }).fill('Pergunta sem anexo após descarte');
+  await page.getByRole('textbox', { name: 'Conte sua dúvida' }).fill('O arquivo foi descartado antes desta publicação.');
+  await page.getByRole('button', { name: 'Publicar pergunta' }).click();
+  await page.getByRole('heading', { name: 'Fazer uma pergunta' }).waitFor({ state: 'detached' });
+  if (uploadStatus !== 201 || discardStatus !== 204) throw new Error(`Expected upload 201 and discard 204, got ${uploadStatus}/${discardStatus}.`);
+  if (created?.status !== 201 || created.body.attachmentId !== null) throw new Error(`Expected published attachmentId null, got ${JSON.stringify(created)}.`);
+  console.log(JSON.stringify({ uploadStatus, discardStatus, publishStatus: created.status, attachmentId: created.body.attachmentId }));
+}
+)(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3000/forum/?material=material-text
+- Page Title: AJA Digital · Portal acadêmico
+### Events
+- New console entries: .playwright-cli\console-2026-11-03T02-42-59-063Z.log#L176-L183

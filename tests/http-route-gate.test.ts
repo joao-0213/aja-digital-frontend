@@ -13,3 +13,8 @@ test('announcement mural and calendar routes are enabled with their HTTP integra
   assert.equal(httpRoutes.has('/avisos'), true);
   assert.equal(httpRoutes.has('/calendario'), true);
 });
+
+test('forum list and contextual detail routes are enabled with their HTTP integration', () => {
+  assert.equal(httpRoutes.has('/forum'), true);
+  assert.equal(httpRoutes.has('/forum/topico'), true);
+});

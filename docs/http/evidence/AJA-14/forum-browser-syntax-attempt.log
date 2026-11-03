@@ -1,0 +1,1 @@
+Initial Playwright runner attempt failed before browser execution with: SyntaxError: Unexpected token ';'. This was a syntax error in the automation snippet, not an application or API result. It is excluded from passing evidence. The corrected runner scripts are forum-browser.js and forum-staff-browser.js.

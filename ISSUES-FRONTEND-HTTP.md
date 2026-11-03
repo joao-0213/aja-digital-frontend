@@ -139,8 +139,9 @@ Implementada e validada. A revisão independente Sol identificou três defeitos 
 ### AJA-14 · Migrar fórum, anexos e referências contextuais
 **Depende de** AJA-08, AJA-09. **Entrada** feature `forum`, `src/lib/forum.ts`, `src/lib/forum-draft.ts`, testes de fórum.
 
-- [ ] Implementar `/topics`, detalhe e comandos para perguntar, responder, marcar leitura, votar, indicar solução e retirar publicação. Preservar busca no texto das respostas, ordenação, referência por ID a questão/material, anexos e formatos legados. Recuperar composição por usuário e contexto.
-- [ ] **Aceite** duas respostas concorrentes permanecem presentes. Repetir voto/leitura mantém o efeito previsto. Nova resposta renova indicação de não lida aos demais. Retirar resposta escolhida desfaz a solução e preserva auditoria. Turma encerrada continua consultável pela equipe autorizada com marcação de leitura, sem novas publicações. Aluno perde acesso, inclusive aos arquivos.
+- [x] Implementar `/topics`, detalhe e comandos para perguntar, responder, marcar leitura, votar, indicar solução e retirar publicação. Preservar busca no texto das respostas, ordenação, referência por ID a questão/material, anexos e formatos legados. Recuperar composição por usuário e contexto.
+- [x] **Aceite** duas respostas concorrentes permanecem presentes. Repetir voto/leitura mantém o efeito previsto. Nova resposta renova indicação de não lida aos demais. Retirar resposta escolhida desfaz a solução e preserva auditoria. Turma encerrada continua consultável pela equipe autorizada com marcação de leitura, sem novas publicações. Aluno perde acesso, inclusive aos arquivos.
+- Evidências e validações locais: [docs/http/validation-AJA-14.md](docs/http/validation-AJA-14.md). ECC Sol aprovou o primeiro lote; Ponytail apontou duas regressões legadas e, na rechecagem ECC, foi exigido teste unitário do helper real. Compatibilidade e testes unitários estão implementados, `npm test` (336) e os quatro gates passaram. Rechecagens finais: ECC Sol APPROVE e Ponytail-review Sol Ship; achados resolvidos.
 
 ### AJA-15 · Migrar chamada e histórico de frequência
 **Depende de** AJA-06, AJA-07. **Entrada** feature `attendance`, `src/lib/attendance.ts`, testes de frequência e matrícula.
