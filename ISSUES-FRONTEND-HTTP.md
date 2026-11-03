@@ -146,8 +146,10 @@ Implementada e validada. A revisão independente Sol identificou três defeitos 
 ### AJA-15 · Migrar chamada e histórico de frequência
 **Depende de** AJA-06, AJA-07. **Entrada** feature `attendance`, `src/lib/attendance.ts`, testes de frequência e matrícula.
 
-- [ ] Implementar consulta de elegíveis e gravação da chamada em `/attendance` por disciplina, data e horário. Preservar marcação em lote, conferência, edição e histórico no perfil autorizado. Identificar univocamente a aula e verificar revisão ao gravar.
-- [ ] **Aceite** criar e reabrir a chamada em sessões distintas. Duas criações para a mesma aula não duplicam presença. Comparar marcações locais e salvas em conflito. Cobrir datas antes da matrícula e após saída, registros históricos sem data de vínculo, turma encerrada e docente desatribuído.
+- [x] Implementar consulta de elegíveis e gravação da chamada em `/attendance` por disciplina, data e horário. Preservar marcação em lote, conferência, edição e histórico no perfil autorizado. Identificar univocamente a aula e verificar revisão ao gravar.
+- [x] **Aceite** criar e reabrir a chamada em sessões distintas. Duas criações para a mesma aula não duplicam presença. Comparar marcações locais e salvas em conflito. Cobrir datas antes da matrícula e após saída, registros históricos sem data de vínculo, turma encerrada e docente desatribuído.
+- Evidências de implementação, RED/GREEN, browser e gates: [docs/http/validation-AJA-15.md](docs/http/validation-AJA-15.md). Revisões finais: ECC Sol APPROVE e Ponytail-review Sol Ship; achados resolvidos.
+- Correção pós-Ponytail: detalhe `GET /attendance/{id}` retorna DTO individual apenas para aluno com marcação própria elegível e visível no histórico; peer-only, withdrawn e disciplina inacessível seguem 404. RED/GREEN HTTP, `npm test` 350/350, typecheck, arquitetura e build padrão passaram; rechecks finais ECC Sol APPROVE e Ponytail Sol Ship, sem achados pendentes.
 
 ### AJA-16 · Conectar painéis e projeções entre domínios
 **Depende de** AJA-06 a AJA-15. **Entrada** feature `dashboard`, painéis de aluno e equipe, detalhes em `students`, `subjects` e `profile`.

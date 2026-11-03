@@ -4,7 +4,8 @@ import type { User } from '../../models/user.ts';
 
 export interface EnrollmentDto extends Enrollment { className?: string | null }
 export interface StudentDto { id: string; name: string; email: string; active: boolean; enrollment: EnrollmentDto | null; attendance?: { present: number; total: number } }
-export interface StudentDetailDto { student: StudentDto; enrollments: EnrollmentDto[] }
+export interface StudentAttendanceHistory { id: string; revision: number; subjectId: string; subjectName: string; date: string; time: string; present: boolean }
+export interface StudentDetailDto { student: StudentDto; enrollments: EnrollmentDto[]; attendance: StudentAttendanceHistory[] }
 export interface EnrollmentPreview {
   email: string; classId: string; canEnroll: boolean; message: string;
   account: User | null; existingEnrollment: EnrollmentDto | null; otherClass: { id: string; name: string } | null;
