@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
@@ -7,14 +8,19 @@ import { Empty, LinkButton } from '@/components/ui';
 import { dateLabel } from '@/lib/utils';
 import { lastAccessedMaterial } from '@/lib/study-order';
 import { SubjectCard } from '@/features/subjects';
-import { DEMO_DATE } from '@/mocks/database';
+import { useSession } from '@/providers/app-context';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { createCalendarApi } from '@/features/calendar';
 import { EnrollmentStatus } from '@/features/students';
 import { isAssessmentAssigned } from '@/lib/enrollment';
-import { calendarEntries } from '@/lib/announcement-calendar';
+import { upcomingMeetings } from '@/lib/announcement-calendar';
 import { hasSubmitted } from '@/lib/activities';
 
 export function StudentDashboard() {
   const { db, user } = useApp();
+  const { client, sessionKey, resourceEpoch } = useSession();
+  const calendarApi = useMemo(() => createCalendarApi(client), [client]);
+  const calendar = useHttpQuery({ sessionKey, key: `dashboard-calendar:${resourceEpoch}` }, useCallback(signal => calendarApi.upcoming(signal), [calendarApi]));
   const classes = db.classes.filter(c => c.studentIds.includes(user.id));
   const subjects = db.subjects.filter(s => classes.some(c => c.id === s.classId));
   const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
@@ -22,7 +28,7 @@ export function StudentDashboard() {
   const notices = db.announcements.filter(a => classes.some(c => c.id === a.classId) && (!a.subjectId || subjects.some(s => s.id === a.subjectId))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
   const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && !hasSubmitted(db, a.id, user.id)).sort((a, b) => a.deadline.localeCompare(b.deadline));
   const resume = lastAccessedMaterial(user.id, materials, db.progress);
-  const events = calendarEntries(db, user).filter(e => e.announcementId && e.date >= DEMO_DATE).slice(0, 3);
+  const events = upcomingMeetings(calendar.data ?? []);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
 
   return <>
@@ -48,7 +54,7 @@ export function StudentDashboard() {
       </section>
       {resume && <Link href={`/materiais?id=${resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
       <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
-        {<section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros</h2>{events.map(e => <Link key={e.id} href={`/avisos#aviso-${e.announcementId}`} className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(e.date)}</span><span>{e.title}<span className="ml-2 text-xs text-slate-500">{e.time}</span></span></Link>)}{!events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro agendado.</p>}</section>}
+        {<section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros e prazos</h2>{calendar.loading && <p role="status" className="py-3 text-sm text-slate-500">Carregando encontros e prazos…</p>}{calendar.error && <p role="alert" className="py-3 text-sm text-red-700">{calendar.error.message} <button type="button" className="underline" onClick={calendar.retry}>Tentar novamente</button></p>}{events.map(e => <Link key={e.id} href={e.href} className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(e.date)}</span><span>{e.title}<span className="ml-2 text-xs text-slate-500">{e.time ?? 'Dia inteiro'} · {e.source === 'announcement' ? 'Acontecimento' : 'Prazo de atividade'}</span></span></Link>)}{!calendar.loading && !calendar.error && !events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro ou prazo futuro.</p>}</section>}
         {<section aria-labelledby="student-forum"><h2 id="student-forum" className="mb-2 font-semibold">Dúvidas da turma</h2>{topics.map(t => <Link key={t.id} href={`/forum/topico?id=${t.id}`} className="block rounded-lg py-3 text-sm hover:bg-white">{t.title}<span className="mt-1 block text-xs text-slate-500">{t.replies.length} respostas</span></Link>)}{!topics.length && <p className="py-3 text-sm text-slate-500">Nenhuma dúvida publicada.</p>}</section>}
       </div>
       <Link href="/questoes" className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Acessar banco de questões<ChevronRight aria-hidden="true" className="size-4" /></Link>

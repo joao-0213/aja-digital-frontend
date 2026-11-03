@@ -1,38 +1,42 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { useApp } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Empty, PageHeading, Select } from '@/components/ui';
-import { AnnouncementComposer } from './announcement-composer';
-import { canManageSubject } from '@/lib/access';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useSession } from '@/providers/app-context';
 import { dateLabel } from '@/lib/utils';
-import type { Announcement } from '@/models';
+import { createAnnouncementsApi, type AnnouncementDto } from '../api';
+import { AnnouncementComposer } from './announcement-composer';
 
 export function AnnouncementsPage() {
-  const { db, user, role, mutate, busy } = useApp();
+  const { client, sessionKey, user } = useSession();
+  const api = useMemo(() => createAnnouncementsApi(client), [client]);
   const [filter, setFilter] = useState('all');
-  const [composing, setComposing] = useState<Announcement | 'new' | null>(null);
-  const start = (item?: Announcement) => setComposing(item ?? 'new');
-  const classes = db.classes.filter(c => c.active && (role === 'admin' || db.subjects.some(s => s.classId === c.id && canManageSubject(db, user, s.id))));
-  const canManage = (a: Announcement) => role === 'admin' || !!a.subjectId && canManageSubject(db, user, a.subjectId);
-  const items = db.announcements.filter(a => filter === 'all' || a.classId === filter);
+  const [composing, setComposing] = useState<AnnouncementDto | 'new' | null>(null);
+  const options = useHttpQuery({ sessionKey, key: 'announcement-options' }, useCallback(signal => api.options(signal), [api]));
+  const notices = useHttpQuery({ sessionKey, key: `announcements:${filter}` }, useCallback(signal => api.all(filter === 'all' ? {} : { classId: filter }, signal), [api, filter]));
+  const canManage = (item: AnnouncementDto) => user?.role === 'admin' || !!item.subjectId && !!options.data?.subjects.find(subject => subject.id === item.subjectId)?.canManageContent;
   return <>
-    <PageHeading title="Mural de avisos" description="Comunicados e informações das turmas." action={role !== 'student' && <Button disabled={!classes.length} onClick={() => start()}><Plus className="size-4" />Publicar aviso</Button>} />
-    <div className="mb-6 max-w-sm"><Select label="Turma" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todas as turmas</option>{db.classes.filter(c => c.active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div>
+    <PageHeading title="Mural de avisos" description="Comunicados e informações das turmas." action={user?.role !== 'student' && <Button onClick={() => setComposing('new')}><Plus className="size-4" />Publicar aviso</Button>} />
+    <div className="mb-6 max-w-sm"><Select label="Turma" value={filter} onChange={event => setFilter(event.target.value)}><option value="all">Todas as turmas</option>{options.data?.classes.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></div>
+    {notices.loading && <p role="status" className="mb-4 text-sm text-slate-500">Carregando avisos…</p>}
+    {notices.error && <p role="alert" className="mb-4 text-sm text-red-700">{notices.error.message} <button type="button" className="font-semibold underline" onClick={notices.retry}>Tentar novamente</button></p>}
     <div className="max-w-4xl space-y-5">
-      {items.map(a => <div key={a.id} id={`aviso-${a.id}`} className="scroll-mt-6"><Card>
-        <div className="mb-4 flex flex-wrap items-center gap-2"><Badge tone="purple">{db.classes.find(c => c.id === a.classId)?.name}</Badge>{a.subjectId && <Badge>{db.subjects.find(s => s.id === a.subjectId)?.name}</Badge>}<span className="ml-auto text-xs text-slate-400">{dateLabel(a.createdAt)}</span></div>
-        {a.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">Acontecimento: {dateLabel(a.occurrence.date)} · {a.occurrence.allDay ? 'Dia inteiro' : a.occurrence.time} (Brasília)</p>}
-        <h2 className="mb-4 text-xl font-semibold">{a.title}</h2><p className="whitespace-pre-wrap break-words leading-8 text-slate-600">{a.body}</p>
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><Avatar name={db.users.find(u => u.id === a.authorId)?.name ?? 'Equipe AJA'} size="sm" /><span className="text-xs text-slate-500">{db.users.find(u => u.id === a.authorId)?.name ?? 'Equipe AJA'}</span>{a.notify && <span className="ml-auto text-xs text-slate-400">Notificação simulada</span>}</div>
-        {a.updatedAt && <p className="mt-3 text-xs text-slate-500">Última alteração: {db.users.find(u => u.id === a.updatedBy)?.name ?? 'Equipe AJA'} · {new Date(a.updatedAt).toLocaleString('pt-BR')}</p>}
-        {canManage(a) && <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => start(a)}><Pencil className="size-4" />Editar aviso</Button><Button variant="ghost" disabled={busy} onClick={async () => {
-          if (window.confirm(`Retirar este aviso das consultas? ${a.occurrence ? 'O compromisso também sairá do calendário. Se o encontro foi cancelado, comunique o motivo na mensagem antes da retirada. ' : ''}O registro e a autoria serão preservados; não há restauração pela interface.`)) await mutate(d => { d.announcements.find(item => item.id === a.id)!.deletedAt = new Date().toISOString(); }, 'Aviso retirado.', { requirePersistence: true, expected: [{ collection: 'announcements', id: a.id, revision: a.revision ?? 0 }] });
+      {notices.data?.map(item => <div key={item.id} id={`aviso-${item.id}`} className="scroll-mt-6"><Card>
+        <div className="mb-4 flex flex-wrap items-center gap-2"><Badge tone="purple">{options.data?.classes.find(row => row.id === item.classId)?.name ?? item.classId}</Badge>{item.subjectId && <Badge>{options.data?.subjects.find(row => row.id === item.subjectId)?.name ?? item.subjectId}</Badge>}<span className="ml-auto text-xs text-slate-400">{dateLabel(item.createdAt)}</span></div>
+        {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
+        <h2 className="mb-4 text-xl font-semibold">{item.title}</h2><p className="whitespace-pre-wrap break-words leading-8 text-slate-600">{item.body}</p>
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><Avatar name={item.author.name} size="sm" /><span className="text-xs text-slate-500">{item.author.name}</span>{item.notify && <span className="ml-auto text-xs text-slate-400">Notificação solicitada à caixa local</span>}</div>
+        {item.updatedAt !== item.createdAt && <p className="mt-3 text-xs text-slate-500">Última alteração: {item.updatedAt && new Date(item.updatedAt).toLocaleString('pt-BR')}</p>}
+        {canManage(item) && <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil className="size-4" />Editar aviso</Button><Button variant="ghost" disabled={notices.loading} onClick={async () => {
+          if (!window.confirm(`Retirar “${item.title}” das consultas? O registro e a autoria serão preservados.`)) return;
+          try { await api.withdraw(item.id, item.revision); notices.invalidate(); }
+          catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível retirar o aviso.'); }
         }}><Trash2 className="size-4" />Retirar aviso</Button></div>}
       </Card></div>)}
     </div>
-    {!items.length && <Empty title="Sem avisos nesta turma" description="As novidades da equipe aparecerão aqui." />}
-    {composing && <AnnouncementComposer item={composing === 'new' ? undefined : composing} onClose={() => setComposing(null)} />}
+    {!notices.loading && !notices.error && !notices.data?.length && <Empty title="Sem avisos nesta turma" description="As novidades da equipe aparecerão aqui." />}
+    {composing && <AnnouncementComposer item={composing === 'new' ? undefined : composing} onClose={() => { setComposing(null); notices.invalidate(); }} />}
   </>;
 }

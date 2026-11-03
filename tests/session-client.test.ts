@@ -28,6 +28,24 @@ test('verified session exposes a stable opaque session identifier for tab-scoped
   assert.equal(reloaded.getSnapshot().sessionId, null);
 });
 
+test('composition idempotency metadata survives remount in one session and is cleared for another session', async () => {
+  let reply = session;
+  const client = createSessionClient({ request: async <T>(): Promise<T> => reply as T });
+  await client.login(user.email, 'password');
+  const context = 'announcement:u1:s1', firstSessionKey = client.getSnapshot().sessionKey;
+  client.saveDraft(context, { fields: { title: 'Comunicado' }, expectedRevision: 0 }, firstSessionKey);
+  client.saveDraftExtra(context, { fingerprint: '{"title":"Comunicado"}', key: 'session-one-key' }, firstSessionKey);
+  assert.equal(client.readDraftExtra<{ key: string }>(context)?.key, 'session-one-key');
+  await client.refresh();
+  assert.equal(client.getSnapshot().sessionKey, firstSessionKey);
+  assert.equal(client.readDraftExtra<{ key: string }>(context)?.key, 'session-one-key');
+  assert.equal(client.readDraftExtra(context.replace('u1', 'u2')), undefined);
+  reply = { ...session, sessionId: 'public-session-2' };
+  await client.refresh();
+  assert.equal(client.readDraft(context), undefined);
+  assert.equal(client.readDraftExtra(context), undefined);
+});
+
 test('session 401 becomes anonymous while login failure preserves actual error without a fallback user', async () => {
   const client = createSessionClient({ request: async () => { throw new HttpError('session', 'Senha incorreta.', { status: 401 }); } });
   await client.refresh();

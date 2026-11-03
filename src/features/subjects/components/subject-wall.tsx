@@ -1,56 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { Bell, BookOpen, FileText, Upload } from 'lucide-react';
-import { PublicationDate } from '@/components/ui/publication-date';
-import { useApp } from '@/providers/app-context';
-import { Avatar, Button, Dialog, Empty, Select } from '@/components/ui';
+import { Avatar, Button, Card, Empty } from '@/components/ui';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useSession } from '@/providers/app-context';
 import { dateLabel } from '@/lib/utils';
-import { isAssessmentAssigned } from '@/lib/enrollment';
-import { AnnouncementComposer } from '@/features/announcements';
-import { hasSubmitted } from '@/lib/activities';
+import { AnnouncementComposer, announcementsPath, canManageAnnouncementItem, createAnnouncementsApi, type AnnouncementDto } from '@/features/announcements';
+import type { SubjectSummary } from '../api';
 
-export function SubjectWall({ subjectId, canEdit, onUpload }: { subjectId: string; canEdit: boolean; onUpload: (moduleId: string) => void }) {
-  const { db, user, role } = useApp();
-  const [composing, setComposing] = useState(false);
-  const [choosingModule, setChoosingModule] = useState(false);
-  const [moduleId, setModuleId] = useState('');
-  const [filter, setFilter] = useState('all');
-  const subject = db.subjects.find(s => s.id === subjectId)!;
-  const modules = db.modules.filter(m => m.subjectId === subjectId).sort((a, b) => a.order - b.order);
-  const materials = db.materials.filter(m => modules.some(mod => mod.id === m.moduleId));
-  const notices = db.announcements.filter(a => a.classId === subject.classId && (!a.subjectId || a.subjectId === subjectId));
-  const entries = [
-    ...notices.map(a => ({ key: `notice-${a.id}`, kind: 'notice' as const, title: a.title, body: a.body, date: a.createdAt, author: a.authorId, detail: a.subjectId ? 'Aviso da disciplina' : 'Aviso da turma', href: '', moduleId: '', fileLabel: '', occurrence: a.occurrence })),
-    ...materials.map(m => ({ key: `material-${m.id}`, kind: 'material' as const, title: m.title, body: m.content, date: m.createdAt ?? '', author: m.authorId, detail: modules.find(mod => mod.id === m.moduleId)!.title, occurrence: undefined, href: `/materiais?id=${m.id}`, moduleId: m.moduleId, fileLabel: m.fileName ?? (m.kind === 'pdf' ? 'Documento PDF' : m.kind === 'video' ? 'Vídeo de apoio' : 'Texto de apoio') }))
-  ].filter(item => filter === 'all' || item.kind === filter).sort((a, b) => b.date.localeCompare(a.date));
-  const deadlines = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId) && (canEdit || a.required !== false && isAssessmentAssigned(db, a, user.id) && !hasSubmitted(db, a.id, user.id))).sort((a, b) => a.deadline.localeCompare(b.deadline));
-
-  return <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
-    <section aria-label="Publicações da disciplina" className="min-w-0 space-y-4">
-      {canEdit && <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-        <div className="flex flex-wrap gap-2"><Button onClick={() => setComposing(true)} aria-expanded={composing}><Bell aria-hidden="true" className="size-4" />Publicar aviso</Button><Button variant="secondary" onClick={() => setChoosingModule(true)}><Upload aria-hidden="true" className="size-4" />Enviar materiais</Button></div>
-        {composing && <AnnouncementComposer subjectId={subjectId} onClose={() => { setComposing(false); setFilter('all'); }} />}
-      </div>}
-      <div className="flex flex-wrap items-center gap-2" aria-label="Filtrar publicações">{[{ value: 'all', label: 'Tudo' }, { value: 'notice', label: 'Avisos' }, { value: 'material', label: 'Materiais' }].map(item => <Button key={item.value} variant={filter === item.value ? 'secondary' : 'ghost'} aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>{item.label}</Button>)}</div>
-      {entries.map(item => {
-        const author = db.users.find(u => u.id === item.author);
-        return <article key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-3"><Avatar name={author?.name ?? 'Equipe AJA'} size="sm" /><div className="min-w-0"><p className="text-sm font-semibold">{author?.name ?? 'Equipe AJA'}</p><p className="mt-1 text-xs text-slate-500">{item.kind === 'notice' ? item.detail : 'Material da disciplina'}{!item.date && <> · <PublicationDate /></>}{item.date && <> · <time dateTime={item.date}>{dateLabel(item.date)} · {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time></>}</p></div></div>
-          {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
-          <h2 className="text-lg font-semibold">{item.title}</h2>
-          {canEdit && item.kind === 'notice' && (role === 'admin' || item.detail === 'Aviso da disciplina') && <Link href="/avisos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Gerenciar avisos</Link>}
-          {item.body && <p className={`mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-600 ${item.kind === 'material' ? 'line-clamp-3' : ''}`}>{item.body}</p>}
-          {item.kind === 'material' && <>
-            <Link href={item.href} className="mt-4 flex items-center gap-3 rounded-lg border border-slate-200 p-4 hover:border-brand-200 hover:bg-brand-50"><FileText aria-hidden="true" className="size-5 shrink-0 text-brand-700" /><div className="min-w-0"><p className="break-words text-sm font-semibold text-brand-900">{item.fileLabel}</p><p className="mt-1 text-xs text-slate-500">Abrir material</p></div></Link>
-            <Link href={`/disciplinas/detalhes?id=${subjectId}&aba=materiais#module-${item.moduleId}`} className="mt-3 inline-flex min-h-11 items-center text-xs font-medium text-brand-700 hover:underline">Ver no módulo: {item.detail}</Link>
-          </>}
-        </article>;
-      })}
-      {!entries.length && <Empty title="Nenhuma publicação" description="Os avisos e materiais publicados aparecerão aqui." />}
-    </section>
-    <aside className="rounded-xl border border-slate-200 bg-white p-5 xl:sticky xl:top-6" aria-label="Prazos da disciplina"><h2 className="font-semibold">Próximas entregas</h2><div className="divide-y divide-slate-100">{deadlines.slice(0, 3).map(a => <Link key={a.id} href={`/questionarios/responder?id=${a.id}`} className="block py-4 text-sm hover:text-brand-700"><span className="mb-1 block text-xs text-slate-500">{a.deadline ? `Até ${dateLabel(a.deadline)}` : 'Sem prazo'}{a.required === false ? ' · Opcional' : ' · Obrigatória'}</span>{a.title}</Link>)}</div>{!deadlines.length && <p className="mt-3 text-sm text-slate-500">Nenhuma entrega obrigatória pendente.</p>}</aside>
-    <Dialog open={choosingModule} onClose={() => setChoosingModule(false)} title="Enviar materiais"><form className="space-y-5" onSubmit={e => { e.preventDefault(); if (moduleId) { setChoosingModule(false); setFilter('all'); onUpload(moduleId); } }}><Select label="Módulo de destino" value={moduleId} onChange={e => setModuleId(e.target.value)} required><option value="">Selecione o módulo</option>{modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</Select>{!modules.length && <p className="text-sm text-slate-600">Crie um módulo na aba Materiais e atividades antes de enviar arquivos.</p>}<Button type="submit" disabled={!moduleId}><BookOpen aria-hidden="true" className="size-4" />Continuar</Button></form></Dialog>
-  </div>;
+export function SubjectWall({ subject }: { subject: SubjectSummary }) {
+  const { client, sessionKey, user } = useSession();
+  const api = useMemo(() => createAnnouncementsApi(client), [client]);
+  const query = useHttpQuery({ sessionKey, key: `subject-announcements:${subject.id}` }, useCallback(signal => api.all({ subjectId: subject.id }, signal), [api, subject.id]));
+  const [composing, setComposing] = useState<AnnouncementDto | 'new' | null>(null);
+  const [actionError, setActionError] = useState('');
+  return <section aria-label="Mural da disciplina" className="space-y-4">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Mural da disciplina</h2><p className="mt-1 text-sm text-slate-600">Avisos da turma e desta disciplina.</p></div>{subject.canManageContent && <Button onClick={() => setComposing('new')}>Publicar aviso</Button>}</div>
+    {query.loading && <p role="status" className="text-sm text-slate-500">Carregando avisos…</p>}
+    {query.error && <p role="alert" className="text-sm text-red-700">{query.error.message} <button type="button" className="font-semibold underline" onClick={query.retry}>Tentar novamente</button></p>}
+    {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
+    {query.data?.map(item => <Card key={item.id}>
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500"><Avatar name={item.author.name} size="sm" /><span>{item.author.name}</span><span>·</span><time dateTime={item.createdAt}>{dateLabel(item.createdAt)}</time><span className="ml-auto">{item.subjectId ? 'Aviso da disciplina' : 'Aviso da turma'}</span></div>
+      {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
+      <h3 className="text-lg font-semibold">{item.title}</h3><p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">{item.body}</p>
+      {canManageAnnouncementItem(user?.role, subject.canManageContent, item.subjectId, subject.id) && <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar</Button><Button variant="ghost" onClick={async () => { if (!window.confirm(`Retirar “${item.title}” das consultas?`)) return; try { await api.withdraw(item.id, item.revision); await query.invalidate(); setActionError(''); } catch (error) { setActionError(error instanceof Error ? error.message : 'Não foi possível retirar o aviso.'); } }}><Trash2 aria-hidden="true" className="size-4" />Retirar</Button></div>}
+    </Card>)}
+    {!query.loading && !query.error && !query.data?.length && <Empty title="Nenhum aviso nesta disciplina" description="Os avisos publicados para a turma aparecerão aqui." />}
+    {user?.role === 'admin' && <Link href={announcementsPath} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Gerenciar avisos de todas as turmas</Link>}
+    {composing && <AnnouncementComposer key={composing === 'new' ? 'new' : composing.id} item={composing === 'new' ? undefined : composing} subjectId={subject.id} onClose={() => { setComposing(null); void query.invalidate(); }} />}
+  </section>;
 }

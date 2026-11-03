@@ -1,24 +1,29 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight, MessageSquare, ClipboardCheck, ListChecks, Upload } from 'lucide-react';
 import { useApp } from '@/providers/app-context';
 import { Card, LinkButton } from '@/components/ui';
 import { dateLabel } from '@/lib/utils';
-import { DEMO_DATE } from '@/mocks/database';
+import { useSession } from '@/providers/app-context';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { createCalendarApi } from '@/features/calendar';
 import { SubjectCard } from '@/features/subjects';
-import { calendarEntries } from '@/lib/announcement-calendar';
+import { upcomingMeetings } from '@/lib/announcement-calendar';
 
 export function StaffDashboard() {
   const { db, user, role } = useApp();
+  const { client, sessionKey, resourceEpoch } = useSession();
+  const calendarApi = useMemo(() => createCalendarApi(client), [client]);
+  const calendar = useHttpQuery({ sessionKey, key: `dashboard-calendar:${resourceEpoch}` }, useCallback(signal => calendarApi.upcoming(signal), [calendarApi]));
   const classes = db.classes;
   const subjects = db.subjects.filter(s => classes.some(c => c.id === s.classId));
   const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
   const assessments = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId));
   const pending = assessments
     .sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const events = calendarEntries(db, user).filter(e => e.announcementId && e.date >= DEMO_DATE)
-    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
+  const events = upcomingMeetings(calendar.data ?? []);
   const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
   const announcement = db.announcements.filter(a => classes.some(c => c.id === a.classId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -56,7 +61,7 @@ export function StaffDashboard() {
         </section>}
       </div>
 
-      <aside aria-label="Agenda e avisos" className="min-w-0 space-y-6">
+      <aside aria-label="Próximos encontros, prazos e avisos" className="min-w-0 space-y-6">
         <Card>
           <h2 className="text-base font-semibold">Prazos das atividades</h2>
           <div className="mt-2 divide-y divide-slate-200">
@@ -68,13 +73,14 @@ export function StaffDashboard() {
           <Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ver atividades<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link>
         </Card>
         {<section className="px-1" aria-labelledby="events-title">
-          <h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros</h2>
+          <h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros e prazos</h2>
           <div className="divide-y divide-slate-200">
-            {events.map(e => <Link href={`/avisos#aviso-${e.announcementId}`} key={e.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
+          {calendar.loading && <p role="status" className="py-3 text-sm text-slate-500">Carregando encontros e prazos…</p>}{calendar.error && <p role="alert" className="py-3 text-sm text-red-700">{calendar.error.message} <button type="button" className="underline" onClick={calendar.retry}>Tentar novamente</button></p>}
+          {events.map(e => <Link href={e.href} key={e.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
               <div className="w-11 shrink-0 text-center"><span className="block text-xl font-semibold tabular-nums">{e.date.slice(-2)}</span><span className="text-xs text-slate-500">{dateLabel(e.date, { month: 'short' })}</span></div>
-              <div><h3 className="text-sm font-medium leading-6">{e.title}</h3><p className="mt-1 text-xs text-slate-500">{e.time} · {e.kind === 'exam' ? 'Simulado' : e.kind === 'class' ? 'Aula' : 'Evento'}</p></div>
+              <div><h3 className="text-sm font-medium leading-6">{e.title}</h3><p className="mt-1 text-xs text-slate-500">{e.time ?? 'Dia inteiro'} · {e.source === 'announcement' ? 'Acontecimento' : 'Prazo de atividade'}</p></div>
             </Link>)}
-            {!events.length && <p className="py-4 text-sm text-slate-600">Nenhum encontro agendado.</p>}
+            {!calendar.loading && !calendar.error && !events.length && <p className="py-4 text-sm text-slate-600">Nenhum encontro ou prazo futuro.</p>}
           </div>
         </section>}
         {announcement && <section className="border-t border-slate-200 px-1 pt-5" aria-labelledby="notice-title">

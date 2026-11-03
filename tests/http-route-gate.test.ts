@@ -8,3 +8,8 @@ test('assessment list, quiz attempt and result routes are enabled', () => {
   assert.equal(httpRoutes.has('/questionarios/responder'), true);
   assert.equal(httpRoutes.has('/questionarios/resultado'), true);
 });
+
+test('announcement mural and calendar routes are enabled with their HTTP integration', () => {
+  assert.equal(httpRoutes.has('/avisos'), true);
+  assert.equal(httpRoutes.has('/calendario'), true);
+});

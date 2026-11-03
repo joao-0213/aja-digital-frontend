@@ -188,3 +188,7 @@ Implementada e validada. A revisão independente Sol identificou três defeitos 
 | `/` | AJA-16 |
 
 O shell, os provedores, a privacidade, as ferramentas de estudo, os estados globais, os metadados e a documentação têm aceite próprio em AJA-05, AJA-08, AJA-17 e AJA-18. A migração termina quando todas as linhas funcionarem a partir da massa preparada e de chamadas HTTP observáveis.
+
+### AJA-13 review status
+
+ Correcoes dos quatro findings REQUEST CHANGES, preservacao do publico global, tres findings Ponytail (filtro entre turmas, acoes por aviso e troca de turma) e projecao de prazos nos proximos encontros foram implementadas e revalidadas. ECC Sol aprovou sem achados; Ponytail-review Sol retornou Ship. API, ACL e teste da projecao confirmam que "Calendario e proximos encontros derivam dos avisos e prazos visiveis"; porem a DOM do painel nao pode ser validada nesta issue: navegacao SPA autenticada para `/` exibe o bloqueio AppShell de AJA-16 e nao faz GET `/calendar`. Mantenha AJA-13 aberta ate o painel ficar acessivel no escopo dependente AJA-16 e a jornada de navegador/reviews ser concluida; nao marcar issue como fechada. RED/GREEN, navegador, gates, revisoes e outbox operator-only estao em `docs/http/validation-AJA-13.md`. Nao criar inbox/API para outbox: ela e apenas fila local duravel de solicitacoes, sem entrega.

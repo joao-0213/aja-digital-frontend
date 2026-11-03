@@ -26,7 +26,8 @@ export function createSessionClient(http: Transport) {
   let draftOwner: string | undefined;
   let profileDraft: ProfileDraft | undefined;
   const compositions = new Map<string, unknown>();
-  const discardDraft = () => { draftOwner = undefined; profileDraft = undefined; compositions.clear(); };
+  const compositionExtras = new Map<string, unknown>();
+  const discardDraft = () => { draftOwner = undefined; profileDraft = undefined; compositions.clear(); compositionExtras.clear(); };
   const listeners = new Set<() => void>();
   const publish = (next: Omit<SessionState, 'resourceEpoch'> & { resourceEpoch?: number }) => { state = { ...next, resourceEpoch: next.resourceEpoch ?? state.resourceEpoch }; listeners.forEach(listener => listener()); };
   const begin = (status: SessionState['status']) => {
@@ -41,7 +42,7 @@ export function createSessionClient(http: Transport) {
   const save = (session: SessionDto, current: number, preserveKey?: string) => {
     if (current === version) {
       const owner = JSON.stringify([session.sessionId, session.user.id, session.user.role, 'profile']);
-      if (owner !== draftOwner) { profileDraft = undefined; compositions.clear(); }
+      if (owner !== draftOwner) { profileDraft = undefined; compositions.clear(); compositionExtras.clear(); }
       draftOwner = owner;
       sessionId = session.sessionId;
       publish({ status: 'authenticated', user: session.user, sessionId: session.sessionId, expiresAt: session.expiresAt, sessionKey: preserveKey ?? `session-${current}`, resourceEpoch: state.resourceEpoch + 1 });
@@ -122,7 +123,13 @@ export function createSessionClient(http: Transport) {
     saveDraft: <T>(context: string, value: T, expectedSessionKey: string) => {
       if (state.status === 'authenticated' && sessionId && state.sessionKey === expectedSessionKey) compositions.set(context, structuredClone(value));
     },
-    clearDraft: (context: string, expectedSessionKey: string) => { if (state.sessionKey === expectedSessionKey) compositions.delete(context); },
+    readDraftExtra: <T>(context: string): T | undefined => state.status === 'authenticated' && sessionId ? structuredClone(compositionExtras.get(context)) as T | undefined : undefined,
+    saveDraftExtra: <T>(context: string, value: T, expectedSessionKey: string) => {
+      if (state.status === 'authenticated' && sessionId && state.sessionKey === expectedSessionKey) compositionExtras.set(context, structuredClone(value));
+    },
+    clearDraft: (context: string, expectedSessionKey: string) => {
+      if (state.sessionKey === expectedSessionKey) { compositions.delete(context); compositionExtras.delete(context); }
+    },
     readProfile: () => protectedRequest<User>('/me'),
     readEnrollments: (signal?: AbortSignal) => protectedRequest<{ items: { id: string; classId: string; className: string | null; status: string; enrolledAt: string | null }[] }>('/me/enrollments', { signal }),
     dispose: () => { version++; pending?.abort(); discardDraft(); listeners.clear(); }
