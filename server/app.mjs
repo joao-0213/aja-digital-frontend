@@ -11,6 +11,7 @@ import { createWorkService } from './work-service.mjs';
 import { createAnnouncementService } from './announcement-service.mjs';
 import { createForumService } from './forum-service.mjs';
 import { createAttendanceService } from './attendance-service.mjs';
+import { createDashboardService } from './dashboard-service.mjs';
 
 export function createApp(config) {
   const { origins, store } = config;
@@ -25,6 +26,7 @@ export function createApp(config) {
   const announcements = auth && createAnnouncementService(config, auth);
   const forum = auth && createForumService(config, auth, files);
   const attendance = auth && createAttendanceService(config, auth);
+  const dashboard = auth && createDashboardService(config, auth);
   const routes = new Map([
     ['/api/v1/health', { GET: 'health' }],
     ...['register', 'login', 'logout', 'email-confirmation-requests', 'email-confirmations', 'password-reset-requests', 'password-resets'].map(route => [`/api/v1/auth/${route}`, { POST: route }]),
@@ -42,7 +44,7 @@ export function createApp(config) {
     if (origin && !origins.includes(origin)) return error(403, 'FORBIDDEN', 'Origem não permitida.');
     // Deliberately no defaults(), static(), router mounting, JSONP or rewrite middleware.
     const path = req.url.split('?')[0];
-    const administrative = path.startsWith('/api/v1/') && (administration?.resolve(path.slice('/api/v1'.length)) ?? subjects?.resolve(path.slice('/api/v1'.length)) ?? files?.resolve(path.slice('/api/v1'.length)) ?? materials?.resolve(path.slice('/api/v1'.length)) ?? questions?.resolve(path.slice('/api/v1'.length)) ?? assessments?.resolve(path.slice('/api/v1'.length)) ?? work?.resolve(path.slice('/api/v1'.length)) ?? announcements?.resolve(path.slice('/api/v1'.length)) ?? forum?.resolve(path.slice('/api/v1'.length)) ?? attendance?.resolve(path.slice('/api/v1'.length)));
+    const administrative = path.startsWith('/api/v1/') && (dashboard?.resolve(path.slice('/api/v1'.length)) ?? administration?.resolve(path.slice('/api/v1'.length)) ?? subjects?.resolve(path.slice('/api/v1'.length)) ?? files?.resolve(path.slice('/api/v1'.length)) ?? materials?.resolve(path.slice('/api/v1'.length)) ?? questions?.resolve(path.slice('/api/v1'.length)) ?? assessments?.resolve(path.slice('/api/v1'.length)) ?? work?.resolve(path.slice('/api/v1'.length)) ?? announcements?.resolve(path.slice('/api/v1'.length)) ?? forum?.resolve(path.slice('/api/v1'.length)) ?? attendance?.resolve(path.slice('/api/v1'.length)));
     const methods = routes.get(path) ?? administrative?.methods;
     if (!methods) return error(404, 'NOT_FOUND', 'Recurso não encontrado.');
     if (origin) {

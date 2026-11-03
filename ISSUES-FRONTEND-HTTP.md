@@ -154,8 +154,10 @@ Implementada e validada. A revisão independente Sol identificou três defeitos 
 ### AJA-16 · Conectar painéis e projeções entre domínios
 **Depende de** AJA-06 a AJA-15. **Entrada** feature `dashboard`, painéis de aluno e equipe, detalhes em `students`, `subjects` e `profile`.
 
-- [ ] Entregar `/me/dashboard` ou consultas por seção com os mesmos limites de acesso. Integrar progresso, retomada, pendências de matrícula, atividades, avisos, encontros e indicadores já apresentados. Usar horário corrente e estados vazios úteis. Completar cada resumo, mural e link cruzado da matriz AJA-01.
-- [ ] **Aceite** publicar como docente, consumir como aluno e conferir as atualizações no painel e no destino do link. Testar aluno sem turma, docente sem disciplina, administrador e acesso revogado durante consulta. Nenhum painel baixa a base inteira para calcular indicadores privados no navegador.
+- Evidências de implementação, RED/GREEN, browser e gates: [docs/http/validation-AJA-16.md](docs/http/validation-AJA-16.md). Revisões finais independentes: ECC Sol APPROVE e Ponytail-review Sol Ship; quatro achados P2 corrigidos e rechecados.
+
+- [x] Entregar `/me/dashboard` ou consultas por seção com os mesmos limites de acesso. Integrar progresso, retomada, pendências de matrícula, atividades, avisos, encontros e indicadores já apresentados. Usar horário corrente e estados vazios úteis. Completar cada resumo, mural e link cruzado da matriz AJA-01.
+- [x] **Aceite** publicar como docente, consumir como aluno e conferir as atualizações no painel e no destino do link. Testar aluno sem turma, docente sem disciplina, administrador e acesso revogado durante consulta. Nenhum painel baixa a base inteira para calcular indicadores privados no navegador.
 
 ## Corte e aceite do produto
 

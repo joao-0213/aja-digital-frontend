@@ -22,3 +22,7 @@ test('forum list and contextual detail routes are enabled with their HTTP integr
 test('attendance is enabled only with its HTTP integration', () => {
   assert.equal(httpRoutes.has('/frequencia'), true);
 });
+
+test('dashboard is enabled only with its HTTP projection', () => {
+  assert.equal(httpRoutes.has('/'), true);
+});

@@ -3,61 +3,58 @@
 import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { useApp } from '@/providers/app-context';
-import { Empty, LinkButton } from '@/components/ui';
+import { Empty, Skeleton } from '@/components/ui';
 import { dateLabel } from '@/lib/utils';
-import { lastAccessedMaterial } from '@/lib/study-order';
+import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
 import { SubjectCard } from '@/features/subjects';
-import { useSession } from '@/providers/app-context';
-import { useHttpQuery } from '@/hooks/use-http-query';
-import { createCalendarApi } from '@/features/calendar';
 import { EnrollmentStatus } from '@/features/students';
-import { isAssessmentAssigned } from '@/lib/enrollment';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useSession } from '@/providers/app-context';
+import { createDashboardApi, type StudentDashboardDto } from '../api';
 import { upcomingMeetings } from '@/lib/announcement-calendar';
-import { hasSubmitted } from '@/lib/activities';
 
 export function StudentDashboard() {
-  const { db, user } = useApp();
-  const { client, sessionKey, resourceEpoch } = useSession();
-  const calendarApi = useMemo(() => createCalendarApi(client), [client]);
-  const calendar = useHttpQuery({ sessionKey, key: `dashboard-calendar:${resourceEpoch}` }, useCallback(signal => calendarApi.upcoming(signal), [calendarApi]));
-  const classes = db.classes.filter(c => c.studentIds.includes(user.id));
-  const subjects = db.subjects.filter(s => classes.some(c => c.id === s.classId));
-  const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
-  const materials = db.materials.filter(m => modules.some(mod => mod.id === m.moduleId));
-  const notices = db.announcements.filter(a => classes.some(c => c.id === a.classId) && (!a.subjectId || subjects.some(s => s.id === a.subjectId))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 2);
-  const pending = db.assessments.filter(a => a.status === 'published' && a.required !== false && isAssessmentAssigned(db, a, user.id) && modules.some(m => m.id === a.moduleId) && !hasSubmitted(db, a.id, user.id)).sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const resume = lastAccessedMaterial(user.id, materials, db.progress);
-  const events = upcomingMeetings(calendar.data ?? []);
-  const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
+  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const api = useMemo(() => createDashboardApi(client), [client]);
+  const dashboard = useHttpQuery({ sessionKey, key: `dashboard:${resourceEpoch}:student` }, useCallback(signal => api.read(signal), [api]), user?.role === 'student');
+  const data = dashboard.data?.role === 'student' ? dashboard.data as StudentDashboardDto : undefined;
+  const events = upcomingMeetings(data?.upcoming ?? []);
 
   return <>
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
-      <div><p className="mb-1 text-sm text-slate-500">Olá, {user.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight">Meu painel</h1><p className="mt-2 text-sm text-slate-600">Materiais e avisos das suas turmas.</p></div>
+      <div><p className="mb-1 text-sm text-slate-500">Olá, {user?.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight">Meu painel</h1><p className="mt-2 text-sm text-slate-600">Materiais, atividades e avisos das suas turmas.</p></div>
     </header>
     <EnrollmentStatus />
-    {!classes.length ? null : <>
-      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section aria-labelledby="student-subjects">
-          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-subjects" className="text-lg font-semibold">Minhas disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todas<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-          <div className="grid gap-4 sm:grid-cols-2">{subjects.slice(0, 6).map(s => <SubjectCard key={s.id} subject={s} className={db.classes.find(c => c.id === s.classId)?.name} />)}</div>
-          {!subjects.length && <p className="py-5 text-sm text-slate-500">Nenhuma disciplina disponível.</p>}
-        </section>
-        <section aria-labelledby="student-notices">
-          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-notices" className="text-lg font-semibold">Avisos recentes</h2><Link href="/avisos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todos<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-          <div className="divide-y divide-brand-200 rounded-xl bg-brand-50 px-5">{notices.map(a => <article key={a.id} className="py-5"><p className="mb-2 text-xs text-brand-700">{a.subjectId ? subjects.find(s => s.id === a.subjectId)?.name : db.classes.find(c => c.id === a.classId)?.name} · <time dateTime={a.createdAt}>{dateLabel(a.createdAt)}</time></p><h3 className="font-semibold leading-6">{a.title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{a.body}</p><Link href={`/avisos#aviso-${a.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700">Ler aviso<ChevronRight aria-hidden="true" className="size-4" /></Link></article>)}{!notices.length && <p className="py-5 text-sm text-slate-600">Nenhum aviso publicado.</p>}</div>
-        </section>
-      </div>
-      <section aria-labelledby="student-deadlines" className="mt-8 border-t border-slate-200 pt-5">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h2 id="student-deadlines" className="text-lg font-semibold">Próximas entregas</h2><Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-        <div className="grid gap-x-6 sm:grid-cols-3">{pending.slice(0, 3).map(a => <Link key={a.id} href={`/questionarios/responder?id=${a.id}`} className="rounded-lg py-3 hover:bg-white"><p className="text-xs font-medium text-brand-700">{a.deadline ? `Até ${dateLabel(a.deadline)} · ${a.deadline.slice(11, 16)}` : 'Sem prazo'} · Obrigatória</p><h3 className="mt-1 text-sm font-semibold leading-6">{a.title}</h3></Link>)}</div>{!pending.length && <p className="py-3 text-sm text-slate-500">Nenhuma entrega obrigatória pendente. Práticas opcionais estão em Atividades.</p>}
+    {dashboard.loading && <Skeleton />}
+    {dashboard.error && <p role="alert" className="mb-6 text-sm text-red-700">{dashboard.error.message} <button type="button" className="underline" onClick={() => void dashboard.retry()}>Tentar novamente</button></p>}
+    {data && <>
+      <section aria-label="Progresso de estudos" className="mb-7 flex flex-wrap items-center gap-x-7 gap-y-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm">
+        <p><strong className="text-lg tabular-nums">{data.completedMaterials}</strong><span className="ml-2 text-slate-600">materiais concluídos</span></p>
+        <p><strong className="text-lg tabular-nums">{data.totalMaterials}</strong><span className="ml-2 text-slate-600">materiais disponíveis</span></p>
+        <p><strong className="text-lg tabular-nums">{data.pendingAssessmentCount}</strong><span className="ml-2 text-slate-600">atividades pendentes</span></p>
       </section>
-      {resume && <Link href={`/materiais?id=${resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
-      <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
-        {<section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros e prazos</h2>{calendar.loading && <p role="status" className="py-3 text-sm text-slate-500">Carregando encontros e prazos…</p>}{calendar.error && <p role="alert" className="py-3 text-sm text-red-700">{calendar.error.message} <button type="button" className="underline" onClick={calendar.retry}>Tentar novamente</button></p>}{events.map(e => <Link key={e.id} href={e.href} className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(e.date)}</span><span>{e.title}<span className="ml-2 text-xs text-slate-500">{e.time ?? 'Dia inteiro'} · {e.source === 'announcement' ? 'Acontecimento' : 'Prazo de atividade'}</span></span></Link>)}{!calendar.loading && !calendar.error && !events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro ou prazo futuro.</p>}</section>}
-        {<section aria-labelledby="student-forum"><h2 id="student-forum" className="mb-2 font-semibold">Dúvidas da turma</h2>{topics.map(t => <Link key={t.id} href={`/forum/topico?id=${t.id}`} className="block rounded-lg py-3 text-sm hover:bg-white">{t.title}<span className="mt-1 block text-xs text-slate-500">{t.replies.length} respostas</span></Link>)}{!topics.length && <p className="py-3 text-sm text-slate-500">Nenhuma dúvida publicada.</p>}</section>}
-      </div>
-      <Link href="/questoes" className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Acessar banco de questões<ChevronRight aria-hidden="true" className="size-4" /></Link>
+      {!data.subjects.length ? <Empty title="Nenhuma disciplina disponível" description="Quando sua matrícula em uma turma estiver ativa, as disciplinas, atividades e avisos aparecerão aqui." /> : <>
+        <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <section aria-labelledby="student-subjects">
+            <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-subjects" className="text-lg font-semibold">Minhas disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todas<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
+            <div className="grid gap-4 sm:grid-cols-2">{data.subjects.map(subject => <SubjectCard key={subject.id} subject={subject} />)}</div>
+          </section>
+          <section aria-labelledby="student-notices">
+            <div className="mb-3 flex items-center justify-between gap-3"><h2 id="student-notices" className="text-lg font-semibold">Avisos recentes</h2><Link href="/avisos" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver todos<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
+            <div className="divide-y divide-brand-200 rounded-xl bg-brand-50 px-5">{data.announcements.map(notice => <article key={notice.id} className="py-5"><p className="mb-2 text-xs text-brand-700">{data.subjects.find(subject => subject.id === notice.subjectId)?.name ?? data.subjects.find(subject => subject.classId === notice.classId)?.className} · <time dateTime={notice.createdAt}>{dateLabel(notice.createdAt)}</time></p><h3 className="font-semibold leading-6">{notice.title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{notice.body}</p><Link href={`/avisos#aviso-${notice.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand-700">Ler aviso<ChevronRight aria-hidden="true" className="size-4" /></Link></article>)}{!data.announcements.length && <p className="py-5 text-sm text-slate-600">Nenhum aviso publicado.</p>}</div>
+          </section>
+        </div>
+        <section aria-labelledby="student-deadlines" className="mt-8 border-t border-slate-200 pt-5">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h2 id="student-deadlines" className="text-lg font-semibold">Próximas entregas</h2><Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
+          <div className="grid gap-x-6 sm:grid-cols-3">{data.assessments.map(item => <Link key={item.id} href={`/questionarios/responder?id=${item.id}`} className="rounded-lg py-3 hover:bg-white"><p className="text-xs font-medium text-brand-700">{item.deadline ? `Até ${dashboardDeadlineLabel(item.deadline)}` : 'Sem prazo'} · Obrigatória</p><h3 className="mt-1 text-sm font-semibold leading-6">{item.title}</h3></Link>)}</div>{!data.assessments.length && <p className="py-3 text-sm text-slate-500">Nenhuma entrega obrigatória pendente. Práticas opcionais estão em Atividades.</p>}
+        </section>
+        {data.resume && <Link href={`/materiais?id=${data.resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{data.resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
+        <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
+          <section aria-labelledby="student-events"><h2 id="student-events" className="mb-2 font-semibold">Próximos encontros e prazos</h2>{events.map(item => <Link key={item.id} href={item.href} className="flex items-baseline gap-3 rounded-lg py-3 text-sm hover:bg-white"><span className="shrink-0 text-slate-500">{dateLabel(item.date)}</span><span>{item.title}<span className="ml-2 text-xs text-slate-500">{item.time ?? 'Dia inteiro'} · {item.source === 'announcement' ? 'Acontecimento' : 'Prazo de atividade'}</span></span></Link>)}{!events.length && <p className="py-3 text-sm text-slate-500">Nenhum encontro ou prazo futuro.</p>}</section>
+          <section aria-labelledby="student-forum"><h2 id="student-forum" className="mb-2 font-semibold">Dúvidas da turma</h2>{data.topics.map(topic => <Link key={topic.id} href={topic.href} className="block rounded-lg py-3 text-sm hover:bg-white">{topic.title}<span className="mt-1 block text-xs text-slate-500">{topic.replyCount} respostas · {topic.subjectName}</span></Link>)}{!data.topics.length && <p className="py-3 text-sm text-slate-500">Nenhuma dúvida publicada.</p>}<Link href="/forum" className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Abrir fórum<ChevronRight aria-hidden="true" className="size-4" /></Link></section>
+        </div>
+        <Link href="/questoes" className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-brand-700">Acessar banco de questões<ChevronRight aria-hidden="true" className="size-4" /></Link>
+      </>}
     </>}
   </>;
 }

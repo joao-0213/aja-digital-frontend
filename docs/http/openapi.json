@@ -13397,29 +13397,23 @@
           "subjects": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Subject"
+              "$ref": "#/components/schemas/DashboardSubject"
             }
           },
           "resume": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Material"
+                "$ref": "#/components/schemas/DashboardResume"
               },
               {
                 "type": "null"
               }
             ]
           },
-          "pendingEnrollments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Enrollment"
-            }
-          },
           "assessments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AssessmentStudent"
+              "$ref": "#/components/schemas/DashboardAssessment"
             }
           },
           "announcements": {
@@ -13439,16 +13433,51 @@
             "items": {
               "$ref": "#/components/schemas/Progress"
             }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "student",
+              "teacher",
+              "admin"
+            ]
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTopic"
+            }
+          },
+          "completedMaterials": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalMaterials": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pendingEnrollmentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pendingAssessmentCount": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
           "subjects",
           "resume",
-          "pendingEnrollments",
+          "pendingEnrollmentCount",
           "assessments",
           "announcements",
           "upcoming",
-          "progress"
+          "progress",
+          "role",
+          "topics",
+          "completedMaterials",
+          "totalMaterials",
+          "pendingAssessmentCount"
         ]
       },
       "DashboardStaff": {
@@ -13458,25 +13487,19 @@
           "subjects": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Subject"
+              "$ref": "#/components/schemas/DashboardSubject"
             }
           },
           "classes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ClassStaff"
-            }
-          },
-          "pendingEnrollments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Enrollment"
+              "$ref": "#/components/schemas/DashboardClass"
             }
           },
           "assessments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AssessmentStaff"
+              "$ref": "#/components/schemas/DashboardAssessment"
             }
           },
           "announcements": {
@@ -13500,17 +13523,37 @@
             "type": "integer",
             "minimum": 0,
             "example": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "student",
+              "teacher",
+              "admin"
+            ]
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTopic"
+            }
+          },
+          "pendingEnrollmentCount": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
           "subjects",
           "classes",
-          "pendingEnrollments",
+          "pendingEnrollmentCount",
           "assessments",
           "announcements",
           "upcoming",
           "studentCount",
-          "pendingFeedbackCount"
+          "pendingFeedbackCount",
+          "role",
+          "topics"
         ]
       },
       "UserRead": {
@@ -14801,6 +14844,303 @@
           "image",
           "correct",
           "explanation"
+        ]
+      },
+      "DashboardSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "classId": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "teacherIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "violet",
+              "blue",
+              "amber",
+              "green"
+            ]
+          },
+          "icon": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "teachers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            }
+          },
+          "canManageContent": {
+            "type": "boolean"
+          },
+          "hasUpdates": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "updatedBy",
+          "classId",
+          "className",
+          "name",
+          "teacherIds",
+          "color",
+          "icon",
+          "description",
+          "teachers",
+          "canManageContent",
+          "hasUpdates"
+        ]
+      },
+      "DashboardResume": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "moduleId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "lesson",
+              "pdf",
+              "video"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "moduleId",
+          "kind"
+        ]
+      },
+      "DashboardTopic": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subjectName": {
+            "type": "string"
+          },
+          "replyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "href": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "subjectName",
+          "replyCount",
+          "href"
+        ]
+      },
+      "DashboardClass": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer"
+          },
+          "shift": {
+            "type": "string",
+            "enum": [
+              "Manhã",
+              "Tarde",
+              "Noite"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "studentCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "updatedBy",
+          "name",
+          "code",
+          "year",
+          "shift",
+          "active",
+          "studentCount"
+        ]
+      },
+      "DashboardAssessment": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "moduleId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "quiz",
+              "work"
+            ]
+          },
+          "maxGrade": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "allowLate": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published"
+            ]
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "questionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "assigned": {
+            "type": "boolean"
+          },
+          "subjectName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "updatedBy",
+          "moduleId",
+          "title",
+          "description",
+          "kind",
+          "maxGrade",
+          "deadline",
+          "required",
+          "allowLate",
+          "status",
+          "publishedAt",
+          "questionCount"
         ]
       }
     },
