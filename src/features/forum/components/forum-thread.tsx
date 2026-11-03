@@ -8,6 +8,7 @@ import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Card, Empty, LinkButton, Textarea } from '@/components/ui';
+import { ErrorState } from '@/components/ui/error-state';
 import { cn, dateLabel } from '@/lib/utils';
 import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
@@ -75,7 +76,8 @@ function ForumThreadContent() {
     void updateTopic(() => api.reply(id, intent.body, intent.key), true);
   };
   if (query.loading) return <p role="status" className="text-sm text-slate-500">Carregando conversa…</p>;
-  if (query.error || !topic) return <Empty title="Pergunta indisponível" description={query.error?.message ?? 'A pergunta foi retirada ou seu acesso à turma/disciplina foi encerrado.'} action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>} />;
+  if (query.error) return <ErrorState message={query.error.message} retry={query.retry} />;
+  if (!topic) return <Empty title="Pergunta indisponível" description="A pergunta foi retirada ou seu acesso à turma/disciplina foi encerrado." action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>} />;
   const solved = topic.replies.some(reply => reply.accepted);
   return <div className="mx-auto max-w-4xl [overflow-wrap:anywhere]">
     <Link href="/forum" className="mb-6 inline-block text-sm font-semibold text-brand-600">Fórum de dúvidas / {options.data?.subjects.find(row => row.id === topic.subjectId)?.name ?? topic.subjectId}</Link>

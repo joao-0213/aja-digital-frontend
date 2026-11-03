@@ -1,6 +1,6 @@
 # Contrato HTTP v1
 
-Estado: **contrato alvo**, fixado pela AJA-01 a partir de `e169df6`. A presença de uma operação no [OpenAPI 3.1](openapi.json) não significa que ela já funciona. AJA-02 a AJA-16 implementam e verificam cada fatia; o backlog registra disponibilidade e evidência. A [matriz de rotas](route-matrix.md) é o mapa de consumidores e o [inventário](storage-inventory.md) define destino e preservação dos dados anteriores.
+Estado: contrato HTTP v1 fixado pela AJA-01 a partir de `e169df6`; implementações e evidências das jornadas AJA-02 a AJA-17 estão registradas por issue. A presença de uma operação no [OpenAPI 3.1](openapi.json) descreve o contrato, não substitui a verificação da operação. A [matriz de rotas](route-matrix.md) é o mapa de consumidores e o [inventário](storage-inventory.md) define destino e preservação dos dados anteriores. O aceite integrado, seus limites e comandos ficam em [validation-AJA-18.md](validation-AJA-18.md).
 
 ## Disciplinas, módulos e visitas — AJA-07
 

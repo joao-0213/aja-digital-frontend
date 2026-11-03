@@ -10,7 +10,7 @@ Requer Node.js 22.6+ e npm. No PowerShell use `npm.cmd` quando a política bloqu
 - `npm run build` seguido de `npm run preview`: exportação em `out/`, prévia estática na porta 3001. O build funciona com a API desligada.
 - `curl.exe http://127.0.0.1:3002/api/v1/health` no Windows; `curl http://127.0.0.1:3002/api/v1/health` no Linux. Resposta 200: `{"status":"ok","version":"1"}`.
 
-Desde AJA-05, além de saúde, estão disponíveis cadastro/login/logout/sessão, confirmação de e-mail, recuperação, consulta/alteração do próprio nome e consulta de vínculos próprios. AJA-06 acrescenta administração de usuários/turmas/matrículas e consulta autorizada de alunos. Os demais endpoints do OpenAPI permanecem alvos das próximas issues. Não há endpoint de probe, reset, manutenção, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
+As jornadas institucionais de AJA-05 a AJA-17 estão implementadas no serviço separado. O contrato OpenAPI e a [matriz de rotas](route-matrix.md) definem chamadas, respostas e acesso por perfil. Não há endpoint público de reset, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
 
 ## Configuração de origem
 
@@ -30,6 +30,38 @@ API_PORT=3002 API_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:3001 np
 
 Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usar `*`, caminhos ou credenciais nas origens. Requisições com Origin não permitido recebem 403 sem cabeçalho de autorização CORS; requisições de terminal sem Origin podem consultar saúde. Escritas, inclusive login/cadastro/recuperação, exigem Origin permitido. O serviço escuta somente loopback. Cookies são HttpOnly, Path `/api/v1`, SameSite=Lax; o navegador envia com `credentials: include`. Use o mesmo hostname nas portas 3000/3001/3002. `API_FRONTEND_ORIGIN` escolhe uma das origens permitidas para links da caixa local (padrão primeira origem). `API_COOKIE_SECURE=true` ativa Secure; origens HTTPS também o ativam automaticamente. Hospedagem em sites diferentes requer política de cookies própria e aceite AJA-18; a configuração local não promete esse cenário.
 
+## Exportação estática e origem pública da API
+
+`NEXT_PUBLIC_API_URL` é incorporada aos arquivos JavaScript durante `next build`; configure-a **antes do build**. Ela deve apontar para a URL pública completa da API e incluir `/api/v1`. Não é possível trocar o endereço editando o ambiente do servidor estático depois de exportar. Não coloque senhas, tokens ou chaves nessa variável.
+
+PowerShell, com API local disponível para o preview:
+
+```powershell
+$env:API_PORT='3002'
+$env:API_ALLOWED_ORIGINS='http://127.0.0.1:3001'
+$env:API_FRONTEND_ORIGIN='http://127.0.0.1:3001'
+$env:API_COOKIE_SECURE='false'
+npm.cmd run api
+
+# Em outro terminal, prepare a URL antes de compilar.
+$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:3002/api/v1'
+npm.cmd run build
+npm.cmd run preview
+```
+
+Para desenvolvimento, permita a origem exata do Next e configure a URL antes de iniciar `npm run dev` ou `npm run dev:full`:
+
+```powershell
+$env:API_ALLOWED_ORIGINS='http://127.0.0.1:3000'
+$env:API_FRONTEND_ORIGIN='http://127.0.0.1:3000'
+$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:3002/api/v1'
+npm.cmd run dev:full
+```
+
+Linux/macOS usa as mesmas variáveis como prefixos no comando, por exemplo `NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1 npm run build`; reinicie o processo de desenvolvimento após mudar o ambiente. Para trocar de API, aponte a URL a outra instância que implemente o mesmo contrato e permita a origem do frontend em `API_ALLOWED_ORIGINS`, então gere um novo build. O teste `tests/http-real-process-contract.test.mjs` demonstra o mesmo conjunto de contratos com duas URLs de processos JSON Server isolados em `npm test`.
+
+Em desenvolvimento e preview locais, use o mesmo hostname em site e API. Portas diferentes ainda formam origens distintas: CORS precisa listar exatamente `http://127.0.0.1:3000` ou `http://127.0.0.1:3001`, conforme o frontend aberto. A API responde com origem explícita e credenciais permitidas; o cliente usa `credentials: include`. A sessão é cookie HttpOnly com `Path=/api/v1`, `SameSite=Lax`; em HTTP local não há `Secure`, em HTTPS ele é obrigatório. Um domínio de frontend/API diferente pode tornar o cookie third-party: `SameSite=Lax` não promete esse cenário. Hospedagem separada requer desenho e validação próprios de `SameSite=None; Secure`, CORS com credenciais e política do navegador antes de publicar.
+
 ## Persistência e reset explícito
 
 O serviço gera `server/runtime/db.json` **somente se ausente**, usando `server/seed.mjs` e a versão em `server/seed.json`. A data-base é o dia corrente de Brasília na inicialização/reset. Prazos são relativos a essa data e ficam persistidos; reiniciar não muda prazos nem alterações. Reabrir preserva a base existente, inclusive uma instalação antiga AJA-02 contendo só metadados: para receber a nova massa, faça backup e reset explícito. JSON corrompido interrompe inicialização sem sobrescrever a base. A pasta runtime não entra no Git nem em `out/`.
@@ -38,7 +70,7 @@ Pare a API antes de `npm run api:reset`. O comando não aceita caminhos nem argu
 
 `node --test tests/http-server.test.mjs` usa diretórios temporários e porta efêmera, sem tocar no runtime do operador. A prova de persistência grava um registro **pelo módulo interno do repositório**, reinicia um processo real da API e relê o arquivo; não existe escrita HTTP pública de teste. `AJA_TEST_RUNTIME` exige `NODE_ENV=test` e muda somente localização dos arquivos, nunca habilita rotas ou acesso. O reset de teste fornece explicitamente sua raiz permitida ao módulo; a CLI de produção não recebe essa opção.
 
-Limite desta etapa: gravação consistente, concorrência, rollback de falha e idempotência de comandos de negócio são AJA-04. A API de domínio não está implementada; não inferir conclusão das demais issues pela resposta de saúde.
+`npm test` inclui `tests/http-real-process-contract.test.mjs`, que parte dois servidores reais em portas efêmeras, inicializa massas em diretórios temporários e executa o mesmo contrato de sessão e autorização em ambas as URLs. Os demais testes `http-*.test.mjs` exercitam os serviços e contratos em fixtures isoladas. AJA-18 registra o escopo dessa cobertura e as limitações de cada jornada; o `health` por si só nunca prova disponibilidade das demais operações.
 
 ## Contas e jornadas preparadas — AJA-03
 
