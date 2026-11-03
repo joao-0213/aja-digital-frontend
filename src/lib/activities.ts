@@ -22,6 +22,12 @@ export function validateAttachments(items: WorkAttachment[]) {
     else if (a.kind !== 'file' || !Number.isFinite(a.size) || a.size < 0 || a.size > 10 * 1024 * 1024) throw new Error('Cada arquivo pode ter até 10 MB.');
   }
 }
+export function validateWorkFeedback(activity: Pick<Assessment, 'maxGrade'>, comment: string, grade: number | undefined, publish: boolean): string | undefined {
+  if (typeof comment !== 'string' || comment.length > 10000) return 'O comentário deve ter até 10.000 caracteres.';
+  if (grade !== undefined && (activity.maxGrade === undefined || !Number.isFinite(grade) || grade < 0 || grade > (activity.maxGrade ?? 0))) return 'A nota deve estar entre zero e o máximo da atividade.';
+  if (publish && !comment.trim() && grade === undefined) return 'Escreva um comentário ou informe uma nota antes de publicar.';
+  return undefined;
+}
 export function saveWork(db: MockDatabase, assessmentId: string, userId: string, id: string, attachments: WorkAttachment[], submit: boolean, now: string) {
   const a = db.assessments.find(a => a.id === assessmentId && !a.deletedAt && a.status === 'published' && a.kind === 'work');
   if (!a) throw new Error('Atividade indisponível: retirada ou sem acesso.');
@@ -40,8 +46,8 @@ export function saveFeedback(db: MockDatabase, id: string, comment: string, grad
   const submission = db.submissions?.find(s => s.id === id && s.submittedAt && !s.deletedAt);
   const a = db.assessments.find(a => a.id === submission?.assessmentId);
   if (!submission || !a) throw new Error('Entrega indisponível.');
-  if (grade !== undefined && (a.maxGrade === undefined || !Number.isFinite(grade) || grade < 0 || grade > a.maxGrade)) throw new Error('A nota deve estar entre zero e o máximo da atividade.');
-  if (publish && !comment.trim() && grade === undefined) throw new Error('Escreva um comentário ou informe uma nota antes de publicar.');
+  const validationError = validateWorkFeedback(a, comment, grade, publish);
+  if (validationError) throw new Error(validationError);
   const feedback = { comment: comment.trim(), ...(grade !== undefined && { grade }), authorId, createdAt: now };
   if (publish) {
     submission.feedbackPublished = feedback;

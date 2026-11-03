@@ -8,6 +8,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AssessmentRead, type AttemptRead, type AttemptStudent } from '../api';
 import { QuizSession } from './quiz-session';
+import { WorkActivity } from './work-activity';
 
 function isStaffAssessment(assessment: AssessmentRead): assessment is Extract<AssessmentRead, { questionIds: string[] }> {
   return 'questionIds' in assessment;
@@ -36,10 +37,9 @@ export function AnswerAssessment() {
   const { client, sessionKey, resourceEpoch, status, user } = useSession();
   const params = useSearchParams();
   const id = params.get('id') ?? '';
-  const deliveryId = params.get('entrega');
   const api = useMemo(() => createAssessmentsApi(client), [client]);
-  const assessment = useHttpQuery({ sessionKey, key: `attempt-assessment:${id}:${resourceEpoch}` }, useCallback(signal => api.readForSession(id, sessionKey, signal), [api, id, sessionKey]), status === 'authenticated' && !!id && !deliveryId);
-  const attempts = useHttpQuery({ sessionKey, key: `attempt-list:${id}:${resourceEpoch}` }, useCallback(signal => api.allAttempts({ assessmentId: id }, signal, sessionKey), [api, id, sessionKey]), status === 'authenticated' && !!id && !!assessment.data);
+  const assessment = useHttpQuery({ sessionKey, key: `attempt-assessment:${id}:${resourceEpoch}` }, useCallback(signal => api.readForSession(id, sessionKey, signal), [api, id, sessionKey]), status === 'authenticated' && !!id);
+  const attempts = useHttpQuery({ sessionKey, key: `attempt-list:${id}:${resourceEpoch}` }, useCallback(signal => api.allAttempts({ assessmentId: id }, signal, sessionKey), [api, id, sessionKey]), status === 'authenticated' && !!id && assessment.data?.kind === 'quiz');
   const startIntent = useRef<string | null>(null);
   const [started, setStarted] = useState<AttemptStudent | null>(null);
   const [startBusy, setStartBusy] = useState(false);
@@ -49,12 +49,11 @@ export function AnswerAssessment() {
 
   if (status === 'loading' || assessment.loading) return <Skeleton />;
   if (status !== 'authenticated' || !user) return <Empty title="Entre para consultar a atividade" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
-  if (deliveryId) return <Empty title="Consulta de trabalhos ainda não disponível" description="Os comprovantes e o feedback de trabalhos serão habilitados na próxima etapa." action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
   if (!id) return <Empty title="Atividade não encontrada" description="Abra uma atividade pela lista da disciplina." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
   if (assessment.error) return <ErrorState message={assessment.error.message} retry={() => void assessment.retry()} />;
   if (!assessment.data) return <Empty title="Atividade indisponível" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
   const activity = assessment.data;
-  if (activity.kind === 'work') return <Empty title="Envio de trabalhos ainda não disponível" description="Os trabalhos e o feedback serão habilitados na próxima etapa da migração." action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
+  if (activity.kind === 'work') return <WorkActivity activity={activity} />;
   if (attempts.loading) return <Skeleton />;
   if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
   const listed = attempts.data ?? [];

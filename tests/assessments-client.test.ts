@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAssessmentsApi, type AttemptQuestionPrompt, type AttemptStaff } from '../src/features/assessments/api.ts';
+import { createAssessmentsApi, createWorkSubmitCommand, type AttemptQuestionPrompt, type AttemptStaff } from '../src/features/assessments/api.ts';
 import * as assessmentApiModule from '../src/features/assessments/api.ts';
 import { HttpError } from '../src/lib/http-client.ts';
 import type { HttpRequestOptions } from '../src/lib/http-client.ts';
@@ -22,6 +22,51 @@ test('assessment adapter encodes filters and IDs and separates draft, edit and p
   assert.deepEqual(calls[2].options, { method: 'POST', json: fields, headers: { 'Idempotency-Key': 'assessment-intent' } });
   assert.deepEqual(calls[3].options, { method: 'PATCH', json: { ...fields, confirmResetDrafts: true, expectedRevision: 2 } });
   assert.deepEqual(calls[4].options, { method: 'POST', json: { expectedRevision: 3 }, headers: { 'Idempotency-Key': 'publish-intent' } });
+});
+
+test('work adapter freezes submissions, uses multipart upload, and rejects a late session response', async () => {
+  let sessionKey = 'session-a';
+  const calls: { path: string; options?: HttpRequestOptions }[] = [];
+  const api = createAssessmentsApi({
+    getSnapshot: () => ({ status: 'authenticated', user: null, sessionId: 'server-session-a', expiresAt: null, sessionKey, resourceEpoch: 0 }),
+    request: async <T>(path: string, options?: HttpRequestOptions) => {
+      calls.push({ path, options });
+      if (path.startsWith('/submissions?')) return { items: [{ id: 'submission-1' }], page: 1, pageSize: 100, total: 1 } as T;
+      if (path === '/files') return { id: 'file-1' } as T;
+      if (path === '/submissions/submission-1/submit') return { id: 'submission-1', receipt: { id: 'receipt-1' } } as T;
+      sessionKey = 'session-b';
+      return {} as T;
+    }
+  });
+  const list = await api.allSubmissions({ assessmentId: 'assessment:1' }, undefined, 'session-a');
+  assert.equal(list[0].id, 'submission-1');
+  const upload = new FormData();
+  upload.set('purpose', 'work'); upload.set('parentId', 'assessment:1'); upload.set('file', new Blob(['x']), 'x.txt');
+  await api.uploadWorkFile(upload, 'upload-intent', 'session-a');
+  await api.submitWork('submission-1', 2, 'submit-intent', 'session-a');
+  await assert.rejects(api.saveFeedback('submission-1', { expectedRevision: 3, comment: 'Privado', grade: 0 }, 'session-a'), (error: unknown) => error instanceof HttpError && error.kind === 'cancelled');
+  assert.equal(calls[0].path, '/submissions?page=1&pageSize=100&assessmentId=assessment%3A1');
+  assert.deepEqual(calls[1].options, { method: 'POST', body: upload, headers: { 'Idempotency-Key': 'upload-intent' } });
+  assert.deepEqual(calls[2].options, { method: 'POST', json: { expectedRevision: 2 }, headers: { 'Idempotency-Key': 'submit-intent' } });
+  assert.deepEqual(calls[3].options, { method: 'PATCH', json: { expectedRevision: 3, comment: 'Privado', grade: 0 } });
+});
+
+test('work submission retries keep one frozen revision and require acknowledgment before replacement', async () => {
+  const command = createWorkSubmitCommand(() => 'work-submit-frozen-key');
+  const sent: { revision: number; key: string }[] = [];
+  const frozen = command.freeze(4);
+  const send = async (value: { revision: number; key: string }) => {
+    sent.push(value);
+    if (sent.length === 1) throw new Error('connection lost after possible commit');
+    return { receipt: 'receipt-stable' };
+  };
+  await assert.rejects(command.send(send), /connection lost/);
+  assert.deepEqual(command.current(), frozen);
+  assert.deepEqual(await command.send(send), { receipt: 'receipt-stable' });
+  assert.deepEqual(sent, [frozen, frozen]);
+  assert.throws(() => command.acknowledgeRevisionConflict(4), /revisão mais recente/i);
+  command.acknowledgeRevisionConflict(5);
+  assert.deepEqual(command.current(), null);
 });
 
 test('multi-step assessment save stops before publication when the authenticated session changes', async () => {

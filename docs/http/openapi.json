@@ -5896,10 +5896,35 @@
                   "$ref": "#/components/schemas/SubmissionReadPage"
                 },
                 "example": {
-                  "items": [],
+                  "items": [
+                    {
+                      "id": "submission-demo",
+                      "revision": 2,
+                      "createdAt": "2031-06-15T12:00:00.000Z",
+                      "updatedAt": "2031-06-15T12:00:00.000Z",
+                      "updatedBy": "student-demo",
+                      "assessmentId": "work-demo",
+                      "userId": "student-demo",
+                      "attachments": [
+                        {
+                          "kind": "link",
+                          "name": "Meu trabalho",
+                          "url": "https://example.test/trabalho"
+                        }
+                      ],
+                      "submittedAt": "2031-06-15T12:00:00.000Z",
+                      "receipt": {
+                        "id": "receipt-demo",
+                        "resourceId": "submission-demo",
+                        "submittedAt": "2031-06-15T12:00:00.000Z"
+                      },
+                      "feedbackPublished": null,
+                      "feedbackUpdated": false
+                    }
+                  ],
                   "page": 1,
                   "pageSize": 20,
-                  "total": 0
+                  "total": 1
                 }
               }
             }
@@ -5989,30 +6014,24 @@
                   "$ref": "#/components/schemas/SubmissionStudent"
                 },
                 "example": {
-                  "id": "s1",
+                  "id": "submission-demo",
                   "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
-                  "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackUpdated": true
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Meu trabalho",
+                      "url": "https://example.test/trabalho"
+                    }
+                  ],
+                  "submittedAt": null,
+                  "receipt": null,
+                  "feedbackPublished": null,
+                  "feedbackUpdated": false
                 }
               }
             }
@@ -6088,30 +6107,28 @@
                   "$ref": "#/components/schemas/SubmissionRead"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
+                  "id": "submission-demo",
+                  "revision": 2,
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Meu trabalho",
+                      "url": "https://example.test/trabalho"
+                    }
+                  ],
+                  "submittedAt": "2031-06-15T12:00:00.000Z",
                   "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
+                    "id": "receipt-demo",
+                    "resourceId": "submission-demo",
+                    "submittedAt": "2031-06-15T12:00:00.000Z"
                   },
-                  "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackUpdated": true
+                  "feedbackPublished": null,
+                  "feedbackUpdated": false
                 }
               }
             }
@@ -6172,30 +6189,24 @@
                   "$ref": "#/components/schemas/SubmissionStudent"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
-                  "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackUpdated": true
+                  "id": "submission-demo",
+                  "revision": 2,
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Versão final",
+                      "url": "https://example.test/final"
+                    }
+                  ],
+                  "submittedAt": null,
+                  "receipt": null,
+                  "feedbackPublished": null,
+                  "feedbackUpdated": false
                 }
               }
             }
@@ -6278,30 +6289,28 @@
                   "$ref": "#/components/schemas/SubmissionStudent"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
+                  "id": "submission-demo",
+                  "revision": 2,
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Meu trabalho",
+                      "url": "https://example.test/trabalho"
+                    }
+                  ],
+                  "submittedAt": "2031-06-15T12:00:00.000Z",
                   "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
+                    "id": "receipt-demo",
+                    "resourceId": "submission-demo",
+                    "submittedAt": "2031-06-15T12:00:00.000Z"
                   },
-                  "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackUpdated": true
+                  "feedbackPublished": null,
+                  "feedbackUpdated": false
                 }
               }
             }
@@ -6381,38 +6390,37 @@
                   "$ref": "#/components/schemas/SubmissionStaff"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
+                  "id": "submission-demo",
+                  "revision": 2,
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Meu trabalho",
+                      "url": "https://example.test/trabalho"
+                    }
+                  ],
+                  "submittedAt": "2031-06-15T12:00:00.000Z",
                   "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
+                    "id": "receipt-demo",
+                    "resourceId": "submission-demo",
+                    "submittedAt": "2031-06-15T12:00:00.000Z"
                   },
-                  "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackUpdated": true,
+                  "feedbackPublished": null,
+                  "feedbackUpdated": false,
+                  "studentName": "Estudante AJA",
                   "feedbackDraft": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
+                    "comment": "A análise explica as evidências e relaciona os dados à conclusão.",
+                    "grade": 9,
                     "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
+                      "id": "teacher-a",
+                      "name": "Docente AJA"
                     },
-                    "createdAt": "2026-11-02T14:00:00Z"
+                    "createdAt": "2031-06-15T12:00:00.000Z"
                   },
                   "feedbackHistory": []
                 }
@@ -6493,40 +6501,49 @@
                   "$ref": "#/components/schemas/SubmissionStaff"
                 },
                 "example": {
-                  "id": "s1",
-                  "revision": 1,
-                  "createdAt": "2026-11-02T14:00:00Z",
-                  "updatedAt": "2026-11-02T14:00:00Z",
-                  "updatedBy": "s1",
-                  "assessmentId": "s1",
-                  "userId": "s1",
-                  "attachments": [],
-                  "submittedAt": "2026-11-02T14:00:00Z",
+                  "id": "submission-demo",
+                  "revision": 2,
+                  "createdAt": "2031-06-15T12:00:00.000Z",
+                  "updatedAt": "2031-06-15T12:00:00.000Z",
+                  "updatedBy": "student-demo",
+                  "assessmentId": "work-demo",
+                  "userId": "student-demo",
+                  "attachments": [
+                    {
+                      "kind": "link",
+                      "name": "Meu trabalho",
+                      "url": "https://example.test/trabalho"
+                    }
+                  ],
+                  "submittedAt": "2031-06-15T12:00:00.000Z",
                   "receipt": {
-                    "id": "s1",
-                    "resourceId": "s1",
-                    "submittedAt": "2026-11-02T14:00:00Z"
+                    "id": "receipt-demo",
+                    "resourceId": "submission-demo",
+                    "submittedAt": "2031-06-15T12:00:00.000Z"
                   },
                   "feedbackPublished": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
+                    "comment": "A análise explica as evidências e relaciona os dados à conclusão.",
+                    "grade": 9,
                     "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
+                      "id": "teacher-a",
+                      "name": "Docente AJA"
                     },
-                    "createdAt": "2026-11-02T14:00:00Z"
+                    "createdAt": "2031-06-15T12:00:00.000Z"
                   },
-                  "feedbackUpdated": true,
-                  "feedbackDraft": {
-                    "comment": "Conteúdo",
-                    "grade": 10,
-                    "author": {
-                      "id": "s1",
-                      "name": "Pessoa AJA"
-                    },
-                    "createdAt": "2026-11-02T14:00:00Z"
-                  },
-                  "feedbackHistory": []
+                  "feedbackUpdated": false,
+                  "studentName": "Estudante AJA",
+                  "feedbackDraft": null,
+                  "feedbackHistory": [
+                    {
+                      "comment": "A análise explica as evidências e relaciona os dados à conclusão.",
+                      "grade": 9,
+                      "author": {
+                        "id": "teacher-a",
+                        "name": "Docente AJA"
+                      },
+                      "createdAt": "2031-06-15T12:00:00.000Z"
+                    }
+                  ]
                 }
               }
             }
@@ -12336,6 +12353,11 @@
             "items": {
               "$ref": "#/components/schemas/Feedback"
             }
+          },
+          "studentName": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Ana Demo"
           }
         },
         "required": [
@@ -12352,7 +12374,8 @@
           "feedbackPublished",
           "feedbackUpdated",
           "feedbackDraft",
-          "feedbackHistory"
+          "feedbackHistory",
+          "studentName"
         ]
       },
       "FeedbackCommand": {

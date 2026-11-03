@@ -90,6 +90,15 @@ test('PP06: invalid feedback and denied writes preserve published content', () =
   assert.throws(() => applyDemoMutation(db, 's', d => saveFeedback(d, 'delivery', 'Falso', 10, true, 's', now), {}, now), /enviad|permiss/i);
   assert.equal(db.submissions?.[0].feedbackPublished, undefined);
 });
+test('PP06: feedback preserves empty draft, valid zero and legacy null-maximum bounds', () => {
+  const db = send();
+  Object.assign(db.assessments[0], { maxGrade: null });
+  assert.doesNotThrow(() => saveFeedback(db, 'delivery', '', undefined, false, 't', now));
+  assert.doesNotThrow(() => saveFeedback(db, 'delivery', '', 0, true, 't', now));
+  assert.throws(() => saveFeedback(db, 'delivery', '', undefined, true, 't', now), /comentário|nota/i);
+  assert.throws(() => saveFeedback(db, 'delivery', 'Nota positiva sem escala', 1, false, 't', now), /nota/i);
+  assert.throws(() => saveFeedback(db, 'delivery', 'Comentário longo', 1, false, 't', now), /nota/i);
+});
 test('PP06: feedback concurrency requires latest revision and rechecks revocation', () => {
   let db = send(); const revision = db.submissions![0].revision!;
   const options = { expected: [{ collection: 'submissions', id: 'delivery', revision }] };

@@ -6,7 +6,7 @@ import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff, type AttemptRead } from '../api';
+import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff, type AttemptRead, type SubmissionRead } from '../api';
 
 type Filter = 'all' | 'draft' | 'published';
 
@@ -19,12 +19,14 @@ function dateLabel(value: string | null) {
   return `Até ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))} (Brasília)`;
 }
 
-function ActivityDetails({ activity, canManage, userId, attempts }: { activity: AssessmentRead; canManage: boolean; userId: string; attempts: AttemptRead[] }) {
+function ActivityDetails({ activity, canManage, userId, attempts, submissions }: { activity: AssessmentRead; canManage: boolean; userId: string; attempts: AttemptRead[]; submissions: SubmissionRead[] }) {
   const staff = isStaffAssessment(activity);
   const questionCount = staff ? activity.questionIds.length : activity.questionCount;
   const related = attempts.filter(attempt => attempt.assessmentId === activity.id && (canManage || attempt.userId === userId));
   const activeAttempt = related.find(attempt => !attempt.submittedAt);
   const submitted = related.filter(attempt => attempt.submittedAt);
+  const workSubmissions = submissions.filter(submission => submission.assessmentId === activity.id && (canManage || submission.userId === userId));
+  const ownWork = workSubmissions.find(submission => !canManage) ?? workSubmissions[0];
   return <>
     <LinkButton secondary href="/questionarios">Voltar para atividades</LinkButton>
     <Card className="mt-5 space-y-5">
@@ -54,7 +56,13 @@ function ActivityDetails({ activity, canManage, userId, attempts }: { activity: 
               : submitted.length ? <LinkButton className="mt-3" href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
                 : <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar questionário' : 'Iniciar questionário'}</LinkButton>}
       </section>}
-      {activity.kind === 'work' && <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">Os detalhes estão disponíveis. O envio de trabalhos será habilitado na próxima etapa.</p>}
+      {activity.kind === 'work' && <section className="border-t border-slate-100 pt-4"><h3 className="font-semibold">Entrega de trabalho</h3>{canManage
+        ? <><p className="mt-2 text-sm text-slate-600">{workSubmissions.length} entrega(s) concluída(s). Rascunhos dos alunos permanecem privados.</p>{workSubmissions.length > 0 && <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas</LinkButton>}</>
+        : !('assigned' in activity) || !activity.assigned
+          ? <p role="status" className="mt-2 text-sm text-slate-600">Disponível apenas para consulta; esta atividade não foi atribuída à sua matrícula.</p>
+          : ownWork?.submittedAt
+            ? <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(ownWork.id)}`}>Consultar comprovante e feedback</LinkButton>
+            : <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{ownWork ? 'Retomar rascunho' : 'Preparar entrega'}</LinkButton>}</section>}
     </Card>
   </>;
 }
@@ -68,6 +76,7 @@ export function AssessmentsPage() {
   const query = useHttpQuery({ sessionKey, key: JSON.stringify(['assessments', filter, resourceEpoch]) }, useCallback(signal => api.overview(filter === 'all' ? {} : { status: filter }, signal, sessionKey), [api, filter, sessionKey]), status === 'authenticated');
   const detail = useHttpQuery({ sessionKey, key: `assessment-detail:${detailId ?? ''}:${resourceEpoch}` }, useCallback(signal => api.read(detailId ?? '', signal), [api, detailId]), status === 'authenticated' && !!detailId);
   const attempts = useHttpQuery({ sessionKey, key: `assessment-attempts:${resourceEpoch}` }, useCallback(signal => api.allAttempts({}, signal, sessionKey), [api, sessionKey]), status === 'authenticated');
+  const submissions = useHttpQuery({ sessionKey, key: `assessment-submissions:${resourceEpoch}` }, useCallback(signal => api.allSubmissions({}, signal, sessionKey), [api, sessionKey]), status === 'authenticated');
 
   if (status === 'loading') return <Skeleton />;
   if (status !== 'authenticated' || !user) return <Empty title="Entre para consultar atividades" description="As atividades da disciplina aparecem para a conta autenticada." />;
@@ -75,14 +84,18 @@ export function AssessmentsPage() {
     if (detail.loading) return <Skeleton />;
     if (detail.error) return <ErrorState message={detail.error.message} retry={() => void detail.retry()} />;
     if (!detail.data) return <Empty title="Atividade indisponível" action={<LinkButton href="/questionarios">Voltar para atividades</LinkButton>} />;
+    if (detail.data.kind === 'work' && submissions.loading) return <Skeleton />;
+    if (detail.data.kind === 'work' && submissions.error) return <ErrorState message={submissions.error.message} retry={() => void submissions.retry()} />;
     if (attempts.loading) return <Skeleton />;
     if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
-    return <ActivityDetails activity={detail.data} canManage={user.role !== 'student'} userId={user.id} attempts={attempts.data ?? []} />;
+    return <ActivityDetails activity={detail.data} canManage={user.role !== 'student'} userId={user.id} attempts={attempts.data ?? []} submissions={submissions.data ?? []} />;
   }
   if (query.loading) return <Skeleton />;
   if (query.error) return <ErrorState message={query.error.message} retry={() => void query.retry()} />;
   if (attempts.loading) return <Skeleton />;
   if (attempts.error) return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
+  if (submissions.loading) return <Skeleton />;
+  if (submissions.error) return <ErrorState message={submissions.error.message} retry={() => void submissions.retry()} />;
 
   const modules = new Map((query.data?.modules ?? []).map(module => [module.id, module]));
   const subjects = new Map((query.data?.subjects ?? []).map(subject => [subject.id, subject]));
@@ -103,6 +116,8 @@ export function AssessmentsPage() {
       const related = (attempts.data ?? []).filter(attempt => attempt.assessmentId === activity.id && (staff || attempt.userId === user.id));
       const activeAttempt = related.find(attempt => !attempt.submittedAt);
       const submitted = related.filter(attempt => attempt.submittedAt);
+      const relatedSubmissions = (submissions.data ?? []).filter(submission => submission.assessmentId === activity.id && (staff || submission.userId === user.id));
+      const ownSubmission = relatedSubmissions.find(submission => !staff) ?? relatedSubmissions[0];
       return <Card key={activity.id} className="flex flex-col">
         <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
         <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {module?.order ?? '—'}</p>
@@ -119,6 +134,10 @@ export function AssessmentsPage() {
             ? <LinkButton href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
             : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar' : 'Iniciar'}</LinkButton>)}
           {activity.kind === 'quiz' && staff && submitted.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios</LinkButton>}
+          {activity.kind === 'work' && staff && relatedSubmissions.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas ({relatedSubmissions.length})</LinkButton>}
+          {activity.kind === 'work' && !staff && assigned && (ownSubmission
+            ? <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}${ownSubmission.submittedAt ? `&entrega=${encodeURIComponent(ownSubmission.id)}` : ''}`}>{ownSubmission.submittedAt ? 'Consultar comprovante' : 'Retomar rascunho'}</LinkButton>
+            : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Preparar entrega</LinkButton>)}
           {staff && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar atividade'}</LinkButton>}
         </div>
       </Card>;

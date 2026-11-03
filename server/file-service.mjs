@@ -63,7 +63,7 @@ export function visibleFile(state, actor, id, timestamp) {
       const assessment = state.assessments.find(a => a.id === submission.assessmentId && a.kind === 'work' && !a.deletedAt);
       if (!assessment) missingMaterial(); moduleContext(state, actor, assessment.moduleId);
       if (actor.role === 'student' && assessment.status !== 'published') missingMaterial();
-      if (actor.role === 'student' ? submission.userId !== actor.id : !submission.submittedAt) missingMaterial();
+      if (actor.role === 'student' ? submission.userId !== actor.id || !isAssessmentAssigned(state, assessment, actor.id) : !submission.submittedAt) missingMaterial();
     } else if (file.purpose === 'question') {
       const question = state.questions.find(q => q.id === file.parentId && !q.deletedAt && q.origin !== 'author');
       const source = `/api/v1/files/${encodeURIComponent(file.id)}/content`;
@@ -191,6 +191,28 @@ export function createFileService(config, auth) {
       if (file.status !== 'staged') throw new HttpError(409, 'BUSINESS_CONFLICT', 'Este arquivo já foi anexado.');
       if (file.authorId !== actor.id || file.purpose !== 'material' || (file.contextId ?? file.parentId) !== moduleId || Date.parse(file.expiresAt) <= Date.parse(timestamp)) missingMaterial();
       fileBytes(file); file.status = 'attached'; file.parentType = 'material'; file.parentId = materialId; return file;
+    },
+    validateWork(state, actor, id, assessmentId, submissionId, timestamp) {
+      const file = state.files.find(row => row.id === id && !row.deletedAt) ?? missingMaterial();
+      const assessment = state.assessments.find(row => row.id === assessmentId && !row.deletedAt && row.status === 'published' && row.kind === 'work');
+      if (!assessment || actor.role !== 'student' || !isAssessmentAssigned(state, assessment, actor.id)) missingMaterial();
+      moduleContext(state, actor, assessment.moduleId);
+      const contextId = file.contextId ?? (file.status === 'staged' ? file.parentId : file.parentType === 'submission' ? file.contextId : undefined);
+      if (file.authorId !== actor.id || file.purpose !== 'work' || contextId !== assessmentId) missingMaterial();
+      if (file.status === 'staged') {
+        if (Date.parse(file.expiresAt) <= Date.parse(timestamp)) missingMaterial();
+      } else if (file.status === 'attached') {
+        const existing = submissionId && state.submissions.find(row => row.id === submissionId && !row.deletedAt);
+        if (!existing || !existing.attachments.some(item => item.kind === 'file' && (item.fileId ?? item.id) === id) || file.parentId !== submissionId) missingMaterial();
+      } else missingMaterial();
+      fileBytes(file);
+      return file;
+    },
+    claimWork(state, actor, id, assessmentId, submissionId, timestamp) {
+      const file = this.validateWork(state, actor, id, assessmentId, submissionId, timestamp);
+      if (file.status === 'attached') return file;
+      file.status = 'attached'; file.parentType = 'submission'; file.parentId = submissionId; file.contextId = assessmentId;
+      return file;
     },
     resolve(path) {
       if (path === '/files') return { methods: { POST: wrap(async (req, res) => { const parsed = await readMultipart(req); req.uploadBuffer = parsed.buffer; req.body = parsed.fields; return upload(req, res); }) }, params: {}, multipartUpload: true };

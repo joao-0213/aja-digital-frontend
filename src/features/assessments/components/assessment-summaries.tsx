@@ -3,7 +3,7 @@
 import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Empty, LinkButton } from '@/components/ui';
 import type { TrailModule } from '@/models';
-import type { AssessmentRead, AttemptRead } from '../api';
+import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
 
 function isStaffAssessment(activity: AssessmentRead): activity is Extract<AssessmentRead, { questionIds: string[] }> {
   return 'questionIds' in activity;
@@ -18,6 +18,7 @@ export function AssessmentSummaries({
   module,
   items,
   attempts = [],
+  submissions = [],
   canManage,
   studentId,
   loading = false,
@@ -25,11 +26,15 @@ export function AssessmentSummaries({
   retry,
   attemptsLoading = false,
   attemptsError,
-  retryAttempts
+  retryAttempts,
+  submissionsLoading = false,
+  submissionsError,
+  retrySubmissions
 }: {
   module: TrailModule;
   items: AssessmentRead[];
   attempts?: AttemptRead[];
+  submissions?: SubmissionRead[];
   canManage: boolean;
   studentId?: string;
   loading?: boolean;
@@ -38,6 +43,9 @@ export function AssessmentSummaries({
   attemptsLoading?: boolean;
   attemptsError?: Error;
   retryAttempts?: () => void;
+  submissionsLoading?: boolean;
+  submissionsError?: Error;
+  retrySubmissions?: () => void;
 }) {
   const activities = items.filter(item => item.moduleId === module.id);
   return <section aria-label={`Atividades do módulo ${module.title}`} className="border-t border-slate-100 px-5 py-4">
@@ -52,6 +60,8 @@ export function AssessmentSummaries({
       const related = attempts.filter(attempt => attempt.assessmentId === activity.id && (canManage || attempt.userId === studentId));
       const activeAttempt = related.find(attempt => !attempt.submittedAt);
       const submitted = related.filter(attempt => attempt.submittedAt);
+      const relatedSubmissions = submissions.filter(submission => submission.assessmentId === activity.id && (canManage || submission.userId === studentId));
+      const ownSubmission = relatedSubmissions.find(submission => !canManage) ?? relatedSubmissions[0];
       return <li key={activity.id} className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-200 p-3">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2"><p className="font-medium">{activity.title}</p><Badge tone={activity.status === 'draft' ? 'neutral' : !assigned ? 'amber' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
@@ -64,6 +74,12 @@ export function AssessmentSummaries({
         {activity.kind === 'quiz' && !attemptsLoading && !attemptsError && studentId && assigned && (submitted[0]
           ? <LinkButton href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
           : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar' : 'Iniciar'}</LinkButton>)}
+        {activity.kind === 'work' && submissionsLoading && <span role="status" className="inline-flex min-h-11 items-center text-xs text-slate-500">Consultando entrega…</span>}
+        {activity.kind === 'work' && submissionsError && <span className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><span role="alert">{submissionsError.message}</span>{retrySubmissions && <Button variant="secondary" onClick={retrySubmissions}>Tentar novamente</Button>}</span>}
+        {activity.kind === 'work' && !submissionsLoading && !submissionsError && canManage && <><span className="self-center text-xs text-slate-500">{relatedSubmissions.length} entrega(s) concluída(s)</span>{relatedSubmissions.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas</LinkButton>}</>}
+        {activity.kind === 'work' && !submissionsLoading && !submissionsError && studentId && assigned && (ownSubmission
+          ? <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}${ownSubmission.submittedAt ? `&entrega=${encodeURIComponent(ownSubmission.id)}` : ''}`}>{ownSubmission.submittedAt ? 'Consultar comprovante' : 'Retomar rascunho'}</LinkButton>
+          : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Preparar entrega</LinkButton>)}
         {canManage && <LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar atividade'}</LinkButton>}
       </li>;
     })}</ul>}

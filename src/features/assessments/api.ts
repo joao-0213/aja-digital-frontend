@@ -66,6 +66,77 @@ export interface AttemptResult {
   maxScore: number;
   questions: AttemptQuestionResult[];
 }
+export type SubmissionAttachment =
+  | { kind: 'file'; fileId: string; name: string }
+  | { kind: 'link'; name: string; url: string };
+export interface WorkFeedback {
+  comment: string;
+  grade: number | null;
+  author: { id: string; name: string };
+  createdAt: string;
+}
+export interface SubmissionReceipt { id: string; resourceId: string; submittedAt: string }
+interface SubmissionBase {
+  id: string;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string;
+  assessmentId: string;
+  userId: string;
+  attachments: SubmissionAttachment[];
+  submittedAt: string | null;
+  receipt: SubmissionReceipt | null;
+  feedbackPublished: WorkFeedback | null;
+  feedbackUpdated: boolean;
+}
+export interface SubmissionStudent extends SubmissionBase {}
+export interface SubmissionStaff extends SubmissionBase {
+  studentName: string;
+  feedbackDraft: WorkFeedback | null;
+  feedbackHistory: WorkFeedback[];
+}
+export type SubmissionRead = SubmissionStudent | SubmissionStaff;
+export interface SubmissionPage { items: SubmissionRead[]; page: number; pageSize: number; total: number }
+export interface WorkFileMetadata {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  purpose: 'work';
+  parentId: string;
+  status: 'staged' | 'attached';
+  downloadUrl: string;
+}
+type SubmissionFilters = { assessmentId?: string; studentId?: string };
+export interface FrozenWorkSubmitIntent { revision: number; key: string }
+
+/** Keeps an ambiguous work submission bound to the exact revision and key. */
+export function createWorkSubmitCommand(makeKey: () => string = () => crypto.randomUUID()) {
+  let intent: FrozenWorkSubmitIntent | null = null;
+  let sending = 0;
+  return {
+    current: () => intent ? { ...intent } : null,
+    freeze(revision: number) {
+      if (intent) return { ...intent };
+      if (!Number.isSafeInteger(revision) || revision < 1) throw new TypeError('A revisão do rascunho salvo é inválida.');
+      intent = { revision, key: makeKey() };
+      return { ...intent };
+    },
+    acknowledgeRevisionConflict(revision: number) {
+      if (!intent) return;
+      if (sending) throw new Error('Aguarde a confirmação do envio atual antes de conferir a revisão.');
+      if (!Number.isSafeInteger(revision) || revision <= intent.revision) throw new RangeError('Confira uma revisão mais recente antes de iniciar outra intenção.');
+      intent = null;
+    },
+    async send<T>(run: (frozen: FrozenWorkSubmitIntent) => Promise<T>) {
+      if (!intent) throw new Error('Congele a revisão salva antes de enviar.');
+      sending++;
+      try { return await run({ ...intent }); }
+      finally { sending--; }
+    }
+  };
+}
 export interface FrozenAttemptSubmitIntent { revision: number; key: string }
 
 /** Freeze the submit body and key after the final autosave; retries replay only that POST. */
@@ -145,6 +216,12 @@ export function createAssessmentsApi(client: AssessmentClient) {
     if (filters.studentId) params.set('studentId', filters.studentId);
     return params;
   };
+  const submissionPageParams = (page: number, filters: SubmissionFilters = {}) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: '100' });
+    if (filters.assessmentId) params.set('assessmentId', filters.assessmentId);
+    if (filters.studentId) params.set('studentId', filters.studentId);
+    return params;
+  };
   const requestForSession = async <T>(path: string, options: HttpRequestOptions | undefined, sessionKey: string | undefined) => {
     const guard = sessionFence(sessionKey, options?.signal);
     guard();
@@ -193,6 +270,36 @@ export function createAssessmentsApi(client: AssessmentClient) {
       if (items.length >= result.total || !result.items.length) return items;
     }
   }
+
+  async function allSubmissions(filters: SubmissionFilters = {}, signal?: AbortSignal, sessionKey = currentSessionKey()) {
+    const guard = sessionFence(sessionKey, signal), items: SubmissionRead[] = [];
+    for (let page = 1; ; page++) {
+      guard(); const result = await requestForSession<SubmissionPage>(`/submissions?${submissionPageParams(page, filters)}`, { signal }, sessionKey); guard();
+      items.push(...result.items);
+      if (items.length >= result.total || !result.items.length) return items;
+    }
+  }
+
+  const readSubmission = (id: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionRead>(`/submissions/${encodeURIComponent(id)}`, { signal }, sessionKey);
+  const prepareSubmission = (assessmentId: string, attachments: SubmissionAttachment[], intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionRead>('/submissions', { method: 'POST', json: { assessmentId, attachments: structuredClone(attachments) }, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const updateSubmission = (id: string, revision: number, attachments: SubmissionAttachment[], sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionRead>(`/submissions/${encodeURIComponent(id)}`, { method: 'PATCH', json: { expectedRevision: revision, attachments: structuredClone(attachments) }, ...(signal ? { signal } : {}) }, sessionKey);
+  const submitWork = (id: string, revision: number, intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionStudent | SubmissionStaff>(`/submissions/${encodeURIComponent(id)}/submit`, { method: 'POST', json: { expectedRevision: revision }, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const saveFeedback = (id: string, input: { expectedRevision: number; comment: string; grade: number | null }, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionStaff>(`/submissions/${encodeURIComponent(id)}/feedback`, { method: 'PATCH', json: { ...input }, ...(signal ? { signal } : {}) }, sessionKey);
+  const publishFeedback = (id: string, revision: number, intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<SubmissionStaff>(`/submissions/${encodeURIComponent(id)}/publish-feedback`, { method: 'POST', json: { expectedRevision: revision }, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const uploadWorkFile = (body: FormData, intent: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<WorkFileMetadata>('/files', { method: 'POST', body, headers: { 'Idempotency-Key': intent }, ...(signal ? { signal } : {}) }, sessionKey);
+  const readWorkFile = (id: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<WorkFileMetadata>(`/files/${encodeURIComponent(id)}`, { signal }, sessionKey);
+  const readWorkFileContent = (id: string, inline: boolean, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<Blob>(`/files/${encodeURIComponent(id)}/content?disposition=${inline ? 'inline' : 'attachment'}`, { responseType: 'blob', signal }, sessionKey);
+  const discardWorkFile = (id: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
+    requestForSession<void>(`/files/${encodeURIComponent(id)}/discard`, { method: 'POST', json: {}, ...(signal ? { signal } : {}) }, sessionKey);
 
   async function allModules(signal?: AbortSignal, sessionKey = currentSessionKey()) {
     const guard = sessionFence(sessionKey, signal), items: TrailModule[] = [];
@@ -255,5 +362,5 @@ export function createAssessmentsApi(client: AssessmentClient) {
     return assessment;
   }
 
-  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, saveAndPublish, saveDraft, attemptPage, allAttempts, readAttempt, startAttempt, saveAttemptAnswers, submitAttempt, readAttemptResult };
+  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, saveAndPublish, saveDraft, attemptPage, allAttempts, readAttempt, startAttempt, saveAttemptAnswers, submitAttempt, readAttemptResult, allSubmissions, readSubmission, prepareSubmission, updateSubmission, submitWork, saveFeedback, publishFeedback, uploadWorkFile, readWorkFile, readWorkFileContent, discardWorkFile };
 }

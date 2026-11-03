@@ -125,8 +125,10 @@ Concluída a partir de `e3689c0`: 298/298 testes, tipos, arquitetura (179 módul
 ### AJA-12 · Migrar entregas de trabalho e devolutivas
 **Depende de** AJA-08, AJA-10. **Entrada** `work-activity.tsx`, `work-attachments.tsx`, `feedback-editor.tsx`, `src/lib/activities.ts`.
 
-- [ ] Implementar consulta/preparação e envio de `/submissions` com arquivos ou links, data e comprovante. Integrar rascunho docente, nota, comentário, publicação e revisão do retorno individual. Preservar histórico e a distinção entre salvar e publicar.
-- [ ] **Aceite** testar entrega única, recarga de comprovante, anexo inválido e tentativa de reutilizar arquivo de outro aluno. Falha antes do commit permite repetir sem entrega vazia. Aluno recebe apenas seu retorno publicado. Dois docentes não sobrescrevem devolutivas concorrentes. Verificar acesso direto com `?entrega=`.
+Implementada e validada. A revisão independente Sol identificou três defeitos MEDIUM; as correções foram revalidadas pelo mesmo revisor, com **APPROVE e zero achados pendentes**. RED/GREEN, jornada de navegador, gates e limites estão registrados em `docs/http/validation-AJA-12.md`.
+
+- [x] Implementar consulta/preparação e envio de `/submissions` com arquivos ou links, data e comprovante. Integrar rascunho docente, nota, comentário, publicação e revisão do retorno individual. Preservar histórico e a distinção entre salvar e publicar.
+- [x] **Aceite** testar entrega única, recarga de comprovante, anexo inválido e tentativa de reutilizar arquivo de outro aluno. Falha antes do commit permite repetir sem entrega vazia. Aluno recebe apenas seu retorno publicado. Dois docentes não sobrescrevem devolutivas concorrentes. Verificar acesso direto com `?entrega=`.
 
 ### AJA-13 · Migrar avisos, mural e calendário
 **Depende de** AJA-07, AJA-10. **Entrada** features `announcements`, `calendar`, mural de `subjects`, `src/lib/announcement-calendar.ts`.
