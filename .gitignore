@@ -37,6 +37,7 @@ AGENTS.md
 /VALIDACAO.md
 /docs/*
 !/docs/http/
+!/docs/backend/
 /tools/
 /public/brand/README.md
 
