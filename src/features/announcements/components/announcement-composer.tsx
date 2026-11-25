@@ -41,7 +41,7 @@ export function AnnouncementComposer({ item, subjectId, onClose }: { item?: Anno
   const occurrenceInPast = calendar && enforceFutureOccurrence && isOccurrenceInPast(value.occurrence, nowMs);
   const subjectOptions = options.data?.subjects.filter(subject => subject.classId === value.classId) ?? [];
   return <Dialog open onClose={close} title={item ? 'Editar aviso' : 'Publicar aviso'}>
-    {item && (latest || blocked) && <RecordConflict author={latest?.author.name ?? 'Equipe AJA'} updatedAt={latest?.updatedAt} onReviewed={() => editor.acknowledge()}><p><strong>{latest?.title ?? item.title}</strong></p><p>{latest?.body ?? item.body}</p><p>Acontecimento: {latest?.occurrence ? `${latest.occurrence.date} · ${latest.occurrence.allDay ? 'Dia inteiro' : latest.occurrence.time}` : 'Sem compromisso'}</p><p>Notificação local: {latest?.notify ? 'Sim' : 'Não'}</p></RecordConflict>}
+    {item && (latest || blocked) && <RecordConflict author={latest?.author.name ?? 'Equipe AJA'} updatedAt={latest?.updatedAt} onReviewed={() => editor.acknowledge()}><p><strong>{latest?.title ?? item.title}</strong></p><p>{latest?.body ?? item.body}</p><p>Acontecimento: {latest?.occurrence ? `${latest.occurrence.date} · ${latest.occurrence.allDay ? 'Dia inteiro' : latest.occurrence.time}` : 'Sem compromisso'}</p><p>Notificar por e-mail: {latest?.notify ? 'Sim' : 'Não'}</p></RecordConflict>}
     {options.error && <p role="alert" className="text-sm text-red-700">{options.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={options.retry}>Tentar novamente</button></p>}
     {restored && <p role="status" className="text-sm text-brand-700">Composição retomada nesta sessão. Confira o público antes de salvar.</p>}
     {confirmingClose ? <ConfirmAlert
@@ -77,19 +77,16 @@ export function AnnouncementComposer({ item, subjectId, onClose }: { item?: Anno
         <Select label="Disciplina" value={value.subjectId ?? ''} disabled={!!item} required={user?.role === 'teacher'} onChange={event => set('subjectId', event.target.value || null)}>
           <option value="">Toda a turma</option>{subjectOptions.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </Select>
-        {user?.role === 'teacher' && <p className="text-xs leading-5 text-slate-500">Você publica nas disciplinas atribuídas. Avisos para toda a turma são publicados pela administração.</p>}
         <Input label="Título" value={value.title} onChange={event => set('title', event.target.value)} required maxLength={150} />
         <Textarea label="Mensagem" value={value.body} onChange={event => set('body', event.target.value)} required rows={6} />
         <Check label="Adicionar ao calendário" checked={calendar} onChange={enabled => { setNowMs(Date.now()); setLocalError(''); setCalendar(enabled); if (!enabled) set('occurrence', null); else if (!value.occurrence) set('occurrence', { date: '', time: '', allDay: false }); }} />
-        <p className="text-sm text-slate-500">O aviso é publicado agora. A data indica quando o acontecimento ocorrerá, no horário de Brasília.</p>
         {calendar && <div className="space-y-3 rounded-lg border border-slate-200 p-4">
           <Input label="Data do acontecimento" type="date" min={minDate} required value={value.occurrence?.date ?? ''} onFocus={() => setNowMs(Date.now())} onChange={event => { setNowMs(Date.now()); set('occurrence', { date: event.target.value, allDay: value.occurrence?.allDay ?? false, ...(!value.occurrence?.allDay ? { time: value.occurrence?.time ?? '' } : {}) }); }} error={occurrenceInPast && (value.occurrence?.allDay || (value.occurrence?.date ?? '') < today) ? 'A data do acontecimento não pode estar no passado.' : undefined} />
           <Check label="Dia inteiro" checked={!!value.occurrence?.allDay} onChange={allDay => { setNowMs(Date.now()); set('occurrence', { date: value.occurrence?.date ?? '', allDay, ...(!allDay ? { time: value.occurrence?.time ?? '' } : {}) }); }} />
           {!value.occurrence?.allDay && <Input label="Horário do acontecimento" type="time" min={minTime} required value={value.occurrence?.time ?? ''} onFocus={() => setNowMs(Date.now())} onChange={event => { setNowMs(Date.now()); set('occurrence', { date: value.occurrence?.date ?? '', time: event.target.value, allDay: false }); }} error={occurrenceInPast && value.occurrence?.date === today ? 'O horário do acontecimento não pode ser anterior ao momento atual.' : undefined} />}
         </div>}
         {item?.occurrence && !calendar && <p role="status" className="text-sm text-amber-800">Ao salvar, o compromisso sairá do calendário. O aviso será mantido.</p>}
-        <p className="break-words text-sm font-semibold">Para: {(options.data?.classes.find(row => row.id === value.classId)?.name ?? value.classId) || 'Selecione a turma'} · {subjectOptions.find(subject => subject.id === value.subjectId)?.name ?? 'Toda a turma'}</p>
-        <Check label="Solicitar notificação local para os alunos" checked={value.notify} onChange={enabled => set('notify', enabled)} />
+        <Check label="Notificar alunos por e-mail" checked={value.notify} onChange={enabled => set('notify', enabled)} />
         {(localError || error) && <p role="alert" className="text-sm text-red-700">{localError || error}</p>}
         <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="secondary" onClick={close}>Cancelar</Button><Button type="submit" loading={busy} disabled={conflicted}>{item ? 'Salvar aviso' : 'Publicar aviso'}</Button></div>
       </fieldset>

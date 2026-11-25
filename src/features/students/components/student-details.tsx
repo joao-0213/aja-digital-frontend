@@ -30,7 +30,7 @@ export function StudentDetails() {
   if (!detail) return <Empty title="Aluno indisponível neste contexto" action={<LinkButton secondary href="/alunos"><ArrowLeft aria-hidden="true" className="size-4" />Voltar aos alunos</LinkButton>} />;
   return <>
     <LinkButton secondary href="/alunos" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar aos alunos</LinkButton>
-    <PageHeading title={detail.student.name} description="Dados cadastrais, matrículas e histórico de frequência do aluno." />
+    <PageHeading title={detail.student.name} />
     <div className="grid items-start gap-6 lg:grid-cols-[280px_1fr]">
       <Card><Avatar name={detail.student.name} size="lg" /><h2 className="mt-5 text-lg font-semibold [overflow-wrap:anywhere]">{detail.student.name}</h2><p className="mt-2 break-all text-sm text-slate-500">{detail.student.email}</p></Card>
       <Card><h2 className="mb-5 font-semibold">Matrículas</h2>{detail.enrollments.map(item => <p key={item.id} className="py-2 text-sm leading-6 text-slate-600">{item.className ?? 'Turma indisponível'} · {item.status === 'active' ? 'Ativo' : item.status === 'pending' ? 'Pendente' : item.status === 'cancelled' ? 'Cancelado' : 'Encerrado'}<br />{item.legacy ? 'Matrícula anterior — data não registrada' : item.enrolledAt ? `Efetivada em ${brazilDateTimeLabel(item.enrolledAt)}` : 'Data de efetivação não registrada'}{item.endedAt && ` · Encerrada em ${brazilDateTimeLabel(item.endedAt)}`}</p>)}{!detail.enrollments.length && <p className="text-sm text-slate-500">Nenhuma matrícula registrada.</p>}</Card>

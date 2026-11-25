@@ -270,7 +270,7 @@ export function BatchEnrollmentDialog({
       }}
     >
       <p className="text-sm leading-6 text-slate-600">
-        Destino: <strong>{className}</strong>. Cada aluno pode ter uma única turma ativa. Se o e-mail ainda não tiver conta confirmada, a matrícula ficará pendente até o cadastro.
+        Turma: <strong>{className}</strong>. Cada aluno pode ter apenas uma turma ativa.
       </p>
 
       {phase === 'input' && <>
@@ -278,7 +278,7 @@ export function BatchEnrollmentDialog({
           <Textarea
             label="E-mail do aluno (ou lista de e-mails)"
             rows={4}
-            placeholder="aluno@escola.edu.br&#10;ou cole vários separados por linha, vírgula, ponto e vírgula ou espaço"
+            placeholder="aluno@escola.edu.br"
             value={rawEmails}
             onChange={event => { setRawEmails(event.target.value); setInputError(''); }}
             onKeyDown={event => {
@@ -290,7 +290,7 @@ export function BatchEnrollmentDialog({
             aria-describedby="batch-email-hint"
           />
           <p id="batch-email-hint" className="text-xs leading-5 text-slate-500">
-            Informe um único e-mail ou cole uma lista (quebra de linha, vírgula, ponto e vírgula ou espaço). Espaços extras, maiúsculas e duplicados são limpos automaticamente.
+            Separe vários e-mails por linha, vírgula, ponto e vírgula ou espaço.
           </p>
         </div>
 

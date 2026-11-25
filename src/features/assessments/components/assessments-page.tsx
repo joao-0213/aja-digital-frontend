@@ -38,7 +38,7 @@ function ActivityDetails({ activity, canManage, userId, attempts, submissions }:
         </div>
         {canManage && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>}
       </div>
-      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 [overflow-wrap:anywhere]">{activity.description || 'Sem orientações adicionais.'}</p>
+      {activity.description && <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 [overflow-wrap:anywhere]">{activity.description}</p>}
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div><dt className="font-semibold text-slate-800">Prazo</dt><dd className="mt-1 text-slate-600">{dateLabel(activity.deadline)}</dd></div>
         {activity.deadline && <div><dt className="font-semibold text-slate-800">Envios atrasados</dt><dd className="mt-1 text-slate-600">{activity.allowLate ? 'Aceitos' : 'Não aceitos'}</dd></div>}
@@ -108,7 +108,7 @@ export function AssessmentsPage() {
   );
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Atividades" description={staff ? 'Consulte atividades publicadas e gerencie rascunhos das suas disciplinas.' : 'Acompanhe seus questionários e trabalhos organizados por prazo.'} action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
+    <PageHeading title="Atividades" action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
     {staff && <div role="group" aria-label="Filtrar atividades" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
       {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => <Button key={value} variant="ghost" aria-pressed={filter === value} className={filter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(value)}>{label}</Button>)}
     </div>}
@@ -129,7 +129,7 @@ export function AssessmentsPage() {
         <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
         <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {moduleNumber ?? '—'}</p>
         <h2 className="mb-2 mt-2 text-lg font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
-        <p className="mb-5 flex-1 whitespace-pre-wrap text-sm leading-6 text-slate-500 [overflow-wrap:anywhere]">{activity.description || 'Sem orientações adicionais.'}</p>
+        <div className="mb-5 flex-1">{activity.description && <p className="whitespace-pre-wrap text-sm leading-6 text-slate-500 [overflow-wrap:anywhere]">{activity.description}</p>}</div>
         <div className="mb-5 space-y-2 text-sm text-slate-500">
           <p>{activity.kind === 'work' ? 'Entrega de trabalho' : `${count} ${count === 1 ? 'questão' : 'questões'}`} · {activity.required ? 'Obrigatória' : 'Opcional'}</p>
           <p>{dateLabel(activity.deadline)}{activity.deadline && ` · ${activity.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}`}</p>

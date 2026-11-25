@@ -45,7 +45,7 @@ export function CalendarPage() {
   const timeLabel = (item: CalendarDto) => item.allDay ? 'Dia inteiro' : item.time ?? 'Horário não informado';
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Calendário" description="Acontecimentos dos avisos e prazos das atividades visíveis, no horário de Brasília." />
+    <PageHeading title="Calendário" />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <Button variant="secondary" aria-label="Mês anterior" onClick={() => change(-1)}><ChevronLeft aria-hidden="true" className="size-4" /></Button>

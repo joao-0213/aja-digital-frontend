@@ -139,7 +139,7 @@ export function AttendancePage() {
 
   return <>
     <LinkButton secondary href={requestedSubject ? `/disciplinas/detalhes?id=${encodeURIComponent(requestedSubject)}` : '/'} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{requestedSubject ? 'Voltar à disciplina' : 'Voltar ao painel'}</LinkButton>
-    <PageHeading eyebrow="Gestão acadêmica" title="Registro de frequência" description="Uma chamada por aula, com histórico preservado." />
+    <PageHeading title="Registro de frequência" />
     <Card className="mb-6">
       <form className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_180px_130px_auto]" onSubmit={event => { event.preventDefault(); void load(); }}>
         <Select label="Disciplina / turma" value={subjectId} onChange={event => { invalidateSelection(); setSubjectId(event.target.value); }}>
@@ -181,13 +181,13 @@ export function AttendancePage() {
           <Check label={records[student.id] ? 'Presente' : 'Ausente'} checked={records[student.id] ?? false} onChange={value => setRecords(previous => ({ ...previous, [student.id]: value }))} />
         </div>)}
       </div>
-      <p className="py-5 text-sm text-slate-500">Somente alunos vinculados na data da aula. Aulas anteriores à matrícula não geram faltas.</p>
+      <p className="py-5 text-xs text-slate-500">Exibindo apenas alunos matriculados na data da aula.</p>
       <div className="mt-5 flex justify-end">
         <Button disabled={!students.length || !!conflictLesson || !selectedSubject?.canManageContent} onClick={() => setConfirm(true)}>
           {lesson ? 'Atualizar chamada' : 'Salvar chamada'}
         </Button>
       </div>
-    </Card> : <Empty title="Selecione uma aula para começar" description="Escolha a disciplina, a data e o horário. Chamadas já salvas serão carregadas para revisão." />}
+    </Card> : <Empty title="Selecione uma aula para começar" description="Escolha disciplina, data e horário para carregar a chamada." />}
     <Dialog open={confirm} onClose={() => setConfirm(false)} title="Confirmar frequência">
       <p className="mb-5 text-sm leading-6 text-slate-500">Salvar {presentCount} {presentCount === 1 ? 'presença' : 'presenças'} e {absentCount} {absentCount === 1 ? 'ausência' : 'ausências'} em {dateLabel(date)} às {time}?</p>
       <div className="flex justify-end gap-3">

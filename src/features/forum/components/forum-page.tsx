@@ -130,7 +130,7 @@ function ForumPageContent() {
   const backLabel = materialId ? 'Voltar ao material' : requestedSubject ? 'Voltar à disciplina' : 'Voltar ao painel';
   return <>
     <LinkButton secondary href={backHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{backLabel}</LinkButton>
-    <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus aria-hidden="true" className="size-4" />Nova pergunta</Button>} />
+    <PageHeading title="Fórum de dúvidas" action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus aria-hidden="true" className="size-4" />Nova pergunta</Button>} />
     {options.error && <p role="alert" className="mb-4 text-sm text-rose-700">{options.error.message} <button type="button" onClick={options.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
     <div className="mb-6 grid gap-3 md:grid-cols-[1fr_220px_220px_200px]">
       <Input aria-label="Buscar no fórum" value={search} onChange={event => setSearch(event.target.value)} placeholder="Busque uma dúvida ou um assunto…" />
@@ -161,14 +161,14 @@ function ForumPageContent() {
         <Textarea label="Conte sua dúvida" value={body} onChange={event => setBody(event.target.value)} required minLength={10} rows={5} />
         <Input label="Tags (opcional, separadas por vírgulas)" value={tags} onChange={event => setTags(event.target.value)} />
         {reference && <div className="rounded-lg bg-slate-50 p-3 text-sm">Referência: {reference.replace(':', ' · ')} <Button variant="ghost" type="button" onClick={() => setReference('')}>Remover</Button></div>}
-        <p className="text-xs leading-5 text-slate-500">Um PDF, PNG, JPEG ou WebP de até 5 MB. O arquivo fica acessível somente a participantes autorizados da disciplina.</p>
         <Input key={fileInputVersion} label="Anexo (opcional)" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={busy || !targetSubject} onChange={event => void chooseFile(event.target.files?.[0])} />
+        <p className="text-xs leading-5 text-slate-500">PDF, PNG, JPEG ou WebP (até 5 MB).</p>
         {attachment && <ForumAttachments item={attachment} readContent={(id, inline) => api.readFileContent(id, inline)} onRemove={() => void removeFile()} />}
         {legacyAttachment && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">O anexo legado “{legacyAttachment.name}” foi preservado no rascunho local e não será enviado automaticamente. Selecione o arquivo novamente para anexá-lo a esta publicação. <Button type="button" variant="ghost" onClick={() => setLegacyAttachment(undefined)}>Remover da composição</Button></p>}
         {draftError && <p role="alert" className="text-sm text-rose-700">{draftError}</p>}
         </fieldset>
         {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-        <div className="flex justify-end gap-2"><Button variant="secondary" type="button" disabled={busy} onClick={() => setOpen(false)}>Continuar depois</Button><Button type="submit" disabled={busy || !targetSubject} loading={busy}>{pendingCreate ? 'Tentar publicar novamente' : 'Publicar pergunta'}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="secondary" type="button" disabled={busy} onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !targetSubject} loading={busy}>{pendingCreate ? 'Tentar publicar novamente' : 'Publicar pergunta'}</Button></div>
       </form>
     </Dialog>
   </>;

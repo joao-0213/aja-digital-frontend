@@ -66,7 +66,7 @@ export function ProfilePage() {
   };
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Meu perfil" description="Consulte e atualize seus dados cadastrais." action={<Button variant="secondary" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-4" />Sair da conta</Button>} />
+    <PageHeading title="Meu perfil" action={<Button variant="secondary" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-4" />Sair da conta</Button>} />
     {user.emailConfirmedAt === null && <Card className="mb-6"><h2 className="font-semibold">Confirme seu e-mail</h2><p className="mb-4 mt-2 text-sm leading-6 text-slate-600">Solicite as instruções para confirmar o endereço da sua conta. O vínculo acadêmico será verificado após a confirmação.</p><Button loading={busy} onClick={() => void requestConfirmation()}>Solicitar confirmação de e-mail</Button></Card>}
     <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">

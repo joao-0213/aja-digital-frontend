@@ -22,7 +22,7 @@ export function StudentDashboard() {
 
   return <>
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
-      <div><p className="mb-1 text-sm text-slate-500">Olá, {user?.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight">Meu painel</h1><p className="mt-2 text-sm text-slate-600">Materiais, atividades e avisos das suas turmas.</p></div>
+      <div><p className="mb-1 text-sm text-slate-500">Olá, {user?.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight">Meu painel</h1></div>
     </header>
     <EnrollmentStatus />
     {dashboard.loading && <Skeleton />}

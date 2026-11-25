@@ -18,7 +18,7 @@ export function SubjectWall({ subject }: { subject: SubjectSummary }) {
   const [withdrawing, setWithdrawing] = useState<AnnouncementDto | null>(null);
   const [actionError, setActionError] = useState('');
   return <section aria-label="Mural da disciplina" className="min-w-0 space-y-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Mural da disciplina</h2><p className="mt-1 text-sm text-slate-600">Avisos da turma e desta disciplina.</p></div>{subject.canManageContent && <Button onClick={() => setComposing('new')}>Publicar aviso</Button>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Mural da disciplina</h2>{subject.canManageContent && <Button onClick={() => setComposing('new')}>Publicar aviso</Button>}</div>
     {query.loading && <p role="status" className="text-sm text-slate-500">Carregando avisos…</p>}
     {query.error && <p role="alert" className="text-sm text-red-700">{query.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={query.retry}>Tentar novamente</button></p>}
     {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}

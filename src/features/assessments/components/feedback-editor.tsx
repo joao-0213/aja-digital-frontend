@@ -113,7 +113,6 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
 
   return <Card className="mt-5 space-y-4">
     <h2 className="font-semibold">Retorno individual</h2>
-    <p className="text-sm leading-6 text-slate-600">Salvar mantém o retorno privado. Publicar libera nota e comentário. Um rascunho novo conserva o retorno publicado anterior para o aluno.</p>
     <PublishedFeedback feedback={submission.feedbackPublished} maxGrade={activity.maxGrade} />
     {submission.feedbackDraft && <p role="status" className="text-sm text-amber-800">Rascunho privado · {submission.feedbackDraft.author.name} · {brazilDateTimeLabel(submission.feedbackDraft.createdAt)}</p>}
     {conflict && <RecordConflict author={conflict.feedbackDraft?.author.name ?? conflict.feedbackPublished?.author.name ?? 'Equipe docente'} updatedAt={conflict.updatedAt} onReviewed={() => { setSubmission(conflict); setConflict(null); publishIntent.current = null; }}>
@@ -127,7 +126,6 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
       : grade !== ''
         ? <div className="space-y-2"><p className="text-sm text-amber-800">Este rascunho antigo contém nota, mas a atividade não possui escala.</p><Button variant="secondary" disabled={busy || !!conflict} onClick={() => setGrade('')}>Remover nota</Button></div>
         : <p className="text-sm text-slate-500">Esta atividade recebe retorno sem nota.</p>}
-    <p className="text-xs text-slate-500">Deixar a nota vazia significa sem nota; zero é uma nota válida.</p>
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
     <div className="flex flex-wrap gap-3"><Button variant="secondary" loading={busy} disabled={!!conflict} onClick={() => void saveDraft(false)}>Salvar rascunho de retorno</Button><Button loading={busy} disabled={!!conflict} onClick={() => void saveDraft(true)}>Publicar retorno</Button></div>
     {submission.feedbackHistory.length > 0 && <details className="text-sm"><summary className="min-h-11 cursor-pointer py-3">Histórico de publicações</summary><ol className="space-y-4">{submission.feedbackHistory.map((feedback, index) => <li key={`${feedback.createdAt}:${index}`} className="whitespace-pre-wrap border-t border-slate-200 pt-3 [overflow-wrap:anywhere]">{brazilDateTimeLabel(feedback.createdAt)} · {feedback.author.name}<p>{feedback.comment}</p><p>{feedback.grade == null ? 'Sem nota' : `${feedback.grade} / ${activity.maxGrade ?? '—'}`}</p></li>)}</ol></details>}

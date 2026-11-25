@@ -74,13 +74,13 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
   const filtered = rows.filter(isStaffSubmission);
   return <>
     <LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
-    <PageHeading eyebrow="Acompanhamento individual" title={activity.title} description={activity.description} action={<LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>} />
+    <PageHeading title={activity.title} description={activity.description} action={<LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>} />
     <ActivityConditions activity={activity} />
     <Card><h2 className="mb-4 font-semibold">Entregas concluídas</h2>
       {filtered.length ? <ul className="divide-y divide-slate-200">{filtered.map(submission => <li key={submission.id} className="flex flex-wrap items-center justify-between gap-3 py-4 text-sm">
         <span>{submission.studentName}<span className="mt-1 block text-xs text-slate-500">{submission.feedbackPublished ? 'Feedback disponível' : 'Entregue — aguardando feedback'}{submission.submittedAt && ` · ${brazilDateTimeLabel(submission.submittedAt)}`}</span></span>
         <LinkButton secondary aria-label={`Consultar entrega de ${submission.studentName}`} href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}>Consultar entrega</LinkButton>
-      </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Ainda não há entregas concluídas. Rascunhos dos alunos permanecem privados.</p>}
+      </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Nenhuma entrega concluída ainda.</p>}
     </Card>
     {selected && <><Card className="mt-5"><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-3 text-sm text-slate-600">{selected.submittedAt ? `Enviado em ${brazilDateTimeLabel(selected.submittedAt)} (Brasília)` : 'Entrega registrada'} · {countLabel(selected.attachments.length, 'anexo', 'anexos')}</p><WorkAttachments items={selected.attachments} /></Card>
       <FeedbackEditor key={selected.id} activity={activity} submission={selected} onPublished={() => { void submissions.invalidate(); }} />
@@ -323,12 +323,12 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
 
   if (!isAssigned) return <Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída à sua matrícula.</p></Card>;
   if (submission?.submittedAt) return <>
-    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm [overflow-wrap:anywhere]">{activity.title} · {brazilDateTimeLabel(submission.receipt?.submittedAt ?? submission.submittedAt)} (Brasília)</p><p className="mt-2 text-sm text-slate-600">Entrega registrada · {countLabel(submission.attachments.length, 'anexo', 'anexos')}</p><p className="mt-3 text-sm text-slate-500">Envio único confirmado. Os anexos não podem ser substituídos.</p><WorkAttachments items={submission.attachments} /></Card>
+    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm [overflow-wrap:anywhere]">{activity.title} · {brazilDateTimeLabel(submission.receipt?.submittedAt ?? submission.submittedAt)} (Brasília)</p><p className="mt-2 text-sm text-slate-600">{countLabel(submission.attachments.length, 'anexo', 'anexos')}</p><WorkAttachments items={submission.attachments} /></Card>
     <FeedbackPublication feedback={submission.feedbackPublished} maxGrade={activity.maxGrade} />
   </>;
 
   return <Card className="space-y-4">
-    <h2 className="font-semibold">Preparar entrega</h2><p className="text-sm leading-7 text-slate-600">Até 5 arquivos e links no total. Cada arquivo pode ter até 10 MiB; arquivo vazio é permitido. Salvar rascunho não envia a atividade.</p>
+    <h2 className="font-semibold">Preparar entrega</h2><p className="text-sm leading-6 text-slate-500">Até 5 anexos (arquivos de até 10 MB ou links).</p>
     {notice && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{notice}</p>}
     {conflict && <RecordConflict author="sua conta em outra sessão" updatedAt={conflict.updatedAt} onReviewed={acknowledgeConflict}><p>Revisão atual: {conflict.revision}</p><p>Anexos salvos: {conflict.attachments.map(item => item.name).join(', ') || 'Nenhum'}</p><p>Sua seleção local continua preservada: {items.map(item => item.name).join(', ') || 'Nenhum'}</p></RecordConflict>}
     <Input label="Adicionar arquivos" type="file" multiple disabled={busy || !!conflict || frozenPending} onChange={event => { void addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />

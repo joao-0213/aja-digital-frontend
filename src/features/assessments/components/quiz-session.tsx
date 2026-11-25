@@ -280,7 +280,7 @@ export function QuizSession({
   return <div className="mx-auto max-w-4xl">
     <LinkButton secondary href="/questionarios" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     {recoveryNotice && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">{recoveryNotice}</p>}
-    <p className="mb-4 text-sm text-slate-600">Prazo: {deadline ? `${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(deadline))} (Brasília)` : 'sem prazo'}{deadline && ` · ${allowLate ? 'atrasos aceitos pelo serviço' : 'envio deve ser confirmado antes do prazo'}`}</p>
+    <p className="mb-4 text-sm text-slate-600">Prazo: {deadline ? `${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(deadline))} (Brasília)` : 'sem prazo'}{deadline && ` · ${allowLate ? 'aceita atraso' : 'não aceita atraso'}`}</p>
     <PageHeading eyebrow="Questionário" title={title} action={<Badge tone={saveStatus === 'error' || saveStatus === 'conflict' ? 'red' : 'neutral'}>{saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'error' ? 'Falha ao salvar' : saveStatus === 'conflict' ? 'Conflito para revisar' : dirty ? 'Respostas locais pendentes' : 'Respostas salvas'}</Badge>} />
     {saveError && <div role="alert" className="mb-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">{saveError}</div>}
     {saveStatus === 'error' && <Button variant="secondary" className="mb-4" onClick={() => void retrySave()}>Tentar salvar novamente</Button>}

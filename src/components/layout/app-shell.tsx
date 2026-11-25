@@ -48,10 +48,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <Dialog open={mobile} onClose={() => setMobile(false)} title="Navegação"><div className="flex flex-col">{navigation()}</div></Dialog>
     <div className="lg:pl-20">
       <Button variant="secondary" className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))] z-20 bg-white shadow-md lg:absolute lg:left-4 lg:top-4 lg:z-20 lg:hidden" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
-      <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-7 pt-20 sm:px-8 lg:py-9 xl:px-10">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-12 pt-20 sm:px-8 lg:py-9 xl:px-10">
         <div key={sessionKey}>{children}</div>
       </main>
-      <footer className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 pb-12 pt-3 text-xs text-slate-500 sm:px-8 xl:px-10"><span>AJA Digital</span></footer>
     </div>
   </div>;
 }

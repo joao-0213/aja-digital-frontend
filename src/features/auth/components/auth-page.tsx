@@ -56,7 +56,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
   return <div className="min-h-dvh bg-white"><main className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-8"><div className="mx-auto w-full max-w-md">
     <div className="mb-9"><Logo /></div>
     <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-    <p className="mb-8 mt-3 text-base leading-6 text-slate-500">{confirming ? 'Confirme o endereço vinculado à sua conta.' : resetting ? 'Escolha uma nova senha para acessar sua conta.' : mode === 'login' ? 'Informe seu e-mail e senha para acessar.' : mode === 'register' ? 'Preencha os dados para criar sua conta.' : 'Informe seu e-mail para solicitar as instruções de recuperação.'}</p>
+    {(confirming || resetting || mode === 'recover') ? <p className="mb-8 mt-3 text-base leading-6 text-slate-500">{confirming ? 'Confirme o endereço vinculado à sua conta.' : resetting ? 'Escolha uma nova senha.' : 'Informe seu e-mail para receber o link de recuperação.'}</p> : <div className="mb-7" />}
     {message ? <div role="status" className="rounded-xl border border-emerald-100 bg-emerald-50 p-6"><CheckCircle2 aria-hidden="true" className="mb-3 size-8 text-emerald-600" /><p className="text-sm leading-6">{message}</p>
       {mode === 'register' && !token && <Button loading={busy} onClick={() => void requestConfirmation()} className="mt-4">Solicitar confirmação de e-mail</Button>}
       <Link href="/login" className="mt-5 block font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Voltar para o login</Link>
@@ -66,7 +66,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
         {!token && <Input label="E-mail" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} required placeholder="voce@exemplo.com" />}
         {(!confirming && mode !== 'recover' || resetting) && <div className="relative"><Input label={resetting ? 'Nova senha' : 'Senha'} type={show ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={mode === 'login' ? undefined : 8} maxLength={128} className="pr-12" /><button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={show} className="absolute bottom-0 right-0 flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100">{show ? <EyeOff aria-hidden="true" className="size-5" /> : <Eye aria-hidden="true" className="size-5" />}</button></div>}
         {mode === 'login' && <Link href="/recuperar-senha" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Esqueci minha senha</Link>}
-        {(resetting || mode === 'register' && !token) && <p className="text-xs leading-5 text-slate-500">Use ao menos 8 caracteres. Criar uma conta não garante matrícula.</p>}
+        {(resetting || mode === 'register' && !token) && <p className="text-xs leading-5 text-slate-500">Mínimo de 8 caracteres.</p>}
         <Button type="submit" loading={busy} className="w-full">{confirming ? 'Confirmar e-mail' : resetting ? 'Salvar nova senha' : mode === 'login' ? 'Entrar' : mode === 'register' ? 'Criar conta' : 'Solicitar recuperação'}</Button>
       </fieldset>
     </form>}

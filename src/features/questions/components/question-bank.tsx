@@ -60,7 +60,7 @@ export function QuestionBank() {
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 5));
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Banco de questões" description="Busque questões por disciplina, assunto e dificuldade." />
+    <PageHeading title="Banco de questões" />
     <div className="grid items-start gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
       <Card className="!p-5"><ResponsiveDisclosure breakpoint="lg" title={<><Filter aria-hidden="true" className="size-4" />Filtros</>}>
         {options.error ? <ErrorState message={options.error.message} retry={() => void options.retry()} /> : <QuestionFilters questions={options.data ?? []} value={filters} onChange={changeFilters} />}
