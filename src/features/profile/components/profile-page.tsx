@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, LogOut } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
@@ -9,11 +9,13 @@ import { roleLabels } from '@/lib/utils';
 import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
+import { createSubjectsApi } from '@/features/subjects';
 
 export function ProfilePage() {
   const { user, client, sessionKey, resourceEpoch } = useSession();
   const { notify } = useApp();
   const router = useRouter();
+  const subjectsApi = useMemo(() => createSubjectsApi(client), [client]);
   const [restoredDraft] = useState(() => client.readProfileDraft());
   const [name, setName] = useState(restoredDraft?.name ?? user?.name ?? '');
   const [revision, setRevision] = useState(restoredDraft?.revision ?? user?.revision ?? 1);
@@ -21,7 +23,15 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [error, setError] = useState('');
-  const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` }, useCallback(signal => client.readEnrollments(signal), [client]));
+  const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` }, useCallback(signal => client.readEnrollments(signal), [client]), user?.role === 'student');
+  const assignedSubjects = useHttpQuery({ sessionKey, key: `profile-subjects:${resourceEpoch}` }, useCallback(async signal => {
+    const items = [];
+    for (let page = 1; ; page++) {
+      const result = await subjectsApi.list('', 'all', page, signal);
+      items.push(...result.items);
+      if (items.length >= result.total || !result.items.length) return items;
+    }
+  }, [subjectsApi]), user?.role === 'teacher');
   if (!user) return null;
   const logout = async () => {
     if (exiting) return;
@@ -61,8 +71,11 @@ export function ProfilePage() {
     <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Card className="text-center"><div className="mb-4 flex justify-center"><Avatar name={user.name} size="lg" /></div><h2 className="text-lg font-semibold">{user.name}</h2><p className="mt-1 break-all text-sm text-slate-500">{user.email}</p><div className="my-4"><Badge tone="purple">{roleLabels[user.role]}</Badge></div>
-        <div className="mt-6 border-t border-slate-100 pt-5 text-left"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Meus vínculos</h3>
-          {enrollments.loading ? <Skeleton /> : enrollments.error ? <ErrorState message={enrollments.error.message} retry={() => void enrollments.retry()} /> : !enrollments.data?.items.length ? <p className="text-sm text-slate-500">Nenhum vínculo cadastrado.</p> : enrollments.data.items.map(item => <p key={item.id} className="py-1 text-sm text-slate-600">{item.className ?? 'Turma indisponível'} · {({ active: 'Matrícula ativa', pending: 'Matrícula pendente', ended: 'Vínculo encerrado', cancelled: 'Matrícula cancelada' } as Record<string, string>)[item.status] ?? item.status}</p>)}
+        <div className="mt-6 border-t border-slate-100 pt-5 text-left">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{user.role === 'teacher' ? 'Minhas disciplinas' : user.role === 'admin' ? 'Escopo de acesso' : 'Meus vínculos'}</h3>
+          {user.role === 'student' && (enrollments.loading ? <Skeleton /> : enrollments.error ? <ErrorState message={enrollments.error.message} retry={() => void enrollments.retry()} /> : !enrollments.data?.items.length ? <p className="text-sm text-slate-500">Nenhum vínculo cadastrado.</p> : enrollments.data.items.map(item => <p key={item.id} className="py-1 text-sm text-slate-600">{item.className ?? 'Turma indisponível'} · {({ active: 'Matrícula ativa', pending: 'Matrícula pendente', ended: 'Vínculo encerrado', cancelled: 'Matrícula cancelada' } as Record<string, string>)[item.status] ?? item.status}</p>))}
+          {user.role === 'teacher' && (assignedSubjects.loading ? <Skeleton /> : assignedSubjects.error ? <ErrorState message={assignedSubjects.error.message} retry={() => void assignedSubjects.retry()} /> : !assignedSubjects.data?.length ? <p className="text-sm text-slate-500">Nenhuma disciplina atribuída.</p> : assignedSubjects.data.map(subject => <p key={subject.id} className="py-1 text-sm text-slate-600">{subject.name} · {subject.className}</p>))}
+          {user.role === 'admin' && <p className="text-sm text-slate-600">Acesso completo às turmas, disciplinas e gestão da plataforma.</p>}
         </div>
       </Card>
       <Card><h2 className="mb-6 text-lg font-semibold">Dados cadastrais</h2>

@@ -49,6 +49,7 @@ export function createAttendanceApi(client: Pick<SessionClient, 'request'>) {
     },
     eligible: (subjectId: string, date: string, time: string, signal?: AbortSignal) => allPages<AttendanceEligibleStudent>(page => client.request<{ items: AttendanceEligibleStudent[]; page: number; pageSize: number; total: number }>(`/attendance/eligible?${new URLSearchParams({ subjectId, date, time, page: String(page), pageSize: '100' })}`, { signal })),
     lesson: (subjectId: string, date: string, _time: string, signal?: AbortSignal) => allPages<AttendanceLesson>(page => client.request<AttendancePage<AttendanceLesson>>(`/attendance?${new URLSearchParams({ subjectId, from: date, to: date, page: String(page), pageSize: '100', sort: 'date' })}`, { signal })),
+    subjectLessons: (subjectId: string, signal?: AbortSignal) => allPages<AttendanceLesson>(page => client.request<AttendancePage<AttendanceLesson>>(`/attendance?${new URLSearchParams({ subjectId, page: String(page), pageSize: '100', sort: 'date' })}`, { signal })),
     read: (id: string, signal?: AbortSignal) => client.request<AttendanceLesson>(`/attendance/${encodeURIComponent(id)}`, { signal }),
     create: (fields: AttendanceFields, intent = crypto.randomUUID()) => client.request<AttendanceLesson>('/attendance', { method: 'POST', json: fields, headers: { 'Idempotency-Key': intent } }),
     update: (id: string, records: Record<string, boolean>, expectedRevision: number) => client.request<AttendanceLesson>(`/attendance/${encodeURIComponent(id)}`, { method: 'PATCH', json: { records, expectedRevision } }),

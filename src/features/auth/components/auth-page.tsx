@@ -35,7 +35,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
         setMessage((await client.resetPassword(token!, password)).message);
       } else if (mode === 'login') {
         await client.login(email, password);
-        router.replace('/perfil');
+        router.replace('/');
       } else if (mode === 'recover') {
         setMessage((await client.requestRecovery(email)).message);
       } else {

@@ -7,9 +7,10 @@ import { ArrowLeft, Trophy } from 'lucide-react';
 import { Badge, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
-import { countLabel, percent } from '@/lib/utils';
+import { brazilDateTimeLabel, countLabel, formatScore } from '@/lib/utils';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AttemptRead, type AttemptResult } from '../api';
+import { summarizeQuizResult } from '../lib/result-summary';
 import { AttemptImage } from './attempt-image';
 
 function AttemptChoices({ attempts }: { attempts: AttemptRead[] }) {
@@ -19,24 +20,24 @@ function AttemptChoices({ attempts }: { attempts: AttemptRead[] }) {
     <LinkButton secondary href="/questionarios" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     <PageHeading eyebrow="Questionário" title="Envios disponíveis" description="Escolha um envio entregue e autorizado para consultar o resultado." />
     <Card><ul className="divide-y divide-slate-100">{delivered.map(attempt => <li key={attempt.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div><p className="font-medium text-slate-800">{attempt.assessmentTitle}</p><p className="text-sm text-slate-700">{attempt.studentName}</p><p className="text-xs text-slate-500">{attempt.submittedAt && new Date(attempt.submittedAt).toLocaleString('pt-BR')}</p></div>
+      <div><p className="font-medium text-slate-800">{attempt.assessmentTitle}</p><p className="text-sm text-slate-700">{attempt.studentName}</p><p className="text-xs text-slate-500">{attempt.submittedAt && brazilDateTimeLabel(attempt.submittedAt)}</p></div>
       <Link className="inline-flex min-h-11 items-center font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900" href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`}>Consultar resultado</Link>
     </li>)}</ul></Card>
-    <div className="mt-5"><LinkButton secondary href="/questionarios">Voltar para atividades</LinkButton></div>
   </div>;
 }
 
 function ResultContent({ result }: { result: AttemptResult }) {
   const questions = new Map(result.questions.map(question => [question.id, question]));
   const attempt = result.attempt;
+  const summary = summarizeQuizResult(result);
   return <div className="mx-auto max-w-3xl">
     <LinkButton secondary href="/questionarios" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
-    <PageHeading eyebrow="Questionário" title={attempt.assessmentTitle} description={`Envio de ${attempt.studentName} em ${new Date(result.receipt.submittedAt).toLocaleString('pt-BR')}`} />
+    <PageHeading eyebrow="Questionário" title={attempt.assessmentTitle} description={`Envio de ${attempt.studentName} em ${brazilDateTimeLabel(result.receipt.submittedAt)}`} />
     <Card className="mb-6 text-center">
       <Trophy aria-hidden="true" className="mx-auto mb-4 size-10 text-brand-500" />
-      <p className="text-5xl font-bold text-brand-700">{percent(result.score, result.maxScore)}<span className="text-2xl">%</span></p>
-      <p className="mt-3 text-slate-500">{result.score} de {countLabel(result.maxScore, 'questão correta', 'questões corretas')}</p>
-      <p className="mt-2 text-sm text-slate-400">Resultado calculado pelo serviço após o envio confirmado.</p>
+      <p className="text-5xl font-bold text-brand-700">{summary.percentage}<span className="text-2xl">%</span></p>
+      <p className="mt-3 text-slate-600">{summary.hasQuestionBreakdown ? `${summary.correctQuestions} de ${countLabel(summary.totalQuestions, 'questão correta', 'questões corretas')}` : `Nota ${formatScore(result.score)} de ${formatScore(result.maxScore)}`}</p>
+      {summary.showGradeDetail && <p className="mt-1 text-sm text-slate-500">Nota {formatScore(result.score)} de {formatScore(result.maxScore)}</p>}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(attempt.assessmentId)}`}>Ver atividade</LinkButton>
         <LinkButton secondary href="/disciplinas">Voltar aos estudos</LinkButton>
