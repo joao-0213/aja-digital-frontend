@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="lg:pl-20">
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
         <Button variant="ghost" className="-ml-2 px-2" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
-        <Link href="/" aria-label="AJA Digital"><Logo symbolOnly /></Link>
+        <Logo compact />
         <Link href="/perfil" aria-label={`${user.name} · Ver perfil`}><Avatar name={user.name} size="sm" /></Link>
       </header>
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-12 pt-6 sm:px-8 lg:py-9 xl:px-10">
