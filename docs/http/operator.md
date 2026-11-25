@@ -4,11 +4,12 @@ Requer Node.js 22.6+ e npm. No PowerShell use `npm.cmd` quando a política bloqu
 
 ## Executar
 
-- `npm run api`: API em `http://127.0.0.1:3002`.
-- `npm run dev`: Next em `http://127.0.0.1:3000`.
-- `npm run dev:full`: inicia API e Next, encerrando o outro processo se um terminar. Interrompa com Ctrl+C.
+- `npm run dev`: Next em `http://127.0.0.1:3000`, usando por padrão a API integrada em `http://127.0.0.1:3002/api/v1`.
+- `npm run dev:full`: alias compatível para `npm run dev`; não inicia uma API local.
+- `npm run api`: JSON Server local explícito em `http://127.0.0.1:3102`.
+- `npm run dev:mock`: inicia o JSON Server em `3102` e o Next em `3000`, apontando o navegador para a API mock.
 - `npm run build` seguido de `npm run preview`: exportação em `out/`, prévia estática na porta 3001. O build funciona com a API desligada.
-- `curl.exe http://127.0.0.1:3002/api/v1/health` no Windows; `curl http://127.0.0.1:3002/api/v1/health` no Linux. Resposta 200: `{"status":"ok","version":"1"}`.
+- `curl.exe http://127.0.0.1:3102/api/v1/health` no Windows; `curl http://127.0.0.1:3102/api/v1/health` no Linux. Resposta 200: `{"status":"ok","version":"1"}`.
 
 As jornadas institucionais de AJA-05 a AJA-17 estão implementadas no serviço separado. O contrato OpenAPI e a [matriz de rotas](route-matrix.md) definem chamadas, respostas e acesso por perfil. Não há endpoint público de reset, credenciais, caixa de mensagens ou coleção bruta. Não montamos o router CRUD nem `defaults()` (que habilitaria arquivos estáticos/CORS genérico).
 
@@ -17,7 +18,7 @@ As jornadas institucionais de AJA-05 a AJA-17 estão implementadas no serviço s
 `.env.example` lista as variáveis. Next lê `NEXT_PUBLIC_API_URL` durante seu build; não é uma configuração alterável no HTML depois da exportação. A API lê variáveis de ambiente do processo, sem carregar `.env` automaticamente. Exemplo PowerShell:
 
 ```powershell
-$env:API_PORT='3002'
+$env:API_PORT='3102'
 $env:API_ALLOWED_ORIGINS='http://127.0.0.1:3000,http://127.0.0.1:3001'
 npm.cmd run api
 ```
@@ -25,10 +26,10 @@ npm.cmd run api
 Linux:
 
 ```sh
-API_PORT=3002 API_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:3001 npm run api
+API_PORT=3102 API_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:3001 npm run api
 ```
 
-Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usar `*`, caminhos ou credenciais nas origens. Requisições com Origin não permitido recebem 403 sem cabeçalho de autorização CORS; requisições de terminal sem Origin podem consultar saúde. Escritas, inclusive login/cadastro/recuperação, exigem Origin permitido. O serviço escuta somente loopback. Cookies são HttpOnly, Path `/api/v1`, SameSite=Lax; o navegador envia com `credentials: include`. Use o mesmo hostname nas portas 3000/3001/3002. `API_FRONTEND_ORIGIN` escolhe uma das origens permitidas para links da caixa local (padrão primeira origem). `API_COOKIE_SECURE=true` ativa Secure; origens HTTPS também o ativam automaticamente. Hospedagem em sites diferentes requer política de cookies própria e aceite AJA-18; a configuração local não promete esse cenário.
+Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usar `*`, caminhos ou credenciais nas origens. Requisições com Origin não permitido recebem 403 sem cabeçalho de autorização CORS; requisições de terminal sem Origin podem consultar saúde. Escritas, inclusive login/cadastro/recuperação, exigem Origin permitido. O serviço escuta somente loopback. Cookies são HttpOnly, Path `/api/v1`, SameSite=Lax; o navegador envia com `credentials: include`. Use o mesmo hostname nas portas 3000/3001 do frontend e 3002 da API integrada, ou 3102 do JSON Server local. `API_FRONTEND_ORIGIN` escolhe uma das origens permitidas para links da caixa local (padrão primeira origem). `API_COOKIE_SECURE=true` ativa Secure; origens HTTPS também o ativam automaticamente. Hospedagem em sites diferentes requer política de cookies própria e aceite AJA-18; a configuração local não promete esse cenário.
 
 ## Exportação estática e origem pública da API
 
@@ -37,28 +38,21 @@ Origem inclui esquema, host e porta: `localhost` difere de `127.0.0.1`. Não usa
 PowerShell, com API local disponível para o preview:
 
 ```powershell
-$env:API_PORT='3002'
+$env:API_PORT='3102'
 $env:API_ALLOWED_ORIGINS='http://127.0.0.1:3001'
 $env:API_FRONTEND_ORIGIN='http://127.0.0.1:3001'
 $env:API_COOKIE_SECURE='false'
 npm.cmd run api
 
 # Em outro terminal, prepare a URL antes de compilar.
-$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:3002/api/v1'
+$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:3102/api/v1'
 npm.cmd run build
 npm.cmd run preview
 ```
 
-Para desenvolvimento, permita a origem exata do Next e configure a URL antes de iniciar `npm run dev` ou `npm run dev:full`:
+Para integração, inicie o Compose do backend com as origens `127.0.0.1:3000` e `127.0.0.1:3001`; o frontend já usa o gateway `127.0.0.1:3002` por padrão. Para a API mock isolada, use `npm run dev:mock`, que seleciona `127.0.0.1:3102`.
 
-```powershell
-$env:API_ALLOWED_ORIGINS='http://127.0.0.1:3000'
-$env:API_FRONTEND_ORIGIN='http://127.0.0.1:3000'
-$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:3002/api/v1'
-npm.cmd run dev:full
-```
-
-Linux/macOS usa as mesmas variáveis como prefixos no comando, por exemplo `NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1 npm run build`; reinicie o processo de desenvolvimento após mudar o ambiente. Para trocar de API, aponte a URL a outra instância que implemente o mesmo contrato e permita a origem do frontend em `API_ALLOWED_ORIGINS`, então gere um novo build. O teste `tests/http-real-process-contract.test.mjs` demonstra o mesmo conjunto de contratos com duas URLs de processos JSON Server isolados em `npm test`.
+Linux/macOS usa as mesmas variáveis como prefixos no comando, por exemplo `NEXT_PUBLIC_API_URL=http://127.0.0.1:3102/api/v1 npm run build`; reinicie o processo de desenvolvimento após mudar o ambiente. Para trocar de API, aponte a URL a outra instância que implemente o mesmo contrato e permita a origem do frontend em `API_ALLOWED_ORIGINS`, então gere um novo build. O teste `tests/http-real-process-contract.test.mjs` demonstra o mesmo conjunto de contratos com duas URLs de processos JSON Server isolados em `npm test`.
 
 Em desenvolvimento e preview locais, use o mesmo hostname em site e API. Portas diferentes ainda formam origens distintas: CORS precisa listar exatamente `http://127.0.0.1:3000` ou `http://127.0.0.1:3001`, conforme o frontend aberto. A API responde com origem explícita e credenciais permitidas; o cliente usa `credentials: include`. A sessão é cookie HttpOnly com `Path=/api/v1`, `SameSite=Lax`; em HTTP local não há `Secure`, em HTTPS ele é obrigatório. Um domínio de frontend/API diferente pode tornar o cookie third-party: `SameSite=Lax` não promete esse cenário. Hospedagem separada requer desenho e validação próprios de `SameSite=None; Secure`, CORS com credenciais e política do navegador antes de publicar.
 

@@ -176,9 +176,9 @@ test('late entrant can consult expired activity but cannot create or submit an a
   assert.equal(scopeDatabase(db, db.users[2]).assessments.length, 3);
   assert.throws(() => applyDemoMutation(db, 'student', d => {
     d.attempts.push({ id: 'try', assessmentId: 'expired', userId: 'student', answers: {}, questionOrder: [], startedAt: now });
-  }), /consulta|matrícula/i);
+  }, {}, now), /consulta|matrícula/i);
   for (const id of ['open', 'no-date']) {
-    const changed = applyDemoMutation(db, 'student', d => { d.attempts.push({ id: 'try', assessmentId: id, userId: 'student', answers: {}, questionOrder: [], startedAt: now }); });
+    const changed = applyDemoMutation(db, 'student', d => { d.attempts.push({ id: 'try', assessmentId: id, userId: 'student', answers: {}, questionOrder: [], startedAt: now }); }, {}, now);
     assert.equal(changed.attempts.length, 1);
   }
   assert.equal(db.assessments.find(a => a.id === 'open')!.required, false);

@@ -84,7 +84,7 @@ test('configuration rejects invalid ports, wildcard origins and production test 
   for (const API_PORT of ['0', '-1', 'abc', '65536', '3002.5', '']) assert.throws(() => readConfig({ API_PORT }));
   for (const API_ALLOWED_ORIGINS of ['*', 'https://example.com/path', 'null', 'https://user:pass@example.com']) assert.throws(() => readConfig({ API_ALLOWED_ORIGINS }));
   assert.throws(() => readConfig({ AJA_TEST_RUNTIME: '../outside', NODE_ENV: 'production' }));
-  assert.equal(readConfig({}).port, 3002);
+  assert.equal(readConfig({}).port, 3102);
 });
 
 test('reset refuses arbitrary directories before making changes', async t => {

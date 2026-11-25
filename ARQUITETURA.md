@@ -2,9 +2,9 @@
 
 ## Execução
 
-O produto é uma exportação estática do Next.js 16 App Router. Páginas e layouts compõem rotas e estados; a interatividade vive em componentes cliente próximos do uso. A aplicação não usa Server Actions nem backend Next.js. O browser chama a API JSON Server separada sob `/api/v1`; a API autentica, autoriza, valida regras, persiste e devolve DTOs. Uma falha HTTP permanece uma falha e nunca restaura seed local.
+O produto é uma exportação estática do Next.js 16 App Router. Páginas e layouts compõem rotas e estados; a interatividade vive em componentes cliente próximos do uso. A aplicação não usa Server Actions nem backend Next.js. O browser chama a API sob `/api/v1`; no ambiente integrado, o gateway Kotlin do backend é a fonte padrão em `http://127.0.0.1:3002/api/v1`. O JSON Server permanece disponível apenas como mock local explícito. A API autentica, autoriza, valida regras, persiste e devolve DTOs. Uma falha HTTP permanece uma falha e nunca restaura seed local.
 
-`npm run dev:full` inicia site e API para desenvolvimento. A configuração pública da API é incorporada ao build estático, portanto `NEXT_PUBLIC_API_URL` deve ser definida antes de `npm run build`. Operação, contas locais e reset estão em [docs/http/operator.md](docs/http/operator.md).
+Inicie o Compose integrado no repositório backend e use `npm run dev` para abrir o frontend. `npm run dev:full` é um alias compatível; `npm run dev:mock` inicia o JSON Server em fluxo isolado. A configuração pública da API é incorporada ao build estático, portanto `NEXT_PUBLIC_API_URL` deve ser definida antes de `npm run build`. Operação, contas locais e reset estão em [docs/http/operator.md](docs/http/operator.md).
 
 ## Fronteiras de módulo
 
