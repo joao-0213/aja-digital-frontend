@@ -35,9 +35,9 @@ export function Dialog({
     onClose();
   }} onClick={event => {
     if (event.target === ref.current) onClose();
-  }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-900/40">
-    <div className="p-6 sm:p-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
+  }} className="fixed inset-0 m-auto max-h-[min(85dvh,calc(100dvh-3rem))] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-0 shadow-2xl backdrop:bg-slate-900/45">
+    <div className="flex max-h-[min(85dvh,calc(100dvh-3rem))] flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 sm:px-7">
         <h2 id={id} className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere]">
           {title}
         </h2>
@@ -45,7 +45,9 @@ export function Dialog({
           <X aria-hidden="true" className="size-5" />
         </Button>
       </div>
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-7 sm:py-6">
+        {children}
+      </div>
     </div>
   </dialog>;
 }

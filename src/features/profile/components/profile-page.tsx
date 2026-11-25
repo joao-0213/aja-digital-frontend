@@ -66,9 +66,8 @@ export function ProfilePage() {
   };
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Meu perfil" action={<Button variant="secondary" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-4" />Sair da conta</Button>} />
+    <PageHeading title="Meu perfil" action={<div className="flex flex-wrap items-center gap-2"><PrivacyNotice /><Button variant="secondary" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-4" />Sair da conta</Button></div>} />
     {user.emailConfirmedAt === null && <Card className="mb-6"><h2 className="font-semibold">Confirme seu e-mail</h2><p className="mb-4 mt-2 text-sm leading-6 text-slate-600">Solicite as instruções para confirmar o endereço da sua conta. O vínculo acadêmico será verificado após a confirmação.</p><Button loading={busy} onClick={() => void requestConfirmation()}>Solicitar confirmação de e-mail</Button></Card>}
-    <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       <Card className="text-center"><div className="mb-4 flex justify-center"><Avatar name={user.name} size="lg" /></div><h2 className="text-lg font-semibold">{user.name}</h2><p className="mt-1 break-all text-sm text-slate-500">{user.email}</p><div className="my-4"><Badge tone="purple">{roleLabels[user.role]}</Badge></div>
         <div className="mt-6 border-t border-slate-100 pt-5 text-left">

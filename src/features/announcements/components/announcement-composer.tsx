@@ -11,10 +11,10 @@ import { announcementSubjectAfterClassChange, brasiliaMinTimeForDate, brasiliaTo
 import { getOrCreateAnnouncementIntent } from '../announcement-intent';
 import { createAnnouncementsApi, type AnnouncementDto, type AnnouncementFields } from '../api';
 
-export function AnnouncementComposer({ item, subjectId, onClose }: { item?: AnnouncementDto; subjectId?: string; onClose: () => void }) {
+export function AnnouncementComposer({ item, subjectId, classId, onClose }: { item?: AnnouncementDto; subjectId?: string; classId?: string; onClose: () => void }) {
   const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createAnnouncementsApi(client), [client]);
-  const fields = useMemo(() => initialAnnouncementFields(item, subjectId), [item, subjectId]);
+  const fields = useMemo(() => initialAnnouncementFields(item, subjectId, classId), [item, subjectId, classId]);
   const context = `announcement:${user?.id ?? ''}:${item?.id ?? subjectId ?? 'general'}`;
   const restored = client.readDraft<{ fields: AnnouncementFields }>(context);
   const { fields: value, dirty, busy, conflicted, latest, blocked, error, editor, clear } = useHttpEditor<AnnouncementFields, AnnouncementDto>(fields, item?.revision ?? 0, context);
@@ -28,10 +28,11 @@ export function AnnouncementComposer({ item, subjectId, onClose }: { item?: Anno
     if (contextSubject && !value.classId) editor.change({ ...value, classId: contextSubject.classId, subjectId: contextSubject.id });
   }, [editor, options.data, subjectId, value]);
   const set = <K extends keyof AnnouncementFields>(key: K, next: AnnouncementFields[K]) => { setLocalError(''); editor.change({ ...value, [key]: next }); };
+  const hasRealChanges = item ? dirty : value.title.trim() !== '' || value.body.trim() !== '' || calendar || (!subjectId && !!value.classId);
   const close = () => {
     if (busy) return;
     if (confirmingClose) { setConfirmingClose(false); return; }
-    if (!dirty) { clear(); onClose(); return; }
+    if (!hasRealChanges) { clear(); onClose(); return; }
     setConfirmingClose(true);
   };
   const enforceFutureOccurrence = !item || JSON.stringify(value.occurrence) !== JSON.stringify(item.occurrence ?? null);

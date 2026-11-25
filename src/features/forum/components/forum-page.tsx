@@ -138,7 +138,7 @@ function ForumPageContent() {
       <Select aria-label="Disciplina do fórum" value={subjectId} onChange={event => setSubjectId(event.target.value)}><option value="all">Todas as disciplinas</option>{visibleSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
       <Select aria-label="Filtrar conversas" value={filter} onChange={event => setFilter(event.target.value)}><option value="all">Todas as perguntas</option><option value="unread">Não lidas</option><option value="unanswered">Sem respostas</option><option value="solved">Resolvidas</option></Select>
     </div>
-    <div className="max-w-4xl space-y-3">
+    <div className="space-y-3">
       {topics.loading && <p role="status" className="text-sm text-slate-500">Carregando perguntas…</p>}
       {topics.error && <p role="alert" className="text-sm text-rose-700">{topics.error.message} <button type="button" onClick={topics.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
       {(topics.data ?? []).filter(topic => filter !== 'unanswered' || topic.replies.length === 0).map(topic => {

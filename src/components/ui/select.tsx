@@ -17,7 +17,7 @@ export function Select({
       {label}
       {props.required && <span aria-hidden="true" className="ml-0.5 text-rose-600">*</span>}
     </label>}
-    <select id={id} {...props} className={cn(field, props.className)}>
+    <select id={id} {...props} className={cn(field, 'h-11 truncate', props.className)}>
       {children}
     </select>
   </div>;

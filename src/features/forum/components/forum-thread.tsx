@@ -93,7 +93,7 @@ function ForumThreadContent() {
       {topic.reference ? <div className="mt-5 rounded-lg bg-slate-50 p-4"><Link href={topic.reference.href} className="font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">{topic.reference.title}</Link><p className="mt-2 whitespace-pre-line text-sm text-slate-600">{topic.reference.preview}</p></div> : topic.target && <p className="mt-5 text-sm text-amber-800">Referência indisponível: o conteúdo não está disponível neste contexto. A conversa continua disponível.</p>}
       {topic.attachment && <ForumAttachments item={topic.attachment} readContent={(fileId, inline) => api.readFileContent(fileId, inline)} />}
       {!topic.attachment && topic.legacyAttachmentName && <p className="mt-4 text-sm text-slate-500">{topic.legacyAttachmentName} · registro antigo sem arquivo. Peça ao autor para compartilhar novamente.</p>}
-      {activeClass && (user?.id === topic.author.id || canManage) && <Button className="mt-4" variant="ghost" disabled={busy} onClick={() => setWithdrawTarget({ kind: 'topic' })}>Retirar pergunta</Button>}
+      {activeClass && (user?.id === topic.author.id || canManage) && <Button className="mt-4 !text-rose-700 hover:!bg-rose-50" variant="ghost" disabled={busy} onClick={() => setWithdrawTarget({ kind: 'topic' })}>Retirar pergunta</Button>}
     </Card>
     <h2 className="mb-4 mt-8 text-lg font-semibold">{countLabel(topic.replies.length, 'resposta', 'respostas')}</h2>
     <div className="space-y-4">
@@ -101,7 +101,7 @@ function ForumThreadContent() {
         <div className="mb-4 flex flex-wrap items-center gap-3"><Avatar name={reply.author.name} size="sm" /><span className="text-sm font-semibold">{reply.author.name}</span>{reply.accepted && <span className="ml-auto"><Badge tone="green"><CheckCircle2 aria-hidden="true" className="size-3" />Solução aceita</Badge></span>}</div>
         <p className="mb-3 text-xs text-slate-500">{dateLabel(reply.createdAt, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p><RichText text={reply.body} />
         <div className="mt-5 flex flex-wrap items-center gap-2"><Button variant="ghost" aria-label="Votar positivamente" aria-pressed={reply.votedByMe} disabled={!activeClass || busy || reply.author.id === user?.id} className={cn(reply.votedByMe && '!bg-brand-50 !text-brand-600')} onClick={() => void updateTopic(() => api.vote(id, reply.id, !reply.votedByMe))}><ThumbsUp aria-hidden="true" className="size-4" /></Button><span className="text-sm font-semibold">{reply.voteCount}</span>
-          {activeClass && (reply.author.id === user?.id || canManage) && <Button variant="ghost" disabled={busy} onClick={() => setWithdrawTarget({ kind: 'reply', replyId: reply.id })}>Retirar resposta</Button>}
+          {activeClass && (reply.author.id === user?.id || canManage) && <Button variant="ghost" className="!text-rose-700 hover:!bg-rose-50" disabled={busy} onClick={() => setWithdrawTarget({ kind: 'reply', replyId: reply.id })}>Retirar resposta</Button>}
           {canResolve && activeClass && <Button variant="ghost" className="ml-auto" disabled={busy} onClick={() => void updateTopic(() => api.solution(id, reply.accepted ? null : reply.id, topic.revision))}><CheckCircle2 aria-hidden="true" className="size-4" />{reply.accepted ? 'Desmarcar solução' : 'Aceitar como solução'}</Button>}
         </div>
       </Card>)}

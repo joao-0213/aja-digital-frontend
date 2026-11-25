@@ -26,11 +26,11 @@ export function SubjectWall({ subject }: { subject: SubjectSummary }) {
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-500"><Avatar name={item.author.name} size="sm" /><span>{item.author.name}</span><span>·</span><time dateTime={item.createdAt}>{dateLabel(item.createdAt)}</time><span className="ml-auto">{item.subjectId ? 'Aviso da disciplina' : 'Aviso da turma'}</span></div>
       {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
       <h3 className="text-lg font-semibold [overflow-wrap:anywhere]">{item.title}</h3><p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-600 [overflow-wrap:anywhere]">{item.body}</p>
-      {canManageAnnouncementItem(user?.role, subject.canManageContent, item.subjectId, subject.id) && <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar</Button><Button variant="ghost" onClick={() => setWithdrawing(item)}><Trash2 aria-hidden="true" className="size-4" />Retirar</Button></div>}
+      {canManageAnnouncementItem(user?.role, subject.canManageContent, item.subjectId, subject.id) && <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar</Button><Button variant="ghost" className="!text-rose-700 hover:!bg-rose-50" onClick={() => setWithdrawing(item)}><Trash2 aria-hidden="true" className="size-4" />Retirar</Button></div>}
     </Card>)}
     {!query.loading && !query.error && !query.data?.length && <Empty title="Nenhum aviso nesta disciplina" description="Os avisos publicados para a turma aparecerão aqui." />}
     {user?.role === 'admin' && <Link href={announcementsPath} className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Gerenciar avisos de todas as turmas</Link>}
-    {composing && <AnnouncementComposer key={composing === 'new' ? 'new' : composing.id} item={composing === 'new' ? undefined : composing} subjectId={subject.id} onClose={() => { setComposing(null); void query.invalidate(); }} />}
+    {composing && <AnnouncementComposer key={composing === 'new' ? 'new' : composing.id} item={composing === 'new' ? undefined : composing} subjectId={subject.id} classId={subject.classId} onClose={() => { setComposing(null); void query.invalidate(); }} />}
     <WithdrawAnnouncementDialog
       item={withdrawing}
       onClose={() => setWithdrawing(null)}

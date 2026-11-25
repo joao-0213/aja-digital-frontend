@@ -47,8 +47,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     <aside aria-label="Barra lateral" data-expanded={sidebarExpanded} onPointerEnter={event => { if (event.pointerType !== 'touch') setSidebarHovered(true); }} onPointerLeave={() => setSidebarHovered(false)} onPointerDown={() => setSidebarFocused(false)} onFocusCapture={event => { if (event.target.matches(':focus-visible')) setSidebarFocused(true); }} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setSidebarFocused(false); }} onKeyDown={event => { if (event.key === 'Escape') { setSidebarHovered(false); setSidebarFocused(false); document.getElementById('main')?.focus({ preventScroll: true }); } }} className={cn('fixed inset-y-0 left-0 z-30 hidden flex-col overflow-hidden border-r border-slate-200/80 bg-white pt-8 transition-[width,box-shadow] duration-200 lg:flex', sidebarExpanded ? 'w-60 shadow-xl shadow-slate-900/10' : 'w-20')}>{navigation(!sidebarExpanded, true)}</aside>
     <Dialog open={mobile} onClose={() => setMobile(false)} title="Navegação"><div className="flex flex-col">{navigation()}</div></Dialog>
     <div className="lg:pl-20">
-      <Button variant="secondary" className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))] z-20 bg-white shadow-md lg:absolute lg:left-4 lg:top-4 lg:z-20 lg:hidden" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
-      <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-12 pt-20 sm:px-8 lg:py-9 xl:px-10">
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
+        <Button variant="ghost" className="-ml-2 px-2" aria-label="Abrir menu" aria-expanded={mobile} aria-haspopup="dialog" onClick={() => setMobile(true)}><Menu aria-hidden="true" className="size-5" /></Button>
+        <Link href="/" aria-label="AJA Digital"><Logo symbolOnly /></Link>
+        <Link href="/perfil" aria-label={`${user.name} · Ver perfil`}><Avatar name={user.name} size="sm" /></Link>
+      </header>
+      <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-12 pt-6 sm:px-8 lg:py-9 xl:px-10">
         <div key={sessionKey}>{children}</div>
       </main>
     </div>

@@ -34,7 +34,7 @@ export function AnnouncementsPage() {
         <h2 className="mb-4 text-xl font-semibold [overflow-wrap:anywhere]">{item.title}</h2><p className="whitespace-pre-wrap leading-8 text-slate-600 [overflow-wrap:anywhere]">{item.body}</p>
         <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><Avatar name={item.author.name} size="sm" /><span className="text-xs text-slate-500">{item.author.name}</span>{item.notify && <span className="ml-auto text-xs text-slate-400">Enviado por e-mail</span>}</div>
         {item.updatedAt !== item.createdAt && <p className="mt-3 text-xs text-slate-500">Última alteração: {item.updatedAt && brazilDateTimeLabel(item.updatedAt)}</p>}
-        {canManage(item) && <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar aviso</Button><Button variant="ghost" disabled={notices.loading} onClick={() => setWithdrawing(item)}><Trash2 aria-hidden="true" className="size-4" />Retirar aviso</Button></div>}
+        {canManage(item) && <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar aviso</Button><Button variant="ghost" className="!text-rose-700 hover:!bg-rose-50" disabled={notices.loading} onClick={() => setWithdrawing(item)}><Trash2 aria-hidden="true" className="size-4" />Retirar aviso</Button></div>}
       </Card></div>)}
     </div>
     {!notices.loading && !notices.error && !notices.data?.length && <Empty title="Sem avisos nesta turma" description="As novidades da equipe aparecerão aqui." />}

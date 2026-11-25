@@ -1,8 +1,8 @@
 import type { AnnouncementDto, AnnouncementFields } from './api';
 
-export function initialAnnouncementFields(item?: AnnouncementDto, subjectId?: string): AnnouncementFields {
+export function initialAnnouncementFields(item?: AnnouncementDto, subjectId?: string, classId?: string): AnnouncementFields {
   return {
-    classId: item?.classId ?? '', subjectId: item ? item.subjectId : subjectId ?? null,
+    classId: item?.classId ?? classId ?? '', subjectId: item ? item.subjectId : subjectId ?? null,
     title: item?.title ?? '', body: item?.body ?? '', notify: item?.notify ?? true,
     occurrence: item?.occurrence ?? null
   };
