@@ -1,23 +1,25 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, Plus } from 'lucide-react';
 import { Badge, Button, Card, Dialog, LinkButton, PageHeading } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { cn, dateLabel } from '@/lib/utils';
+import { AnnouncementComposer } from '@/features/announcements';
 import { createCalendarApi, type CalendarDto } from '../api';
 
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const MAX_VISIBLE_EVENTS_PER_DAY = 2;
 
 export function CalendarPage() {
-  const { client, sessionKey } = useSession();
+  const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createCalendarApi(client), [client]);
   const [month, setMonth] = useState(() => { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), 1); });
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelected] = useState<string | null>(null);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const from = dayKey(month), to = dayKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
   const query = useHttpQuery({ sessionKey, key: `calendar:${from}:${to}` }, useCallback(signal => api.range(from, to, signal), [api, from, to]));
   const entries = query.data ?? [];
@@ -45,7 +47,7 @@ export function CalendarPage() {
   const timeLabel = (item: CalendarDto) => item.allDay ? 'Dia inteiro' : item.time ?? 'Horário não informado';
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Calendário" />
+    <PageHeading title="Calendário" action={user?.role !== 'student' && <Button onClick={() => setCreating(true)}><Plus aria-hidden="true" className="size-4" />Novo evento</Button>} />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <Button variant="secondary" aria-label="Mês anterior" onClick={() => change(-1)}><ChevronLeft aria-hidden="true" className="size-4" /></Button>
@@ -83,5 +85,6 @@ export function CalendarPage() {
       <p className="mb-6 whitespace-pre-wrap break-words leading-7 text-slate-600">{selected.description}</p>
       <LinkButton href={selected.href}>{selected.source === 'announcement' ? 'Ler aviso de origem' : 'Abrir atividade'}</LinkButton>
     </>}</Dialog>
+    {creating && <AnnouncementComposer defaultCalendar onClose={() => { setCreating(false); void query.invalidate(); }} />}
   </>;
 }

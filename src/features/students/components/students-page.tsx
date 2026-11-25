@@ -71,7 +71,7 @@ export function StudentsPage() {
     const lessonsBySubject = await Promise.all(classSubjects.map(subject => attendanceApi.subjectLessons(subject.id, signal)));
     return aggregateAttendanceByStudent(lessonsBySubject.flat());
   }, [attendanceApi, classId]), allowed && !!classId);
-  if (!allowed) return <Empty title="Área da equipe pedagógica" description="Seu perfil não permite consultar os alunos de outras contas." />;
+  if (!allowed) return <Empty title="Área da equipe pedagógica" description="Seu perfil não permite consultar os alunos de outras contas." action={<LinkButton secondary href="/">Voltar ao painel</LinkButton>} />;
   const visible = students.data?.items ?? [];
   const pending = enrollments.data?.items ?? [];
   const open = (action: Selection['action'], record?: EnrollmentDto) => { const next = { action, record, classId, className: schoolClass?.name ?? record?.className ?? 'Turma indisponível', intent: crypto.randomUUID() }; client.clearDraft('students-fields', sessionKey); client.saveDraft('students-open', next, sessionKey); setSelection(next); };

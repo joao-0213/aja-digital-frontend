@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Empty, LinkButton } from '@/components/ui';
-import { sortByDeadlineAsc } from '@/lib/utils';
+import { countLabel, sortByDeadlineAsc } from '@/lib/utils';
 import type { TrailModule } from '@/models';
 import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
+import { classifyStudentActivity } from '../lib/activity-list';
 
 function isStaffAssessment(activity: AssessmentRead): activity is Extract<AssessmentRead, { questionIds: string[] }> {
   return 'questionIds' in activity;
@@ -59,29 +61,29 @@ export function AssessmentSummaries({
       const questionCount = staff ? activity.questionIds.length : activity.questionCount;
       const assigned = staff || activity.assigned;
       const related = attempts.filter(attempt => attempt.assessmentId === activity.id && (canManage || attempt.userId === studentId));
-      const activeAttempt = related.find(attempt => !attempt.submittedAt);
       const submitted = related.filter(attempt => attempt.submittedAt);
       const relatedSubmissions = submissions.filter(submission => submission.assessmentId === activity.id && (canManage || submission.userId === studentId));
-      const ownSubmission = relatedSubmissions.find(submission => !canManage) ?? relatedSubmissions[0];
-      return <li key={activity.id} className="flex flex-wrap items-start gap-3 rounded-lg border border-slate-200 p-3">
+      const studentStatus = studentId ? classifyStudentActivity(activity, studentId, attempts, submissions) : null;
+      return <li key={activity.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 p-3.5">
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2"><p className="min-w-0 font-medium [overflow-wrap:anywhere]">{activity.title}</p><Badge tone={activity.status === 'draft' ? 'neutral' : !assigned ? 'amber' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
-          <p className="text-xs text-slate-500">{activity.kind === 'work' ? 'Entrega de trabalho' : `${questionCount} ${questionCount === 1 ? 'questão' : 'questões'}`} · {activity.required ? 'Obrigatória' : 'Opcional'} · {deadlineLabel(activity.deadline)}</p>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="min-w-0 font-medium text-slate-900 [overflow-wrap:anywhere] hover:text-brand-700">{activity.title}</Link>
+            {studentStatus ? <Badge tone={studentStatus.tone}>{studentStatus.label}</Badge> : <Badge tone={activity.status === 'draft' ? 'neutral' : !assigned ? 'amber' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge>}
+          </div>
+          <p className="text-xs text-slate-500">{activity.kind === 'work' ? 'Trabalho' : countLabel(questionCount, 'questão', 'questões')} · {activity.required ? 'Obrigatória' : 'Opcional'} · {deadlineLabel(activity.deadline)}</p>
         </div>
-        <LinkButton secondary href={`/questionarios?id=${encodeURIComponent(activity.id)}`}>Detalhes</LinkButton>
-        {activity.kind === 'quiz' && attemptsLoading && <span role="status" className="inline-flex min-h-11 items-center text-xs text-slate-500">Carregando tentativa…</span>}
-        {activity.kind === 'quiz' && attemptsError && <span className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><span role="alert">{attemptsError.message}</span>{retryAttempts && <Button variant="secondary" onClick={retryAttempts}>Tentar novamente</Button>}</span>}
-        {activity.kind === 'quiz' && !attemptsLoading && !attemptsError && canManage && submitted.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios</LinkButton>}
-        {activity.kind === 'quiz' && !attemptsLoading && !attemptsError && studentId && assigned && (submitted[0]
-          ? <LinkButton href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
-          : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar' : 'Iniciar'}</LinkButton>)}
-        {activity.kind === 'work' && submissionsLoading && <span role="status" className="inline-flex min-h-11 items-center text-xs text-slate-500">Consultando entrega…</span>}
-        {activity.kind === 'work' && submissionsError && <span className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><span role="alert">{submissionsError.message}</span>{retrySubmissions && <Button variant="secondary" onClick={retrySubmissions}>Tentar novamente</Button>}</span>}
-        {activity.kind === 'work' && !submissionsLoading && !submissionsError && canManage && <><span className="self-center text-xs text-slate-500">{relatedSubmissions.length} entrega(s) concluída(s)</span>{relatedSubmissions.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas</LinkButton>}</>}
-        {activity.kind === 'work' && !submissionsLoading && !submissionsError && studentId && assigned && (ownSubmission
-          ? <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}${ownSubmission.submittedAt ? `&entrega=${encodeURIComponent(ownSubmission.id)}` : ''}`}>{ownSubmission.submittedAt ? 'Consultar comprovante' : 'Retomar rascunho'}</LinkButton>
-          : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Preparar entrega</LinkButton>)}
-        {canManage && <LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar atividade'}</LinkButton>}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">Detalhes</Link>
+          {activity.kind === 'quiz' && attemptsLoading && <span role="status" className="inline-flex min-h-10 items-center text-xs text-slate-500">Carregando…</span>}
+          {activity.kind === 'quiz' && attemptsError && <span className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><span role="alert">{attemptsError.message}</span>{retryAttempts && <Button variant="secondary" onClick={retryAttempts}>Tentar novamente</Button>}</span>}
+          {activity.kind === 'work' && submissionsLoading && <span role="status" className="inline-flex min-h-10 items-center text-xs text-slate-500">Consultando…</span>}
+          {activity.kind === 'work' && submissionsError && <span className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><span role="alert">{submissionsError.message}</span>{retrySubmissions && <Button variant="secondary" onClick={retrySubmissions}>Tentar novamente</Button>}</span>}
+          {studentStatus && !attemptsLoading && !attemptsError && !submissionsLoading && !submissionsError && studentStatus.actionKind === 'primary' && <LinkButton href={studentStatus.actionHref}>{studentStatus.actionLabel}</LinkButton>}
+          {studentStatus && !attemptsLoading && !attemptsError && !submissionsLoading && !submissionsError && studentStatus.actionKind === 'secondary' && <LinkButton secondary href={studentStatus.actionHref}>{studentStatus.actionLabel}</LinkButton>}
+          {canManage && <LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar'}</LinkButton>}
+          {activity.kind === 'quiz' && !attemptsLoading && !attemptsError && canManage && submitted.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios ({submitted.length})</LinkButton>}
+          {activity.kind === 'work' && !submissionsLoading && !submissionsError && canManage && relatedSubmissions.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas ({relatedSubmissions.length})</LinkButton>}
+        </div>
       </li>;
     })}</ul>}
   </section>;

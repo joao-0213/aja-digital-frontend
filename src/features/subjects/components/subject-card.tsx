@@ -2,32 +2,30 @@
 
 import Link from 'next/link';
 import { ChevronRight, Pencil } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Badge, Button } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import { resolveSubjectIcon } from './subject-icons';
+import { subjectCovers } from './subject-colors';
 import { type Subject } from '@/models';
 import type { SubjectSummary } from '../api';
 
-const covers = {
-  violet: { background: '#f2e5f7', color: '#75218d' },
-  blue: { background: '#e8eff8', color: '#345b88' },
-  amber: { background: '#faf0d9', color: '#805b18' },
-  green: { background: '#e5f1ea', color: '#32634a' }
-};
-
-export function SubjectCard({ subject, className, onEdit }: {
+export function SubjectCard({ subject, className, archived = false, onEdit }: {
   subject: Subject & Partial<Pick<SubjectSummary, 'teachers' | 'hasUpdates' | 'className'>>;
   className?: string;
+  archived?: boolean;
   onEdit?: () => void;
 }) {
   const hasUpdates = subject.hasUpdates ?? false;
   const { Icon, value: icon } = resolveSubjectIcon(subject);
-  return <article className="subject-card relative h-full min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
-    <Link href={`/disciplinas/detalhes?id=${encodeURIComponent(subject.id)}`} aria-label={`Abrir mural de ${subject.name}${hasUpdates ? ' · Novidades' : ''}`} className="flex h-full flex-col rounded-xl focus-visible:outline-offset-4">
-      <div className="flex h-20 items-center rounded-t-xl px-5" style={covers[subject.color]}>
+  const cover = subjectCovers[subject.color] ?? subjectCovers.violet;
+  return <article className={cn('subject-card relative h-full min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm', archived && 'opacity-80')}>
+    <Link href={`/disciplinas/detalhes?id=${encodeURIComponent(subject.id)}`} aria-label={`Abrir mural de ${subject.name}${hasUpdates ? ' · Novidades' : ''}${archived ? ' · Turma encerrada' : ''}`} className="flex h-full flex-col rounded-xl focus-visible:outline-offset-4">
+      <div className="flex h-20 items-center justify-between rounded-t-xl px-5" style={cover}>
         <Icon aria-hidden="true" data-subject-icon={icon} className="size-9 shrink-0" strokeWidth={1.6} />
+        {archived && <Badge tone="neutral">Encerrada</Badge>}
       </div>
       <div className={`flex flex-1 flex-col items-start gap-2 rounded-b-xl bg-white p-5 ${onEdit ? 'pr-14' : ''}`}>
-        <div className="flex w-full items-center gap-2.5"><h3 className="min-w-0 text-xl font-semibold leading-6 tracking-tight text-slate-900 [overflow-wrap:anywhere]">{subject.name}</h3>{hasUpdates && <span aria-hidden="true" title="Novas publicações" className="size-2 shrink-0 rounded-full bg-brand-600" />}<ChevronRight aria-hidden="true" className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-500" /></div>
+        <div className="flex w-full items-center gap-2.5"><h3 className="min-w-0 text-xl font-semibold leading-6 tracking-tight text-slate-900 [overflow-wrap:anywhere]">{subject.name}</h3>{hasUpdates && !archived && <span aria-hidden="true" title="Novas publicações" className="size-2 shrink-0 rounded-full bg-brand-600" />}<ChevronRight aria-hidden="true" className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-500" /></div>
         <p className="text-sm text-slate-500 [overflow-wrap:anywhere]">{className ?? subject.className}</p>
         <p className="text-xs leading-5 text-slate-500 [overflow-wrap:anywhere]">Equipe docente: {subject.teachers?.map(teacher => teacher.name).join(', ') || 'Aguardando atribuição'}</p>
       </div>

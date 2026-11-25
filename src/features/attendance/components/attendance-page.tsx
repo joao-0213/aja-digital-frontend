@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarClock } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Check, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Select, Skeleton } from '@/components/ui';
-import { dateLabel } from '@/lib/utils';
+import { cn, countLabel, dateLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { HttpError } from '@/lib/http-client';
@@ -43,6 +43,15 @@ export function AttendancePage() {
   const requestedSubject = params.get('disciplina') ?? '';
   const available = subjects.data ?? [];
   const selectedSubject = available.find(item => item.id === subjectId);
+  const recentLessons = useHttpQuery(
+    { sessionKey, key: `attendance-recent:${subjectId}:${resourceEpoch}` },
+    useCallback(signal => api.subjectLessons(subjectId, signal), [api, subjectId]),
+    user?.role !== 'student' && !!subjectId,
+  );
+  const sortedRecent = useMemo(
+    () => [...(recentLessons.data ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)),
+    [recentLessons.data],
+  );
   const students = roster?.items ?? [];
 
   useEffect(() => { setDate(todayInBrasilia()); }, []);
@@ -50,7 +59,7 @@ export function AttendancePage() {
     if (!available.length) return;
     setSubjectId(current => current && available.some(item => item.id === current)
       ? current
-      : available.find(item => item.id === requestedSubject)?.id ?? available[0].id);
+      : available.find(item => item.id === requestedSubject)?.id ?? available.find(item => item.canManageContent)?.id ?? available[0].id);
   }, [available, requestedSubject]);
 
   const invalidateSelection = () => {
@@ -61,19 +70,20 @@ export function AttendancePage() {
     setConflictLesson(undefined); setError('');
   };
 
-  const load = async () => {
-    if (!subjectId || !date || !time) return;
-    const requestedSelection = `${subjectId}\u0000${date}\u0000${time}`;
+  const load = async (targetDate = date, targetTime = time) => {
+    if (!subjectId || !targetDate || !targetTime) return;
+    const requestedSelection = `${subjectId}\u0000${targetDate}\u0000${targetTime}`;
+    selectionRef.current = requestedSelection;
     const version = ++requestVersion.current;
     loadedSelection.current = '';
     setLoading(true); setError(''); setConflictLesson(undefined);
     try {
       const [nextRoster, page] = await Promise.all([
-        api.eligible(subjectId, date, time),
-        api.lesson(subjectId, date, time)
+        api.eligible(subjectId, targetDate, targetTime),
+        api.lesson(subjectId, targetDate, targetTime)
       ]);
       if (version !== requestVersion.current || selectionRef.current !== requestedSelection) return;
-      const current = page.find(item => item.date === date && item.time === time);
+      const current = page.find(item => item.date === targetDate && item.time === targetTime);
       const eligible = nextRoster.filter(item => item.eligible);
       setRoster({ items: eligible.map(item => ({ ...item, present: current?.records?.[item.id] ?? null })) });
       setLesson(current);
@@ -86,6 +96,12 @@ export function AttendancePage() {
       setError(cause instanceof Error ? cause.message : 'Não foi possível consultar a chamada.');
       setLoaded(false);
     } finally { if (version === requestVersion.current) setLoading(false); }
+  };
+
+  const openSavedLesson = (item: AttendanceLesson) => {
+    setDate(item.date);
+    setTime(item.time);
+    void load(item.date, item.time);
   };
 
   const inspectLatest = async () => {
@@ -120,7 +136,7 @@ export function AttendancePage() {
         : await api.create({ subjectId, date, time, records });
       if (version !== requestVersion.current || selectionRef.current !== requestedSelection) return;
       setLesson(saved); setExpectedRevision(saved.revision); setConflictLesson(undefined);
-      setConfirm(false); setLoaded(true); notify('Frequência salva.');
+      setConfirm(false); setLoaded(true); notify('Frequência salva.'); void recentLessons.invalidate();
     } catch (cause: unknown) {
       if (version !== requestVersion.current || selectionRef.current !== requestedSelection) return;
       setError(cause instanceof Error ? `${cause.message} Seu preenchimento foi mantido.` : 'Não foi possível salvar. Seu preenchimento foi mantido.');
@@ -132,10 +148,10 @@ export function AttendancePage() {
   const presentCount = Object.values(records).filter(Boolean).length;
   const absentCount = Object.values(records).filter(value => !value).length;
   const conflictPresentCount = conflictLesson ? Object.values(conflictLesson.records).filter(Boolean).length : 0;
-  if (user?.role === 'student') return <Empty title="Registro de frequência" description="Esta tela está disponível para professores e administradores." />;
+  if (user?.role === 'student') return <Empty title="Registro de frequência" description="Esta tela está disponível para professores e administradores." action={<LinkButton secondary href="/">Voltar ao painel</LinkButton>} />;
   if (subjects.loading && !subjects.data) return <Skeleton />;
   if (subjects.error) return <ErrorState message={subjects.error.message} retry={() => void subjects.retry()} />;
-  if (!available.length) return <Empty title="Nenhuma disciplina atribuída" description="A frequência pode ser registrada apenas nas disciplinas atribuídas à equipe." />;
+  if (!available.length) return <Empty title="Nenhuma disciplina atribuída" description="A frequência pode ser registrada apenas nas disciplinas atribuídas à equipe." action={<LinkButton secondary href="/">Voltar ao painel</LinkButton>} />;
 
   return <>
     <LinkButton secondary href={requestedSubject ? `/disciplinas/detalhes?id=${encodeURIComponent(requestedSubject)}` : '/'} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{requestedSubject ? 'Voltar à disciplina' : 'Voltar ao painel'}</LinkButton>
@@ -143,7 +159,7 @@ export function AttendancePage() {
     <Card className="mb-6">
       <form className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_180px_130px_auto]" onSubmit={event => { event.preventDefault(); void load(); }}>
         <Select label="Disciplina / turma" value={subjectId} onChange={event => { invalidateSelection(); setSubjectId(event.target.value); }}>
-          {available.map(item => <option key={item.id} value={item.id}>{item.name} · {item.className}</option>)}
+          {available.map(item => <option key={item.id} value={item.id}>{item.name} · {item.className}{item.canManageContent ? '' : ' (encerrada)'}</option>)}
         </Select>
         <Input label="Data da aula" type="date" value={date} onChange={event => { invalidateSelection(); setDate(event.target.value); }} required />
         <Input label="Horário" type="time" value={time} onChange={event => { invalidateSelection(); setTime(event.target.value); }} required />
@@ -151,7 +167,36 @@ export function AttendancePage() {
       </form>
     </Card>
     {error && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-    {loaded ? <Card>
+    <div className="grid items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <Card className="!p-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><CalendarClock aria-hidden="true" className="size-4 text-brand-600" />Chamadas recentes</h2>
+          {sortedRecent.length > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-600">{sortedRecent.length}</span>}
+        </div>
+        {recentLessons.loading ? <div className="p-5"><Skeleton /></div> : recentLessons.error ? <div className="p-5"><ErrorState message={recentLessons.error.message} retry={() => void recentLessons.retry()} /></div> : sortedRecent.length ? <ul className="max-h-[30rem] divide-y divide-slate-100 overflow-y-auto">
+          {sortedRecent.map(item => {
+            const marks = Object.values(item.records);
+            const present = marks.filter(Boolean).length;
+            const active = loaded && lesson?.id === item.id;
+            return <li key={item.id}>
+              <button
+                type="button"
+                aria-current={active ? 'true' : undefined}
+                onClick={() => openSavedLesson(item)}
+                className={cn('flex w-full items-center justify-between gap-3 border-l-2 px-5 py-3.5 text-left transition-colors hover:bg-slate-50', active ? 'border-l-brand-600 bg-brand-50/60' : 'border-l-transparent')}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{dateLabel(item.date)} · {item.time}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{countLabel(present, 'presente', 'presentes')} de {countLabel(marks.length, 'aluno', 'alunos')}</p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-brand-700">{active ? 'Aberta' : 'Abrir'}</span>
+              </button>
+            </li>;
+          })}
+        </ul> : <p className="p-5 text-sm text-slate-500">Nenhuma chamada registrada nesta disciplina.</p>}
+      </Card>
+      <div className="min-w-0">
+        {loaded ? <Card>
       {conflictLesson && <RecordConflict key={conflictLesson.revision} author="Equipe AJA" updatedAt={conflictLesson.updatedAt} onReviewed={() => { setExpectedRevision(conflictLesson.revision); setLesson(conflictLesson); setConflictLesson(undefined); }}>
         <p>Chamada atual: {conflictPresentCount} {conflictPresentCount === 1 ? 'presença' : 'presenças'} em {dateLabel(conflictLesson.date)} às {conflictLesson.time}.</p>
         <p>Compare as marcações salvas com seu preenchimento. Os controles abaixo mantêm suas alterações; ajuste-os antes de salvar.</p>
@@ -187,7 +232,9 @@ export function AttendancePage() {
           {lesson ? 'Atualizar chamada' : 'Salvar chamada'}
         </Button>
       </div>
-    </Card> : <Empty title="Selecione uma aula para começar" description="Escolha disciplina, data e horário para carregar a chamada." />}
+    </Card> : <Empty title="Selecione uma aula para começar" description="Escolha disciplina, data e horário ou abra uma chamada recente ao lado." />}
+      </div>
+    </div>
     <Dialog open={confirm} onClose={() => setConfirm(false)} title="Confirmar frequência">
       <p className="mb-5 text-sm leading-6 text-slate-500">Salvar {presentCount} {presentCount === 1 ? 'presença' : 'presenças'} e {absentCount} {absentCount === 1 ? 'ausência' : 'ausências'} em {dateLabel(date)} às {time}?</p>
       <div className="flex justify-end gap-3">

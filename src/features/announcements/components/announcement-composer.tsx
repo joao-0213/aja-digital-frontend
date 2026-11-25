@@ -11,14 +11,18 @@ import { announcementSubjectAfterClassChange, brasiliaMinTimeForDate, brasiliaTo
 import { getOrCreateAnnouncementIntent } from '../announcement-intent';
 import { createAnnouncementsApi, type AnnouncementDto, type AnnouncementFields } from '../api';
 
-export function AnnouncementComposer({ item, subjectId, classId, onClose }: { item?: AnnouncementDto; subjectId?: string; classId?: string; onClose: () => void }) {
+export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar = false, onClose }: { item?: AnnouncementDto; subjectId?: string; classId?: string; defaultCalendar?: boolean; onClose: () => void }) {
   const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createAnnouncementsApi(client), [client]);
-  const fields = useMemo(() => initialAnnouncementFields(item, subjectId, classId), [item, subjectId, classId]);
-  const context = `announcement:${user?.id ?? ''}:${item?.id ?? subjectId ?? 'general'}`;
+  const fields = useMemo(() => {
+    const base = initialAnnouncementFields(item, subjectId, classId);
+    if (!item && defaultCalendar && !base.occurrence) return { ...base, occurrence: { date: '', time: '', allDay: false } };
+    return base;
+  }, [item, subjectId, classId, defaultCalendar]);
+  const context = `announcement:${user?.id ?? ''}:${item?.id ?? subjectId ?? (defaultCalendar ? 'calendar' : 'general')}`;
   const restored = client.readDraft<{ fields: AnnouncementFields }>(context);
   const { fields: value, dirty, busy, conflicted, latest, blocked, error, editor, clear } = useHttpEditor<AnnouncementFields, AnnouncementDto>(fields, item?.revision ?? 0, context);
-  const [calendar, setCalendar] = useState(!!(restored?.fields ?? fields).occurrence);
+  const [calendar, setCalendar] = useState(!!(restored?.fields ?? fields).occurrence || defaultCalendar);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [localError, setLocalError] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -28,7 +32,7 @@ export function AnnouncementComposer({ item, subjectId, classId, onClose }: { it
     if (contextSubject && !value.classId) editor.change({ ...value, classId: contextSubject.classId, subjectId: contextSubject.id });
   }, [editor, options.data, subjectId, value]);
   const set = <K extends keyof AnnouncementFields>(key: K, next: AnnouncementFields[K]) => { setLocalError(''); editor.change({ ...value, [key]: next }); };
-  const hasRealChanges = item ? dirty : value.title.trim() !== '' || value.body.trim() !== '' || calendar || (!subjectId && !!value.classId);
+  const hasRealChanges = item ? dirty : value.title.trim() !== '' || value.body.trim() !== '' || (!defaultCalendar && calendar) || (defaultCalendar && !!value.occurrence?.date) || (!subjectId && !!value.classId);
   const close = () => {
     if (busy) return;
     if (confirmingClose) { setConfirmingClose(false); return; }
@@ -41,7 +45,7 @@ export function AnnouncementComposer({ item, subjectId, classId, onClose }: { it
   const minTime = enforceFutureOccurrence && value.occurrence?.date ? brasiliaMinTimeForDate(value.occurrence.date, nowMs) : undefined;
   const occurrenceInPast = calendar && enforceFutureOccurrence && isOccurrenceInPast(value.occurrence, nowMs);
   const subjectOptions = options.data?.subjects.filter(subject => subject.classId === value.classId) ?? [];
-  return <Dialog open onClose={close} title={item ? 'Editar aviso' : 'Publicar aviso'}>
+  return <Dialog open onClose={close} title={item ? 'Editar aviso' : defaultCalendar ? 'Novo evento no calendário' : 'Publicar aviso'}>
     {item && (latest || blocked) && <RecordConflict author={latest?.author.name ?? 'Equipe AJA'} updatedAt={latest?.updatedAt} onReviewed={() => editor.acknowledge()}><p><strong>{latest?.title ?? item.title}</strong></p><p>{latest?.body ?? item.body}</p><p>Acontecimento: {latest?.occurrence ? `${latest.occurrence.date} · ${latest.occurrence.allDay ? 'Dia inteiro' : latest.occurrence.time}` : 'Sem compromisso'}</p><p>Notificar por e-mail: {latest?.notify ? 'Sim' : 'Não'}</p></RecordConflict>}
     {options.error && <p role="alert" className="text-sm text-red-700">{options.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={options.retry}>Tentar novamente</button></p>}
     {restored && <p role="status" className="text-sm text-brand-700">Composição retomada nesta sessão. Confira o público antes de salvar.</p>}

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronRight, MessageSquare, ClipboardCheck, ListChecks, Upload } from 'lucide-react';
+import { ChevronRight, MessageSquare, ClipboardCheck, GraduationCap, ListChecks, Upload, UserCog, Users } from 'lucide-react';
 import { Card, Skeleton } from '@/components/ui';
 import { countLabel, dateLabel, sortByDeadlineAsc } from '@/lib/utils';
 import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
@@ -18,6 +18,21 @@ export function StaffDashboard() {
   const dashboard = useHttpQuery({ sessionKey, key: `dashboard:${resourceEpoch}:${user?.role ?? 'staff'}` }, useCallback(signal => api.read(signal), [api]), user?.role !== 'student');
   const data = dashboard.data && dashboard.data.role !== 'student' ? dashboard.data as StaffDashboardDto : undefined;
   const events = upcomingMeetings(data?.upcoming ?? []);
+  const activeClassIds = new Set((data?.classes ?? []).filter(item => item.active).map(item => item.id));
+  const activeSubjects = (data?.subjects ?? []).filter(subject => activeClassIds.has(subject.classId));
+  const visibleSubjects = activeSubjects.length ? activeSubjects : (data?.subjects ?? []);
+  const isAdmin = user?.role === 'admin';
+  const quickActions = isAdmin
+    ? [
+      { href: '/turmas', label: 'Gerenciar turmas', icon: GraduationCap },
+      { href: '/usuarios', label: 'Usuários e docentes', icon: UserCog },
+      { href: '/alunos', label: 'Matrículas e alunos', icon: Users },
+    ]
+    : [
+      { href: '/disciplinas', label: 'Publicar materiais', icon: Upload },
+      { href: '/questionarios/criar', label: 'Preparar atividade', icon: ClipboardCheck },
+      { href: '/frequencia', label: 'Registrar frequência', icon: ListChecks },
+    ];
 
   return <>
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
@@ -27,18 +42,18 @@ export function StaffDashboard() {
     {dashboard.error && <p role="alert" className="mb-6 text-sm text-red-700">{dashboard.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={() => void dashboard.retry()}>Tentar novamente</button></p>}
     {data && <>
       <section aria-label="Indicadores" className="mb-7 grid gap-3 sm:grid-cols-3">
-        <Card><p className="text-sm text-slate-500">{user?.role === 'admin' ? 'Alunos ativos' : 'Meus alunos'}</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.studentCount}</p></Card>
+        <Card><p className="text-sm text-slate-500">{isAdmin ? 'Alunos ativos' : 'Meus alunos'}</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.studentCount}</p></Card>
         <Card><p className="text-sm text-slate-500">Devolutivas pendentes</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.pendingFeedbackCount}</p><Link href="/questionarios" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>
-        {user?.role === 'admin'
+        {isAdmin
           ? <Card><p className="text-sm text-slate-500">Matrículas pendentes</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.pendingEnrollmentCount}</p><Link href="/alunos" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Acompanhar matrículas<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>
-          : <Card><p className="text-sm text-slate-500">Minhas disciplinas</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.subjects.length}</p><Link href="/disciplinas" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver disciplinas<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>}
+          : <Card><p className="text-sm text-slate-500">Disciplinas ativas</p><p className="mt-1 text-2xl font-semibold tabular-nums">{activeSubjects.length}</p><Link href="/disciplinas" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver disciplinas<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>}
       </section>
       <nav aria-label="Acessos rápidos" className="mb-8 grid gap-3 sm:grid-cols-3">
-        {[{ href: '/disciplinas', label: 'Publicar materiais', icon: Upload }, { href: '/questionarios/criar', label: 'Preparar atividade', icon: ClipboardCheck }, { href: '/frequencia', label: 'Registrar frequência', icon: ListChecks }].map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
+        {quickActions.map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
       </nav>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-8">
-          <section aria-labelledby="subjects-title"><div className="mb-3 flex items-center justify-between gap-3"><h2 id="subjects-title" className="text-lg font-semibold">Disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver todas</Link></div>{data.subjects.length ? <div className="grid gap-4 sm:grid-cols-2">{data.subjects.slice(0, 4).map(subject => <SubjectCard key={subject.id} subject={subject} />)}</div> : <p className="text-sm text-slate-600">Nenhuma disciplina disponível para sua conta.</p>}</section>
+          <section aria-labelledby="subjects-title"><div className="mb-3 flex items-center justify-between gap-3"><h2 id="subjects-title" className="text-lg font-semibold">Disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver todas</Link></div>{visibleSubjects.length ? <div className="grid gap-4 sm:grid-cols-2">{visibleSubjects.slice(0, 4).map(subject => <SubjectCard key={subject.id} subject={subject} archived={!activeClassIds.has(subject.classId)} />)}</div> : <p className="text-sm text-slate-600">Nenhuma disciplina disponível para sua conta.</p>}</section>
           <section aria-labelledby="forum-title"><div className="mb-2 flex items-center justify-between gap-3"><h2 id="forum-title" className="text-lg font-semibold">Dúvidas da turma</h2><Link href="/forum" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Abrir fórum</Link></div><div className="divide-y divide-slate-200">{data.topics.map(topic => <Link key={topic.id} href={topic.href} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100"><MessageSquare aria-hidden="true" className="mt-1 size-4 shrink-0 text-slate-500" /><div className="min-w-0"><h3 className="text-sm font-medium leading-6 [overflow-wrap:anywhere]">{topic.title}</h3><p className="mt-1 text-xs text-slate-500">{topic.subjectName} · {countLabel(topic.replyCount, 'resposta', 'respostas')}</p></div></Link>)}{!data.topics.length && <p className="py-4 text-sm text-slate-600">Nenhuma dúvida publicada.</p>}</div></section>
         </div>
         <aside aria-label="Próximos encontros, prazos e avisos" className="min-w-0 space-y-6">

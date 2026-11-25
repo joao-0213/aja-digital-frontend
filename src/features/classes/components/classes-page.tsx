@@ -56,7 +56,7 @@ export function ClassesPage() {
   const [page, setPage] = useState(1);
   const [selection, setSelection] = useState<Selection | null>(() => client.readDraft<Selection>('classes-open') ?? null);
   const query = useHttpQuery({ sessionKey, key: JSON.stringify(['classes', search, inactive, page, resourceEpoch]) }, useCallback(signal => api.list(search, inactive, page, signal), [api, search, inactive, page]), user?.role === 'admin');
-  if (user?.role !== 'admin') return <Empty title="Área de gestão" description="Seu perfil não permite gerenciar turmas." />;
+  if (user?.role !== 'admin') return <Empty title="Área de gestão" description="Seu perfil não permite gerenciar turmas." action={<LinkButton secondary href="/">Voltar ao painel</LinkButton>} />;
   const open = (action: Selection['action'], record?: SchoolClass) => { const next = { action, record, intent: crypto.randomUUID() }; client.clearDraft('classes-fields', sessionKey); client.saveDraft('classes-open', next, sessionKey); setSelection(next); };
   const close = () => { client.clearDraft('classes-open', sessionKey); setSelection(null); };
   return <>

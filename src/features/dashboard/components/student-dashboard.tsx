@@ -3,9 +3,10 @@
 import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { Empty, Skeleton } from '@/components/ui';
+import { Badge, Empty, Skeleton } from '@/components/ui';
 import { countLabel, dateLabel, sortByDeadlineAsc } from '@/lib/utils';
 import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
+import { createAssessmentsApi } from '@/features/assessments';
 import { SubjectCard } from '@/features/subjects';
 import { EnrollmentStatus } from '@/features/students';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -16,9 +17,20 @@ import { upcomingMeetings } from '@/lib/announcement-calendar';
 export function StudentDashboard() {
   const { client, user, sessionKey, resourceEpoch } = useSession();
   const api = useMemo(() => createDashboardApi(client), [client]);
-  const dashboard = useHttpQuery({ sessionKey, key: `dashboard:${resourceEpoch}:student` }, useCallback(signal => api.read(signal), [api]), user?.role === 'student');
+  const assessmentsApi = useMemo(() => createAssessmentsApi(client), [client]);
+  const isStudent = user?.role === 'student';
+  const dashboard = useHttpQuery({ sessionKey, key: `dashboard:${resourceEpoch}:student` }, useCallback(signal => api.read(signal), [api]), isStudent);
+  const attempts = useHttpQuery({ sessionKey, key: `dashboard-attempts:${resourceEpoch}` }, useCallback(signal => assessmentsApi.allAttempts({}, signal, sessionKey), [assessmentsApi, sessionKey]), isStudent);
+  const submissions = useHttpQuery({ sessionKey, key: `dashboard-submissions:${resourceEpoch}` }, useCallback(signal => assessmentsApi.allSubmissions({}, signal, sessionKey), [assessmentsApi, sessionKey]), isStudent);
   const data = dashboard.data?.role === 'student' ? dashboard.data as StudentDashboardDto : undefined;
   const events = upcomingMeetings(data?.upcoming ?? []);
+  const submittedQuizIds = new Set((attempts.data ?? []).filter(item => item.userId === user?.id && item.submittedAt).map(item => item.assessmentId));
+  const inProgressQuizIds = new Set((attempts.data ?? []).filter(item => item.userId === user?.id && !item.submittedAt).map(item => item.assessmentId));
+  const submittedWorkIds = new Set((submissions.data ?? []).filter(item => item.userId === user?.id && item.submittedAt).map(item => item.assessmentId));
+  const inProgressWorkIds = new Set((submissions.data ?? []).filter(item => item.userId === user?.id && !item.submittedAt).map(item => item.assessmentId));
+  const pendingAssessments = sortByDeadlineAsc(
+    (data?.assessments ?? []).filter(item => item.kind === 'quiz' ? !submittedQuizIds.has(item.id) : !submittedWorkIds.has(item.id)),
+  );
 
   return <>
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
@@ -46,7 +58,10 @@ export function StudentDashboard() {
         </div>
         <section aria-labelledby="student-deadlines" className="mt-8 border-t border-slate-200 pt-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 id="student-deadlines" className="text-lg font-semibold">Próximas entregas</h2><Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></div>
-          {data.assessments.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">{sortByDeadlineAsc(data.assessments).map(item => <Link key={item.id} href={`/questionarios/responder?id=${item.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50"><div className="min-w-0 flex-1"><h3 className="text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{item.title}</h3><p className="mt-0.5 text-xs font-medium text-brand-700">{item.deadline ? `Até ${dashboardDeadlineLabel(item.deadline)}` : 'Sem prazo'}{item.required ? ' · Obrigatória' : ''}</p></div><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}</div> : <p className="py-3 text-sm text-slate-500">Nenhuma entrega pendente.</p>}
+          {pendingAssessments.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">{pendingAssessments.map(item => {
+            const inProgress = item.kind === 'quiz' ? inProgressQuizIds.has(item.id) : inProgressWorkIds.has(item.id);
+            return <Link key={item.id} href={`/questionarios/responder?id=${item.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">{item.title}</h3><Badge tone={inProgress ? 'blue' : 'purple'}>{inProgress ? 'Em andamento' : 'Pendente'}</Badge></div><p className="mt-0.5 text-xs font-medium text-brand-700">{item.deadline ? `Até ${dashboardDeadlineLabel(item.deadline)}` : 'Sem prazo'}{item.required ? ' · Obrigatória' : ''}</p></div><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>;
+          })}</div> : <p className="py-3 text-sm text-slate-500">Nenhuma entrega pendente.</p>}
         </section>
         {data.resume && <Link href={`/materiais?id=${data.resume.id}`} className="mt-6 flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3"><span><span className="block text-xs text-slate-500">Último material acessado</span><span className="mt-1 block text-sm font-medium">{data.resume.title}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-brand-700" /></Link>}
         <div className="mt-8 grid gap-7 border-t border-slate-200 pt-6 md:grid-cols-2">
