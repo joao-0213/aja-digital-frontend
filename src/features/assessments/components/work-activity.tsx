@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import type { AssessmentRead, SubmissionAttachment, SubmissionRead, SubmissionStaff, SubmissionStudent, WorkFeedback, WorkFileMetadata } from '../api';
 import { createAssessmentsApi } from '../api';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -10,6 +11,7 @@ import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { Badge, Button, Card, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Skeleton } from '@/components/ui';
+import { countLabel } from '@/lib/utils';
 import { resolveWorkUploadBatch, type WorkUploadIntent } from '../work-upload-batch';
 import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
@@ -59,24 +61,26 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
   if (user.role === 'student') {
     const own = rows.find(row => row.userId === user.id);
     if (selectedId && own?.id !== selectedId) return <Empty title="Entrega indisponível neste contexto" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
-    if (!('assigned' in activity) || !activity.assigned) return <Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída à sua matrícula. Ela não pode ser enviada nesta sessão.</p></Card>;
+    if (!('assigned' in activity) || !activity.assigned) return <><LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton><Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída à sua matrícula. Ela não pode ser enviada nesta sessão.</p></Card></>;
     return <>
+      <LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
       <PageHeading eyebrow="Entrega de trabalho" title={activity.title} description={activity.description} />
       <ActivityConditions activity={activity} />
       <WorkStudent key={`${activity.id}:${user.id}`} activity={activity} initialSubmission={own && isStudentSubmission(own) ? own : null} userId={user.id} sessionId={sessionId ?? ''} />
-      <div className="mt-6"><LinkButton secondary href={subjectHref}>Voltar para atividades</LinkButton></div>
+      <div className="mt-6"><LinkButton secondary href={subjectHref}><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton></div>
     </>;
   }
 
   const selected = rows.find(row => row.id === selectedId && isStaffSubmission(row)) as SubmissionStaff | undefined;
   const filtered = rows.filter(isStaffSubmission);
   return <>
+    <LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     <PageHeading eyebrow="Acompanhamento individual" title={activity.title} description={activity.description} action={<LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>} />
     <ActivityConditions activity={activity} />
     <Card><h2 className="mb-4 font-semibold">Entregas concluídas</h2>
       {filtered.length ? <ul className="divide-y divide-slate-200">{filtered.map(submission => <li key={submission.id} className="flex flex-wrap items-center justify-between gap-3 py-4 text-sm">
         <span>{submission.studentName}<span className="mt-1 block text-xs text-slate-500">{submission.feedbackPublished ? 'Feedback disponível' : 'Entregue — aguardando feedback'} · {submission.submittedAt && new Date(submission.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span></span>
-        <LinkButton secondary href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}>Consultar entrega de {submission.studentName}</LinkButton>
+        <LinkButton secondary aria-label={`Consultar entrega de ${submission.studentName}`} href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}>Consultar entrega</LinkButton>
       </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Ainda não há entregas concluídas. Rascunhos dos alunos permanecem privados.</p>}
     </Card>
     {selected && <><Card className="mt-5"><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-3 text-sm">Comprovante {selected.receipt?.id ?? 'indisponível'} · {selected.submittedAt && new Date(selected.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p><WorkAttachments items={selected.attachments} /></Card>
@@ -321,7 +325,7 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
 
   if (!isAssigned) return <Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída a você. O serviço valida matrícula e prazo ao salvar e ao enviar.</p></Card>;
   if (submission?.submittedAt) return <>
-    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm">{activity.title} · {new Date(submission.receipt?.submittedAt ?? submission.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (Brasília)</p><p className="mt-2 text-sm">Comprovante {submission.receipt?.id ?? 'indisponível'} · {submission.attachments.length} anexos</p><p className="mt-3 text-sm text-slate-500">Envio único confirmado. Os anexos não podem ser substituídos.</p><WorkAttachments items={submission.attachments} /></Card>
+    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm [overflow-wrap:anywhere]">{activity.title} · {new Date(submission.receipt?.submittedAt ?? submission.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (Brasília)</p><p className="mt-2 text-sm">Comprovante {submission.receipt?.id ?? 'indisponível'} · {countLabel(submission.attachments.length, 'anexo', 'anexos')}</p><p className="mt-3 text-sm text-slate-500">Envio único confirmado. Os anexos não podem ser substituídos.</p><WorkAttachments items={submission.attachments} /></Card>
     <FeedbackPublication feedback={submission.feedbackPublished} maxGrade={activity.maxGrade} />
   </>;
 
@@ -331,13 +335,13 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
     {conflict && <RecordConflict author="sua conta em outra sessão" updatedAt={conflict.updatedAt} onReviewed={acknowledgeConflict}><p>Revisão atual: {conflict.revision}</p><p>Anexos salvos: {conflict.attachments.map(item => item.name).join(', ') || 'Nenhum'}</p><p>Sua seleção local continua preservada: {items.map(item => item.name).join(', ') || 'Nenhum'}</p></RecordConflict>}
     <Input label="Adicionar arquivos" type="file" multiple disabled={busy || !!conflict || frozenPending} onChange={event => { void addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
     {Object.entries(uploads).filter(([id]) => !files[id]).map(([id, upload]) => <p key={id} role="status" className="text-xs text-amber-800">Selecione novamente “{upload.name}” para repetir o mesmo envio de arquivo.</p>)}
-    <div className="flex flex-wrap gap-2"><Input label="Link do trabalho" type="url" value={link} onChange={event => setLink(event.target.value)} placeholder="https://" disabled={busy || !!conflict || frozenPending} /><Button variant="secondary" disabled={!link.trim() || busy || !!conflict || frozenPending} onClick={addLink}>Adicionar link</Button></div>
+    <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); if (link.trim() && !busy && !conflict && !frozenPending) addLink(); }}><div className="min-w-0 flex-1"><Input label="Link do trabalho" type="url" value={link} onChange={event => setLink(event.target.value)} placeholder="https://" disabled={busy || !!conflict || frozenPending} /></div><Button type="submit" variant="secondary" disabled={!link.trim() || busy || !!conflict || frozenPending}>Adicionar link</Button></form>
     <WorkAttachments items={items} files={files} onRemove={busy || !!conflict || frozenPending ? undefined : remove} />
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
     <p role="status" className="text-xs text-slate-500">{isDirty ? 'Alterações locais ainda não salvas.' : submission ? `Rascunho salvo · revisão ${submission.revision} · não enviado.` : 'Não entregue.'}</p>
     <div className="flex flex-wrap gap-3"><Button variant="secondary" loading={busy} disabled={!!conflict || ambiguousPatch.current || ambiguousPrepare.current} onClick={() => void saveDraft()}>Salvar rascunho</Button><Button disabled={!canSubmit || ambiguousPatch.current || uploadCommands.current.size > 0} onClick={() => setConfirm(true)}>{submitIntent.current ? 'Tentar confirmar o mesmo envio' : 'Conferir e enviar'}</Button>{ambiguousPatch.current && <Button variant="secondary" loading={busy} onClick={() => void reviewUncertainSave()}>Consultar salvamento</Button>}{ambiguousPrepare.current && <Button variant="secondary" loading={busy} onClick={() => void retryPrepare()}>Repetir a mesma preparação</Button>}</div>
     <Dialog open={confirm} onClose={() => { if (!busy) setConfirm(false); }} title="Confirmar entrega única">
-      <p className="text-sm leading-7">Enviar estes {items.length} anexos para {activity.title}? A entrega fica registrada uma única vez e os anexos não poderão ser substituídos.</p><WorkAttachments items={items} files={files} />
+      <p className="text-sm leading-7 [overflow-wrap:anywhere]">Enviar {items.length === 1 ? 'este 1 anexo' : `estes ${items.length} anexos`} para {activity.title}? A entrega fica registrada uma única vez e os anexos não poderão ser substituídos.</p><WorkAttachments items={items} files={files} />
       <div className="mt-5 flex flex-wrap justify-end gap-3"><Button variant="secondary" disabled={busy} onClick={() => setConfirm(false)}>Voltar à preparação</Button><Button loading={busy} disabled={!canSubmit} onClick={() => void submit()}>{submitIntent.current ? 'Confirmar o mesmo envio' : 'Confirmar envio único'}</Button></div>
     </Dialog>
   </Card>;

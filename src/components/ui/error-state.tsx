@@ -11,5 +11,5 @@ export function ErrorState({
   message: string;
   retry: () => void;
 }) {
-  return <Empty title="Não conseguimos carregar esta página" description={message} action={<Button onClick={retry}><RefreshCw className="size-4" />Tentar novamente</Button>} />;
+  return <Empty title="Não conseguimos carregar esta página" description={message} action={<Button onClick={retry}><RefreshCw aria-hidden="true" className="size-4" />Tentar novamente</Button>} />;
 }

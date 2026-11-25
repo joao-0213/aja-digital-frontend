@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gradeAttempt, validateClassCode, canChangeRole, validateUpload, moveItem } from '../src/lib/domain.ts';
+import { brazilDateTimeLabel, countLabel } from '../src/lib/utils.ts';
 test('grades correct, incorrect and blank answers without leaking unanswered points', () => {
   assert.deepEqual(gradeAttempt(['a', 'b', 'c'], {
     a: 0,
@@ -79,4 +80,12 @@ test('reordering is immutable and bounded', () => {
   assert.deepEqual(moveItem(source, 2, 0), ['c', 'a', 'b']);
   assert.deepEqual(source, ['a', 'b', 'c']);
   assert.deepEqual(moveItem(source, 0, -1), source);
+});
+
+test('UI formatting helpers handle singular/plural counts and Brasília timestamps safely', () => {
+  assert.equal(countLabel(0, 'questão', 'questões'), '0 questões');
+  assert.equal(countLabel(1, 'questão', 'questões'), '1 questão');
+  assert.equal(countLabel(2, 'questão', 'questões'), '2 questões');
+  assert.match(brazilDateTimeLabel('2026-12-10T19:00:00-03:00'), /10\/12\/2026.*19:00/);
+  assert.equal(brazilDateTimeLabel('invalid-date'), 'invalid-date');
 });

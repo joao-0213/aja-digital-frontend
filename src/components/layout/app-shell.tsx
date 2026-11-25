@@ -3,8 +3,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, LogOut } from 'lucide-react';
-import { useApp, useSession } from '@/providers/app-context';
+import { Menu } from 'lucide-react';
+import { useSession } from '@/providers/app-context';
 import { Avatar, Button, Dialog, Skeleton, ErrorState } from '@/components/ui';
 import { cn, roleLabels } from '@/lib/utils';
 import { nav } from './navigation';
@@ -15,27 +15,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname().replace(/\/$/, '') || '/';
   const router = useRouter();
   const { user, status, error, client, sessionKey } = useSession();
-  const { notify } = useApp();
   const [mobile, setMobile] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [sidebarFocused, setSidebarFocused] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const sidebarExpanded = sidebarHovered || sidebarFocused;
   const auth = publicRoutes.has(path);
   useEffect(() => {
     if (!auth && status === 'anonymous') router.replace('/login');
   }, [auth, status, router]);
-  const logout = async () => {
-    if (exiting) return;
-    setExiting(true);
-    try { await client.logout(); router.replace('/login'); }
-    catch (cause: unknown) { notify(cause instanceof Error ? cause.message : 'Não foi possível encerrar a sessão. Tente novamente.', true); }
-    finally { setExiting(false); }
-  };
   if (auth) return <>{children}</>;
   if (status === 'loading') return <main className="mx-auto max-w-3xl p-8"><Skeleton /></main>;
-  if (status === 'error') return <main className="mx-auto max-w-3xl p-8"><ErrorState message={error?.message ?? 'Não foi possível consultar sua sessão.'} retry={() => void client.refresh()} /><Link href="/login" className="mt-6 inline-flex min-h-11 items-center font-semibold text-brand-700">Voltar ao login</Link></main>;
-  if (!user) return <main className="mx-auto max-w-3xl p-8"><p role="status">Entre na sua conta para continuar.</p><Link href="/login" className="mt-6 inline-flex min-h-11 items-center font-semibold text-brand-700">Entrar</Link></main>;
+  if (status === 'error') return <main className="mx-auto max-w-3xl p-8"><ErrorState message={error?.message ?? 'Não foi possível consultar sua sessão.'} retry={() => void client.refresh()} /><Link href="/login" className="mt-6 inline-flex min-h-11 items-center font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Voltar ao login</Link></main>;
+  if (!user) return <main className="mx-auto max-w-3xl p-8"><p role="status">Entre na sua conta para continuar.</p><Link href="/login" className="mt-6 inline-flex min-h-11 items-center font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Entrar</Link></main>;
   const role = user.role;
   const navigation = (compact = false, desktop = false) => <>
     <div className="mb-8 shrink-0 px-4"><Logo symbolOnly={compact} /></div>
@@ -60,7 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main id="main" tabIndex={-1} className="mx-auto max-w-[1280px] px-4 pb-7 pt-20 sm:px-8 lg:py-9 xl:px-10">
         <div key={sessionKey}>{children}</div>
       </main>
-      <footer className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 pb-12 pt-3 text-xs text-slate-500 sm:px-8 xl:px-10"><span>AJA Digital</span><Button variant="ghost" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-3.5" />Sair</Button></footer>
+      <footer className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 pb-12 pt-3 text-xs text-slate-500 sm:px-8 xl:px-10"><span>AJA Digital</span></footer>
     </div>
   </div>;
 }

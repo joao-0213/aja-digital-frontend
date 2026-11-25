@@ -16,6 +16,7 @@ export function Input({
   return <div className="space-y-1.5">
     {label && <label htmlFor={id} className="block text-sm font-medium text-slate-700">
       {label}
+      {props.required && <span aria-hidden="true" className="ml-0.5 text-rose-600">*</span>}
     </label>}
     <input id={id} {...props} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} className={cn(field, props.className)} />
     {error && <p id={`${id}-error`} className="text-sm text-rose-600">

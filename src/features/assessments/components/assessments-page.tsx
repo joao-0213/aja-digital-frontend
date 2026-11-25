@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardCheck, Plus } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
@@ -28,16 +28,16 @@ function ActivityDetails({ activity, canManage, userId, attempts, submissions }:
   const workSubmissions = submissions.filter(submission => submission.assessmentId === activity.id && (canManage || submission.userId === userId));
   const ownWork = workSubmissions.find(submission => !canManage) ?? workSubmissions[0];
   return <>
-    <LinkButton secondary href="/questionarios">Voltar para atividades</LinkButton>
+    <LinkButton secondary href="/questionarios"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     <Card className="mt-5 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2"><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : 'Publicada'}</Badge><Badge>{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</Badge><Badge>{activity.required ? 'Obrigatória' : 'Opcional'}</Badge></div>
-          <h2 className="text-xl font-semibold">{activity.title}</h2>
+          <h2 className="text-xl font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
         </div>
         {canManage && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>}
       </div>
-      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600">{activity.description || 'Sem orientações adicionais.'}</p>
+      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-600 [overflow-wrap:anywhere]">{activity.description || 'Sem orientações adicionais.'}</p>
       <dl className="grid gap-4 text-sm sm:grid-cols-2">
         <div><dt className="font-semibold text-slate-800">Prazo</dt><dd className="mt-1 text-slate-600">{dateLabel(activity.deadline)}</dd></div>
         {activity.deadline && <div><dt className="font-semibold text-slate-800">Envios atrasados</dt><dd className="mt-1 text-slate-600">{activity.allowLate ? 'Aceitos' : 'Não aceitos'}</dd></div>}
@@ -103,6 +103,7 @@ export function AssessmentsPage() {
   const canCreate = staff && (query.data?.modules ?? []).some(module => subjects.get(module.subjectId)?.canManageContent);
   const items = [...(query.data?.assessments ?? [])].sort((a, b) => (modules.get(a.moduleId)?.order ?? 0) - (modules.get(b.moduleId)?.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR'));
   return <>
+    <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
     <PageHeading title="Atividades" description="Consulte as atividades publicadas e, para a equipe docente, prepare ou atualize os rascunhos." action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
     {staff && <div role="group" aria-label="Filtrar atividades" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
       {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => <Button key={value} variant="ghost" aria-pressed={filter === value} className={filter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(value)}>{label}</Button>)}
@@ -118,11 +119,11 @@ export function AssessmentsPage() {
       const submitted = related.filter(attempt => attempt.submittedAt);
       const relatedSubmissions = (submissions.data ?? []).filter(submission => submission.assessmentId === activity.id && (staff || submission.userId === user.id));
       const ownSubmission = relatedSubmissions.find(submission => !staff) ?? relatedSubmissions[0];
-      return <Card key={activity.id} className="flex flex-col">
+      return <Card key={activity.id} className="flex min-w-0 flex-col">
         <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
         <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {module?.order ?? '—'}</p>
-        <h2 className="mb-2 mt-2 text-lg font-semibold">{activity.title}</h2>
-        <p className="mb-5 flex-1 whitespace-pre-wrap text-sm leading-6 text-slate-500">{activity.description || 'Sem orientações adicionais.'}</p>
+        <h2 className="mb-2 mt-2 text-lg font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
+        <p className="mb-5 flex-1 whitespace-pre-wrap text-sm leading-6 text-slate-500 [overflow-wrap:anywhere]">{activity.description || 'Sem orientações adicionais.'}</p>
         <div className="mb-5 space-y-2 text-sm text-slate-500">
           <p>{activity.kind === 'work' ? 'Entrega de trabalho' : `${count} ${count === 1 ? 'questão' : 'questões'}`} · {activity.required ? 'Obrigatória' : 'Opcional'}</p>
           <p>{dateLabel(activity.deadline)}{activity.deadline && ` · ${activity.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}`}</p>

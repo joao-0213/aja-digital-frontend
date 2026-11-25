@@ -37,13 +37,13 @@ export function RichTextEditor({
     <div className="overflow-hidden rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-brand-100">
       <div className="flex gap-1 border-b border-slate-100 bg-slate-50 p-1" role="toolbar" aria-label="Formatação de texto">
         <Button variant="ghost" className="!min-h-9 !px-3" aria-label="Negrito" onClick={() => wrap('**', '**')}>
-          <Bold className="size-4" />
+          <Bold aria-hidden="true" className="size-4" />
         </Button>
         <Button variant="ghost" className="!min-h-9 !px-3" aria-label="Itálico" onClick={() => wrap('*', '*')}>
-          <Italic className="size-4" />
+          <Italic aria-hidden="true" className="size-4" />
         </Button>
         <Button variant="ghost" className="!min-h-9 !px-3" aria-label="Inserir item de lista" onClick={() => wrap('\n- ', '')}>
-          <List className="size-4" />
+          <List aria-hidden="true" className="size-4" />
         </Button>
       </div>
       <textarea ref={ref} id={id} rows={5} value={value} onChange={e => onChange(e.target.value)} required minLength={10} placeholder={placeholder} className="w-full resize-y bg-white p-4 text-base leading-7 outline-none" />

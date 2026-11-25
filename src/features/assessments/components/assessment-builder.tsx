@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import { Badge, Button, Card, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Select, Skeleton, Textarea } from '@/components/ui';
+import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { Badge, Button, Card, Check, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Select, Skeleton, Textarea } from '@/components/ui';
+import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { BankSelector, type BankQuestion } from '@/features/questions';
 import { useHttpEditor } from '@/hooks/use-http-editor';
@@ -12,7 +13,7 @@ import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { createFilesApi } from '@/lib/http-files';
 import { createAssessmentsApi, type AssessmentCreate, type AssessmentFields, type AssessmentQuestionEntry, type AssessmentRead, type AssessmentSnapshot, type AssessmentStaff } from '../api';
-import { fromBrazilDateTimeLocal, needsAssessmentStructureRecovery, restoreAssessmentStructure, toBrazilDateTimeLocal } from '../lib/assessment-editor';
+import { fromBrazilDateTimeLocal, isDeadlineInPast, minBrazilDateTimeLocal, needsAssessmentStructureRecovery, restoreAssessmentStructure, toBrazilDateTimeLocal } from '../lib/assessment-editor';
 
 type AuthoredEntry = Extract<AssessmentQuestionEntry, { source: 'authored' }>;
 type DialogState = 'bank' | 'author' | 'review' | 'reset' | 'leave' | null;
@@ -65,7 +66,7 @@ function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string
   }, [query.data]);
   if (!image) return null;
   if (!fileId) return /^\/questions\/[A-Za-z0-9_-]+\.(?:svg|png|jpe?g|webp)$/.test(image.src) ? <img src={image.src} alt={image.alt} className="my-4 max-h-72 max-w-full" /> : null;
-  if (query.error) return <div role="alert" className="my-3 text-sm text-rose-700">{query.error.message} <button type="button" className="font-medium underline" onClick={() => void query.retry()}>Tentar carregar a imagem novamente</button></div>;
+  if (query.error) return <div role="alert" className="my-3 text-sm text-rose-700">{query.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={() => void query.retry()}>Tentar carregar a imagem novamente</button></div>;
   if (query.loading || !url) return <p role="status" className="my-3 text-sm text-slate-500">Carregando imagem da questão…</p>;
   return <img src={url} alt={image.alt} className="my-4 max-h-72 max-w-full" />;
 }
@@ -93,8 +94,7 @@ function AssessmentEditor({
   const initial = initialFields(record, firstModule);
   const context = `assessment-composer:${record?.id ?? 'new'}`;
   const form = useHttpEditor<AssessmentFields, AssessmentStaff>(initial, record?.revision ?? 0, context);
-  const { fields, editor } = form;
-  const dirty = JSON.stringify(fields) !== JSON.stringify(initial);
+  const { fields, dirty, editor } = form;
   const [activeRecord, setActiveRecord] = useState<AssessmentStaff | undefined>(record);
   const [businessConflict, setBusinessConflict] = useState(false);
   const [latestRecord, setLatestRecord] = useState<AssessmentStaff | null>(null);
@@ -109,6 +109,10 @@ function AssessmentEditor({
   const [pendingAction, setPendingAction] = useState<SaveAction | null>(null);
   const [resetConfirmedFor, setResetConfirmedFor] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const minDeadline = minBrazilDateTimeLocal(nowMs);
+  const [deadlineEnabled, setDeadlineEnabled] = useState(() => !!fields.deadline);
+  const [deadlineInput, setDeadlineInput] = useState(() => toBrazilDateTimeLocal(fields.deadline));
   const [intent] = useState(() => client.readDraft<string>(intentKey) ?? crypto.randomUUID());
   const [previews, setPreviews] = useState<Record<string, BankQuestion>>({});
   const [authorStatement, setAuthorStatement] = useState('');
@@ -135,10 +139,19 @@ function AssessmentEditor({
   const subject = module && subjects.find(item => item.id === module.subjectId);
   const snapshots = activeRecord?.questions ?? record?.questions ?? [];
 
-  const validate = () => {
+  const enforceFutureDeadline = !activeRecord || activeRecord.status === 'draft' || fields.deadline !== activeRecord.deadline;
+  const deadlineError = deadlineEnabled && !fields.deadline
+    ? 'Informe a data e o horário do prazo.'
+    : fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline, nowMs)
+      ? 'O prazo de entrega não pode ser anterior ao momento atual.'
+      : undefined;
+
+  const validate = (currentMs = Date.now()) => {
     if (!fields.title.trim()) return 'Informe o título da atividade.';
     if (!availableModules.some(item => item.id === fields.moduleId)) return 'Selecione um módulo ao qual você tenha acesso.';
+    if (deadlineEnabled && !fields.deadline) return 'Informe a data e o horário do prazo.';
     if (fields.deadline && !fromBrazilDateTimeLocal(toBrazilDateTimeLocal(fields.deadline))) return 'Confira a data e o horário do prazo.';
+    if (fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline, currentMs)) return 'O prazo de entrega não pode ser anterior ao momento atual.';
     if (structuralLocked && !!activeRecord?.deadline !== !!fields.deadline) return 'Depois de uma entrega, mantenha a presença ou ausência do prazo atual.';
     if (fields.allowLate && !fields.deadline) return 'Para aceitar entregas atrasadas, defina um prazo.';
     if (fields.kind === 'quiz' && !fields.questions.length) return 'Adicione pelo menos uma questão ao questionário.';
@@ -189,6 +202,8 @@ function AssessmentEditor({
     assertSession();
     editor.change(recovered);
     editor.acknowledge();
+    setDeadlineEnabled(!!recovered.deadline);
+    setDeadlineInput(toBrazilDateTimeLocal(recovered.deadline));
     setActiveRecord(latestRecord);
     setLatestRecord(null); setLatestError(''); setBusinessConflict(false); setValidationError('');
   };
@@ -199,7 +214,9 @@ function AssessmentEditor({
   };
 
   const save = async (action: SaveAction, confirmResetDrafts = false) => {
-    const message = validate();
+    const currentMs = Date.now();
+    setNowMs(currentMs);
+    const message = validate(currentMs);
     if (message) { setValidationError(message); setDialog(null); return; }
     setValidationError('');
     const payload = pendingCreate?.fields ?? { ...fields, ...(confirmResetDrafts ? { confirmResetDrafts: true } : {}) };
@@ -291,6 +308,10 @@ function AssessmentEditor({
       setDialog('reset');
       return;
     }
+    const currentMs = Date.now();
+    setNowMs(currentMs);
+    const message = validate(currentMs);
+    if (message) { setValidationError(message); return; }
     if (action === 'publish') setDialog('review');
     else void save('draft', questionStructureChanged);
   };
@@ -336,10 +357,10 @@ function AssessmentEditor({
   };
 
   return <>
-    <Button variant="ghost" className="mb-4" onClick={leaveEditor}>← Voltar para atividades</Button>
+    <Button variant="secondary" className="mb-5" onClick={leaveEditor}><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</Button>
     <PageHeading eyebrow="Atividades da disciplina" title={activeRecord ? activeRecord.status === 'draft' ? 'Editar rascunho' : 'Editar atividade publicada' : 'Criar atividade'} description="Prepare um questionário ou uma entrega de trabalho para um módulo da disciplina." />
     {activeRecord?.updatedAt && <p className="mb-4 text-xs text-slate-500">Última alteração: {activeRecord.updatedBy} · {new Date(activeRecord.updatedAt).toLocaleString('pt-BR')}</p>}
-    {editor.getSnapshot().conflicted && activeRecord && <div className="mb-6"><RecordConflict author={editor.getSnapshot().latest?.updatedBy ?? 'Equipe docente'} updatedAt={editor.getSnapshot().latest?.updatedAt} onReviewed={() => { const latest = editor.getSnapshot().latest; if (latest && isStaffAssessment(latest)) { setActiveRecord(latest); setLatestRecord(latest); } editor.acknowledge(); }}><p><strong>{editor.getSnapshot().latest?.title}</strong></p><p>{editor.getSnapshot().latest?.description}</p><p>Prazo: {editor.getSnapshot().latest?.deadline ? toBrazilDateTimeLocal(editor.getSnapshot().latest!.deadline) : 'Sem prazo'}</p><p>Módulo: {modules.find(item => item.id === editor.getSnapshot().latest?.moduleId)?.title ?? 'Módulo indisponível'}</p><ol className="list-decimal pl-5">{editor.getSnapshot().latest?.questions.map(question => <li key={question.id}>{question.statement}</li>)}</ol></RecordConflict></div>}
+    {editor.getSnapshot().conflicted && activeRecord && <div className="mb-6"><RecordConflict author={editor.getSnapshot().latest?.updatedBy ?? 'Equipe docente'} updatedAt={editor.getSnapshot().latest?.updatedAt} onReviewed={() => { const latest = editor.getSnapshot().latest; if (latest && isStaffAssessment(latest)) { setActiveRecord(latest); setLatestRecord(latest); } editor.acknowledge(); }}><p><strong>{editor.getSnapshot().latest?.title}</strong></p><p>{editor.getSnapshot().latest?.description}</p><p>Prazo: {editor.getSnapshot().latest?.deadline ? `${brazilDateTimeLabel(editor.getSnapshot().latest!.deadline!)} (Brasília)` : 'Sem prazo'}</p><p>Módulo: {modules.find(item => item.id === editor.getSnapshot().latest?.moduleId)?.title ?? 'Módulo indisponível'}</p><ol className="list-decimal pl-5">{editor.getSnapshot().latest?.questions.map(question => <li key={question.id}>{question.statement}</li>)}</ol></RecordConflict></div>}
     {structuralLocked && <p className="mb-5 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-950">Esta atividade já recebeu uma entrega. Título, orientações e a data do prazo atual ainda podem ser corrigidos. Questões, módulo, modalidade, obrigatoriedade e presença do prazo foram bloqueados.</p>}
     {needsStructureRecovery && <section role="alert" className="mb-6 space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><p className="font-semibold">A primeira entrega chegou durante sua edição, ou seu rascunho local contém uma estrutura anterior.</p><p>Consulte a estrutura atual antes de salvar. Título, orientações e uma data de prazo já existente serão mantidos; campos estruturais serão recuperados do servidor.</p>{!latestRecord ? <><Button variant="secondary" loading={latestLoading} onClick={() => void inspectCurrent()}>Consultar estrutura atual</Button>{latestError && <p role="alert" className="text-rose-700">{latestError}</p>}</> : <><p><strong>Módulo atual:</strong> {modules.find(item => item.id === latestRecord.moduleId)?.title ?? 'Módulo indisponível'}</p><ol className="list-decimal space-y-2 pl-5">{latestRecord.questions.map(question => <li key={question.id}>{question.statement}</li>)}</ol><Button variant="secondary" onClick={() => void adoptCurrent()}>Usar estrutura atual e manter meu texto</Button></>}</section>}
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -355,22 +376,22 @@ function AssessmentEditor({
           {availableModules.map(item => <option key={item.id} value={item.id}>{subjects.find(value => value.id === item.subjectId)?.name} · {item.title}</option>)}
         </Select>
         <Select label="Obrigatoriedade" value={fields.required ? 'required' : 'optional'} disabled={structuralLocked || uncertain} onChange={event => update({ required: event.target.value === 'required' })}><option value="required">Obrigatória</option><option value="optional">Opcional</option></Select>
-        {!structuralLocked && <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={!!fields.deadline} disabled={uncertain} onChange={event => update({ deadline: event.target.checked ? defaultDeadline() : null, allowLate: event.target.checked ? fields.allowLate : false })} />Definir prazo</label>}
-        {fields.deadline ? <><Input label="Prazo de entrega" type="datetime-local" disabled={uncertain} value={toBrazilDateTimeLocal(fields.deadline)} onChange={event => update({ deadline: fromBrazilDateTimeLocal(event.target.value, fields.deadline) })} /><p className="text-xs text-slate-500">Horário de Brasília (UTC−3).</p><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={fields.allowLate} disabled={structuralLocked || uncertain} onChange={event => update({ allowLate: event.target.checked })} />Aceitar entrega atrasada</label></> : <p className="text-sm text-slate-500">Sem prazo</p>}
-        {fields.kind === 'work' && <><label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={fields.maxGrade !== null} disabled={structuralLocked || uncertain} onChange={event => update({ maxGrade: event.target.checked ? 10 : null })} />Permitir nota opcional</label>{fields.maxGrade !== null && <Input label="Nota máxima" type="number" min="0.01" step="any" disabled={structuralLocked || uncertain} value={Number.isNaN(fields.maxGrade) ? '' : fields.maxGrade} onChange={event => update({ maxGrade: event.target.value === '' ? null : Number(event.target.value) })} />}</>}
+        {!structuralLocked && <Check label="Definir prazo" checked={deadlineEnabled} disabled={uncertain} onChange={checked => { setNowMs(Date.now()); setDeadlineEnabled(checked); const nextDeadline = checked ? defaultDeadline() : null; setDeadlineInput(toBrazilDateTimeLocal(nextDeadline)); update({ deadline: nextDeadline, allowLate: checked ? fields.allowLate : false }); }} />}
+        {deadlineEnabled ? <><Input label="Prazo de entrega" type="datetime-local" min={enforceFutureDeadline ? minDeadline : undefined} error={deadlineError} disabled={uncertain} value={deadlineInput} onFocus={() => setNowMs(Date.now())} onChange={event => { setNowMs(Date.now()); setDeadlineInput(event.target.value); update({ deadline: fromBrazilDateTimeLocal(event.target.value, fields.deadline) }); }} /><p className="text-xs text-slate-500">Horário de Brasília (UTC−3).</p><Check label="Aceitar entrega atrasada" checked={fields.allowLate} disabled={structuralLocked || uncertain} onChange={checked => update({ allowLate: checked })} /></> : <p className="text-sm text-slate-500">Sem prazo</p>}
+        {fields.kind === 'work' && <><Check label="Permitir nota opcional" checked={fields.maxGrade !== null} disabled={structuralLocked || uncertain} onChange={checked => update({ maxGrade: checked ? 10 : null })} />{fields.maxGrade !== null && <Input label="Nota máxima" type="number" min="0.01" step="any" disabled={structuralLocked || uncertain} value={Number.isNaN(fields.maxGrade) ? '' : fields.maxGrade} onChange={event => update({ maxGrade: event.target.value === '' ? null : Number(event.target.value) })} />}</>}
         <p className="text-xs leading-5 text-slate-500">Envio único por aluno. Questionários guardam a ordem e uma cópia das questões no servidor. Trabalhos recebem arquivos e links.</p>
       </Card>
       <div>
         {fields.kind === 'quiz' ? <>
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{fields.questions.length} questões selecionadas</h2><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={structuralLocked || uncertain} onClick={() => setDialog('author')}><Plus aria-hidden="true" className="size-4" />Questão original</Button><Button disabled={structuralLocked || uncertain} onClick={() => setDialog('bank')}>Buscar no banco</Button></div></div>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{countLabel(fields.questions.length, 'questão selecionada', 'questões selecionadas')}</h2><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={structuralLocked || uncertain} onClick={() => setDialog('author')}><Plus aria-hidden="true" className="size-4" />Questão original</Button><Button disabled={structuralLocked || uncertain} onClick={() => setDialog('bank')}>Buscar no banco</Button></div></div>
           <div className="space-y-4">{fields.questions.map((entry, index) => {
             const question: AssessmentSnapshot | BankQuestion | undefined = entry.source === 'authored'
               ? { id: entry.questionId ?? entry.clientKey, origin: 'author', ...entry.question }
               : snapshots.find(item => item.id === entry.questionId) ?? previews[entry.questionId];
             if (!question) return <Card key={entry.source === 'bank' ? entry.questionId : entry.clientKey}><p role="status" className="text-sm text-slate-600">Questão {index + 1}: o conteúdo não está disponível. Remova esta referência e escolha outra questão.</p><Button variant="secondary" className="mt-3" disabled={structuralLocked} onClick={() => update({ questions: fields.questions.filter((_, position) => position !== index) })}>Remover questão indisponível</Button></Card>;
             return <Card key={entry.source === 'bank' ? entry.questionId : entry.clientKey}>
-              <div className="mb-4 flex flex-wrap items-center gap-2"><Badge tone="purple">Questão {index + 1}</Badge><Badge>{'origin' in question && question.origin === 'author' ? 'Autoral desta atividade' : 'Acervo'}</Badge><Badge>{question.topic}</Badge><div className="ml-auto flex"><Button variant="ghost" disabled={structuralLocked || uncertain || index === 0} aria-label={`Mover questão ${index + 1} para cima`} onClick={() => moveQuestion(index, -1)}><ChevronUp aria-hidden="true" className="size-4" /></Button><Button variant="ghost" disabled={structuralLocked || uncertain} aria-label={`Mover questão ${index + 1}`} onClick={() => moveQuestion(index, 1)}><ChevronDown aria-hidden="true" className="size-4" /></Button><Button variant="ghost" disabled={structuralLocked || uncertain} aria-label={`Remover questão ${index + 1}`} onClick={() => update({ questions: fields.questions.filter((_, position) => position !== index) })}><Trash2 aria-hidden="true" className="size-4" /></Button></div></div>
-              <p className="leading-7">{question.statement}</p><AssessmentQuestionImage image={question.image} /><ol className="mt-4 space-y-2">{question.options.map((option, optionIndex) => <li key={optionIndex} className={`rounded-lg px-3 py-2 text-sm ${'correct' in question && optionIndex === question.correct ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}>{String.fromCharCode(65 + optionIndex)}. {option}{'correct' in question && optionIndex === question.correct && ' ✓'}</li>)}</ol>{'explanation' in question && <p className="mt-3 text-sm text-slate-500">Explicação do gabarito: {question.explanation}</p>}
+              <div className="mb-4 flex flex-wrap items-center gap-2"><Badge tone="purple">Questão {index + 1}</Badge><Badge>{'origin' in question && question.origin === 'author' ? 'Autoral desta atividade' : 'Acervo'}</Badge><Badge>{question.topic}</Badge><div className="ml-auto flex"><Button variant="ghost" disabled={structuralLocked || uncertain || index === 0} aria-label={`Mover questão ${index + 1} para cima`} onClick={() => moveQuestion(index, -1)}><ChevronUp aria-hidden="true" className="size-4" /></Button><Button variant="ghost" disabled={structuralLocked || uncertain || index === fields.questions.length - 1} aria-label={`Mover questão ${index + 1} para baixo`} onClick={() => moveQuestion(index, 1)}><ChevronDown aria-hidden="true" className="size-4" /></Button><Button variant="ghost" disabled={structuralLocked || uncertain} aria-label={`Remover questão ${index + 1}`} onClick={() => update({ questions: fields.questions.filter((_, position) => position !== index) })}><Trash2 aria-hidden="true" className="size-4" /></Button></div></div>
+              <p className="leading-7 [overflow-wrap:anywhere]">{question.statement}</p><AssessmentQuestionImage image={question.image} /><ol className="mt-4 space-y-2">{question.options.map((option, optionIndex) => <li key={optionIndex} className={`rounded-lg px-3 py-2 text-sm [overflow-wrap:anywhere] ${'correct' in question && optionIndex === question.correct ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'}`}>{String.fromCharCode(65 + optionIndex)}. {option}{'correct' in question && optionIndex === question.correct && ' ✓'}</li>)}</ol>{'explanation' in question && <p className="mt-3 text-sm text-slate-500 [overflow-wrap:anywhere]">Explicação do gabarito: {question.explanation}</p>}
             </Card>;
           })}</div>
           {!fields.questions.length && <Empty title="Monte seu questionário" description="Selecione questões do acervo ou escreva uma questão original." action={<Button disabled={structuralLocked || uncertain} onClick={() => setDialog('bank')}>Escolher questões</Button>} />}
@@ -386,7 +407,7 @@ function AssessmentEditor({
     <Dialog open={dialog !== null} onClose={() => { setDialog(null); setPendingAction(null); }} title={dialog === 'bank' ? 'Adicionar do banco de questões' : dialog === 'author' ? 'Nova questão original' : dialog === 'review' ? 'Conferir atividade' : dialog === 'reset' ? 'Reiniciar rascunhos de tentativa' : 'Voltar para atividades'}>
       {dialog === 'bank' && <><BankSelector selectedIds={selectedBankIds} disabled={structuralLocked || uncertain} onSelect={addBankQuestion} /><div className="mt-5 flex justify-end"><Button onClick={() => setDialog(null)}>Concluir seleção ({selectedBankIds.length})</Button></div></>}
       {dialog === 'author' && <form className="space-y-4" onSubmit={addAuthorQuestion}><Textarea label="Enunciado" value={authorStatement} required onChange={event => setAuthorStatement(event.target.value)} />{authorOptions.map((option, index) => <Input key={index} label={`Alternativa ${String.fromCharCode(65 + index)}`} value={option} required onChange={event => setAuthorOptions(current => current.map((value, position) => position === index ? event.target.value : value))} />)}<Select label="Alternativa correta" value={authorCorrect} onChange={event => setAuthorCorrect(Number(event.target.value))}>{authorOptions.map((_, index) => <option key={index} value={index}>{String.fromCharCode(65 + index)}</option>)}</Select><Textarea label="Explicação do gabarito" value={authorExplanation} required onChange={event => setAuthorExplanation(event.target.value)} /><div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setDialog(null)}>Cancelar</Button><Button type="submit">Adicionar questão</Button></div></form>}
-      {dialog === 'review' && <><p className="font-semibold">{fields.title}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7">{fields.description || 'Sem orientações adicionais.'}</p><dl className="my-5 space-y-3 text-sm"><div><dt className="font-semibold">Destino</dt><dd>{subject?.className} · {subject?.name} · {module?.title}</dd></div><div><dt className="font-semibold">Condições</dt><dd>{fields.kind === 'quiz' ? `Questionário · ${fields.questions.length} questões` : 'Entrega de trabalho'} · {fields.required ? 'Obrigatória' : 'Opcional'} · {fields.deadline ? `${toBrazilDateTimeLocal(fields.deadline)} (Brasília) · ${fields.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}` : 'Sem prazo'} · Envio único{fields.kind === 'work' && fields.maxGrade !== null && ` · Nota opcional de 0 a ${fields.maxGrade}`}</dd></div></dl><div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => setDialog(null)}>Voltar ao editor</Button><Button loading={editor.getSnapshot().busy} disabled={editor.getSnapshot().conflicted || editor.getSnapshot().blocked} onClick={() => void save('publish', questionStructureChanged && resetConfirmedFor === JSON.stringify(fields.questions))}>{activeRecord?.status === 'published' ? 'Confirmar alterações' : 'Publicar atividade'}</Button></div></>}
+      {dialog === 'review' && <><p className="font-semibold [overflow-wrap:anywhere]">{fields.title}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-7 [overflow-wrap:anywhere]">{fields.description || 'Sem orientações adicionais.'}</p><dl className="my-5 space-y-3 text-sm"><div><dt className="font-semibold">Destino</dt><dd>{subject?.className} · {subject?.name} · {module?.title}</dd></div><div><dt className="font-semibold">Condições</dt><dd>{fields.kind === 'quiz' ? `Questionário · ${countLabel(fields.questions.length, 'questão', 'questões')}` : 'Entrega de trabalho'} · {fields.required ? 'Obrigatória' : 'Opcional'} · {fields.deadline ? `${brazilDateTimeLabel(fields.deadline)} (Brasília) · ${fields.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}` : 'Sem prazo'} · Envio único{fields.kind === 'work' && fields.maxGrade !== null && ` · Nota opcional de 0 a ${fields.maxGrade}`}</dd></div></dl><div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => setDialog(null)}>Voltar ao editor</Button><Button loading={editor.getSnapshot().busy} disabled={editor.getSnapshot().conflicted || editor.getSnapshot().blocked} onClick={() => void save('publish', questionStructureChanged && resetConfirmedFor === JSON.stringify(fields.questions))}>{activeRecord?.status === 'published' ? 'Confirmar alterações' : 'Publicar atividade'}</Button></div></>}
       {dialog === 'reset' && <><p className="text-sm leading-6 text-slate-600">A composição mudou. Confirmar reinicia somente as tentativas ainda não entregues; entregas confirmadas são preservadas. O servidor aplica essa alteração junto com a nova revisão.</p><div className="mt-5 flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => { setDialog(null); setPendingAction(null); }}>Voltar ao editor</Button><Button onClick={() => { const action = pendingAction ?? 'draft'; setResetConfirmedFor(JSON.stringify(fields.questions)); setDialog(action === 'publish' ? 'review' : null); if (action === 'draft') void save('draft', true); }}>Confirmar e continuar</Button></div></>}
       {dialog === 'leave' && <><p className="text-sm leading-6 text-slate-600">{uncertain ? 'A resposta desta operação ainda precisa ser conferida. O conteúdo e a chave estável foram mantidos nesta sessão para retomar a mesma tentativa.' : 'Seu preenchimento foi mantido nesta sessão e poderá ser reaberto. As alterações ainda não foram enviadas ao servidor.'}</p><div className="mt-5 flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => setDialog(null)}>Continuar editando</Button><Button onClick={() => { setDialog(null); router.push('/questionarios'); }}>Voltar para atividades</Button></div></>}
     </Dialog>

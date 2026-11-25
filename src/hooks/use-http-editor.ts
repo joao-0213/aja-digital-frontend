@@ -23,5 +23,5 @@ export function useHttpEditor<F, R extends RevisionRecord>(fields: F, revision: 
     const latest = editor.getSnapshot();
     client.saveDraft(context, { fields: latest.fields, expectedRevision: latest.expectedRevision }, sessionKey);
   }), [client, context, editor, sessionKey]);
-  return { ...state, editor, clear: () => client.clearDraft(context, sessionKey) };
+  return { ...state, dirty, editor, clear: () => client.clearDraft(context, sessionKey) };
 }

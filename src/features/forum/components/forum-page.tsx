@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
-import { Avatar, Badge, Button, Dialog, Empty, Input, PageHeading, Select, Textarea } from '@/components/ui';
-import { dateLabel } from '@/lib/utils';
+import { Avatar, Badge, Button, Dialog, Empty, Input, LinkButton, PageHeading, Select, Textarea } from '@/components/ui';
+import { countLabel, dateLabel } from '@/lib/utils';
 import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } from '@/lib/forum-draft';
 import { ForumAttachments } from './forum-attachments';
 import { createForumApi, type ForumAttachmentDto, type ForumFilter, type ForumTopicFields } from '../api';
@@ -125,9 +125,13 @@ function ForumPageContent() {
     finally { setBusy(false); }
   };
 
+  const requestedSubject = params.get('disciplina');
+  const backHref = materialId ? `/materiais?id=${encodeURIComponent(materialId)}` : requestedSubject ? `/disciplinas/detalhes?id=${encodeURIComponent(requestedSubject)}` : '/';
+  const backLabel = materialId ? 'Voltar ao material' : requestedSubject ? 'Voltar à disciplina' : 'Voltar ao painel';
   return <>
-    <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus className="size-4" />Nova pergunta</Button>} />
-    {options.error && <p role="alert" className="mb-4 text-sm text-rose-700">{options.error.message} <button type="button" onClick={options.retry} className="underline">Tentar novamente</button></p>}
+    <LinkButton secondary href={backHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{backLabel}</LinkButton>
+    <PageHeading eyebrow="Comunidade AJA" title="Fórum de dúvidas" description="Publique dúvidas e consulte as respostas da turma." action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus aria-hidden="true" className="size-4" />Nova pergunta</Button>} />
+    {options.error && <p role="alert" className="mb-4 text-sm text-rose-700">{options.error.message} <button type="button" onClick={options.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
     <div className="mb-6 grid gap-3 md:grid-cols-[1fr_220px_220px_200px]">
       <Input aria-label="Buscar no fórum" value={search} onChange={event => setSearch(event.target.value)} placeholder="Busque uma dúvida ou um assunto…" />
       <Select aria-label="Turma do fórum" value={classId} onChange={event => { setClassId(event.target.value); setSubjectId('all'); }}><option value="all">Todas as turmas</option>{activeClasses.map(item => <option key={item.id} value={item.id}>{item.name}{!item.active ? ' · Encerrada' : ''}</option>)}</Select>
@@ -136,20 +140,20 @@ function ForumPageContent() {
     </div>
     <div className="max-w-4xl space-y-3">
       {topics.loading && <p role="status" className="text-sm text-slate-500">Carregando perguntas…</p>}
-      {topics.error && <p role="alert" className="text-sm text-rose-700">{topics.error.message} <button type="button" onClick={topics.retry} className="font-semibold underline">Tentar novamente</button></p>}
+      {topics.error && <p role="alert" className="text-sm text-rose-700">{topics.error.message} <button type="button" onClick={topics.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
       {(topics.data ?? []).filter(topic => filter !== 'unanswered' || topic.replies.length === 0).map(topic => {
         const solved = topic.replies.some(reply => reply.accepted);
-        return <Link key={topic.id} href={`/forum/topico?id=${encodeURIComponent(topic.id)}`} className="block rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2"><Badge>{activeSubjects.find(item => item.id === topic.subjectId)?.name ?? topic.subjectId}</Badge><span className="text-xs text-slate-400">{dateLabel(topic.createdAt)}</span>{solved && <Badge tone="green"><CheckCircle2 className="size-3" />Resolvida</Badge>}{!topic.read && <Badge tone="purple">Nova</Badge>}</div>
-          <h2 className="text-lg font-semibold text-slate-800">{topic.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{topic.body}</p>
-          {topic.target && <p className="mt-3 text-xs text-brand-700">Sobre {topic.target.type === 'material' ? 'material' : 'questão'} · {topic.target.id}</p>}
-          <div className="mt-4 flex items-center gap-2"><Avatar name={topic.author.name} size="sm" /><span className="text-xs text-slate-500">{topic.author.name}</span><span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400"><MessageSquare className="size-4" />{topic.replies.length} respostas</span></div>
+        return <Link key={topic.id} href={`/forum/topico?id=${encodeURIComponent(topic.id)}`} className="block min-w-0 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6">
+          <div className="mb-3 flex flex-wrap items-center gap-2"><Badge>{activeSubjects.find(item => item.id === topic.subjectId)?.name ?? topic.subjectId}</Badge><span className="text-xs text-slate-400">{dateLabel(topic.createdAt)}</span>{solved && <Badge tone="green"><CheckCircle2 aria-hidden="true" className="size-3" />Resolvida</Badge>}{!topic.read && <Badge tone="purple">Nova</Badge>}</div>
+          <h2 className="text-lg font-semibold text-slate-800 [overflow-wrap:anywhere]">{topic.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{topic.body}</p>
+          {topic.target && <p className="mt-3 text-xs text-brand-700 [overflow-wrap:anywhere]">Sobre {topic.target.type === 'material' ? 'material' : 'questão'} · {topic.target.id}</p>}
+          <div className="mt-4 flex flex-wrap items-center gap-2"><Avatar name={topic.author.name} size="sm" /><span className="text-xs text-slate-500 [overflow-wrap:anywhere]">{topic.author.name}</span><span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400"><MessageSquare aria-hidden="true" className="size-4" />{countLabel(topic.replies.length, 'resposta', 'respostas')}</span></div>
         </Link>;
       })}
     </div>
     {!topics.loading && !topics.error && !(topics.data ?? []).some(topic => filter !== 'unanswered' || topic.replies.length === 0) && <Empty title="Sem perguntas nesta seleção" description="As dúvidas publicadas aparecerão aqui." />}
     {draftError && !open && <p role="alert" className="mt-4 text-sm text-rose-700">{draftError}</p>}
-    <Dialog open={open} onClose={() => setOpen(false)} title="Fazer uma pergunta">
+    <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }} title="Fazer uma pergunta">
       <form onSubmit={event => void publish(event)} className="space-y-4">
         <fieldset disabled={busy || !!pendingCreate} className="space-y-4">
         <Select label="Disciplina" value={targetSubject} onChange={event => { setTargetSubject(event.target.value); if (attachment) void removeFile(); }} required><option value="">Selecione uma disciplina</option>{activeSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => <option key={item.id} value={item.id}>{item.name} · {activeClasses.find(row => row.id === item.classId)?.name}</option>)}</Select>

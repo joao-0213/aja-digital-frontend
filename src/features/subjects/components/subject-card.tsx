@@ -27,9 +27,9 @@ export function SubjectCard({ subject, className, onEdit }: {
         <Icon aria-hidden="true" data-subject-icon={icon} className="size-9 shrink-0" strokeWidth={1.6} />
       </div>
       <div className={`flex flex-1 flex-col items-start gap-2 rounded-b-xl bg-white p-5 ${onEdit ? 'pr-14' : ''}`}>
-        <div className="flex w-full items-center gap-2.5"><h3 className="text-xl font-semibold leading-6 tracking-tight text-slate-900">{subject.name}</h3>{hasUpdates && <span aria-hidden="true" title="Novas publicações" className="size-2 shrink-0 rounded-full bg-brand-600" />}<ChevronRight aria-hidden="true" className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-500" /></div>
-        <p className="text-sm text-slate-500">{className ?? subject.className}</p>
-        <p className="text-xs leading-5 text-slate-500">Equipe docente: {subject.teachers?.map(teacher => teacher.name).join(', ') || 'Aguardando atribuição'}</p>
+        <div className="flex w-full items-center gap-2.5"><h3 className="min-w-0 text-xl font-semibold leading-6 tracking-tight text-slate-900 [overflow-wrap:anywhere]">{subject.name}</h3>{hasUpdates && <span aria-hidden="true" title="Novas publicações" className="size-2 shrink-0 rounded-full bg-brand-600" />}<ChevronRight aria-hidden="true" className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-500" /></div>
+        <p className="text-sm text-slate-500 [overflow-wrap:anywhere]">{className ?? subject.className}</p>
+        <p className="text-xs leading-5 text-slate-500 [overflow-wrap:anywhere]">Equipe docente: {subject.teachers?.map(teacher => teacher.name).join(', ') || 'Aguardando atribuição'}</p>
       </div>
     </Link>
     {onEdit && <Button variant="ghost" aria-label={`Editar ${subject.name}`} onClick={onEdit} className="absolute bottom-2 right-2 bg-white/80"><Pencil aria-hidden="true" className="size-4" /></Button>}
