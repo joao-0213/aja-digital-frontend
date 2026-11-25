@@ -40,7 +40,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
         setMessage((await client.requestRecovery(email)).message);
       } else {
         await client.register(name, email, password);
-        setMessage('Conta criada. Solicite as instruções de confirmação do e-mail para continuar.');
+        setMessage('Conta criada. Confira seu e-mail para confirmar a conta e continuar.');
       }
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível concluir. Tente novamente.');

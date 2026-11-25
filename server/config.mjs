@@ -1,5 +1,5 @@
 export function readConfig(env = process.env) {
-  const portText = env.API_PORT ?? '3002';
+  const portText = env.API_PORT ?? '3102';
   const port = Number(portText);
   if (!/^\d+$/.test(portText) || !Number.isInteger(port) || port < (env.NODE_ENV === 'test' ? 0 : 1) || port > 65535) throw new Error('API_PORT deve ser uma porta válida.');
   const origins = (env.API_ALLOWED_ORIGINS ?? 'http://127.0.0.1:3000,http://127.0.0.1:3001').split(',').map(value => value.trim());

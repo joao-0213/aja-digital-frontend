@@ -53,3 +53,35 @@ test('attendance client reads a date range then selects the requested lesson tim
   assert.equal(query.has('date'), false);
   assert.equal(query.has('time'), false);
 });
+
+test('student attendance history maps backend records and simulator rows, preserving absences and excluding peers', async () => {
+  const requests: string[] = [];
+  const api = createAttendanceApi({
+    async request<T>(path: string) {
+      requests.push(path);
+      const url = new URL(path, 'http://localhost');
+      const page = Number(url.searchParams.get('page'));
+      const items = page === 1 ? [
+        { id: 'lesson-core', revision: 2, createdAt: '2031-06-15T12:00:00Z', updatedAt: '2031-06-15T12:00:00Z', updatedBy: 'teacher-a', subjectId: 'subject-a', date: '2031-06-15', time: '18:00', records: { 'student-a': false, peer: true } },
+        { id: 'lesson-mock', revision: 1, createdAt: '2031-06-14T12:00:00Z', updatedAt: '2031-06-14T12:00:00Z', updatedBy: 'teacher-a', subjectId: 'subject-b', date: '2031-06-14', time: '19:00', present: true },
+        { id: 'lesson-unmarked', revision: 1, createdAt: '2031-06-13T12:00:00Z', updatedAt: '2031-06-13T12:00:00Z', updatedBy: 'teacher-a', subjectId: 'subject-a', date: '2031-06-13', time: '20:00', records: { peer: true } }
+      ] : [];
+      return { items, page, pageSize: 100, total: 3 } as T;
+    }
+  });
+
+  const history = await api.staffHistory('student-a');
+  assert.deepEqual(history.map(row => [row.id, row.subjectName, row.present]), [
+    ['lesson-core', 'subject-a', false],
+    ['lesson-mock', 'subject-b', true]
+  ]);
+  assert.equal(requests.length, 1);
+  const query = new URL(requests[0], 'http://localhost').searchParams;
+  assert.equal(query.get('studentId'), 'student-a');
+  assert.equal(query.get('pageSize'), '100');
+});
+
+test('student attendance history preserves authorization failures', async () => {
+  const api = createAttendanceApi({ async request<T>() { throw new Error('403 Forbidden'); } });
+  await assert.rejects(api.staffHistory('student-a'), /403 Forbidden/);
+});

@@ -3,8 +3,16 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const children = [
-  spawn(process.execPath, ['--experimental-strip-types', 'server/index.mjs'], { cwd: root, stdio: 'inherit' }),
-  spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3000'], { cwd: root, stdio: 'inherit' })
+  spawn(process.execPath, ['--experimental-strip-types', 'server/index.mjs'], {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, API_PORT: '3102' }
+  }),
+  spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3000'], {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, NEXT_PUBLIC_API_URL: 'http://127.0.0.1:3102/api/v1' }
+  })
 ];
 let stopping = false;
 function stop(code = 0) {
