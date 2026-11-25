@@ -265,3 +265,34 @@ test('describePreviewOutcome classifies existing, pending, confirmed, unconfirme
   assert.equal(describePreviewOutcome(previewFor('a@ex.test', { account: { id: 'u2', name: 'Dora', email: 'a@ex.test', role: 'student', emailConfirmedAt: null } })).badge, 'Ficará pendente');
   assert.equal(describePreviewOutcome(previewFor('a@ex.test')).badge, 'Ficará pendente');
 });
+
+test('runBatchPreview does not report aborted when abort fires after the last item was already started, and resumes queued items after an early abort', async () => {
+  const single = createBatchItems(parseBatchEmails('last@ex.test'), undefined, () => crypto.randomUUID());
+  let stopFlag = false;
+  const lateAbort = await runBatchPreview(single, async email => {
+    stopFlag = true;
+    return previewFor(email);
+  }, { concurrency: 1, isAborted: () => stopFlag });
+  assert.equal(lateAbort.completed, 1);
+  assert.equal(lateAbort.aborted, false);
+  assert.equal(lateAbort.items[0].status, 'ready');
+
+  const multi = createBatchItems(parseBatchEmails('one@ex.test, two@ex.test, three@ex.test'), undefined, () => crypto.randomUUID());
+  let stopAfterFirst = false;
+  const partial = await runBatchPreview(multi, async email => {
+    stopAfterFirst = true;
+    return previewFor(email);
+  }, { concurrency: 1, isAborted: () => stopAfterFirst });
+  assert.equal(partial.completed, 1);
+  assert.equal(partial.aborted, true);
+  assert.deepEqual(partial.items.map(item => item.status), ['ready', 'queued', 'queued']);
+
+  const resumedCalls: string[] = [];
+  const resumed = await runBatchPreview(partial.items, async email => {
+    resumedCalls.push(email);
+    return previewFor(email);
+  }, { concurrency: 1 });
+  assert.deepEqual(resumedCalls, ['two@ex.test', 'three@ex.test']);
+  assert.equal(resumed.aborted, false);
+  assert.deepEqual(resumed.items.map(item => item.status), ['ready', 'ready', 'ready']);
+});

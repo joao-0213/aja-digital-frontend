@@ -2,16 +2,13 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, PageHeading, Select } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Empty, LinkButton, PageHeading, Select } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { dateLabel } from '@/lib/utils';
 import { createAnnouncementsApi, type AnnouncementDto } from '../api';
 import { AnnouncementComposer } from './announcement-composer';
-
-function truncateTitle(title: string, maxLength = 80) {
-  return title.length > maxLength ? `${title.slice(0, maxLength).trimEnd()}…` : title;
-}
+import { WithdrawAnnouncementDialog } from './withdraw-announcement-dialog';
 
 export function AnnouncementsPage() {
   const { client, sessionKey, user } = useSession();
@@ -19,26 +16,10 @@ export function AnnouncementsPage() {
   const [filter, setFilter] = useState('all');
   const [composing, setComposing] = useState<AnnouncementDto | 'new' | null>(null);
   const [withdrawing, setWithdrawing] = useState<AnnouncementDto | null>(null);
-  const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const options = useHttpQuery({ sessionKey, key: 'announcement-options' }, useCallback(signal => api.options(signal), [api]));
   const notices = useHttpQuery({ sessionKey, key: `announcements:${filter}` }, useCallback(signal => api.all(filter === 'all' ? {} : { classId: filter }, signal), [api, filter]));
   const canManage = (item: AnnouncementDto) => user?.role === 'admin' || !!item.subjectId && !!options.data?.subjects.find(subject => subject.id === item.subjectId)?.canManageContent;
-  const confirmWithdraw = async () => {
-    if (!withdrawing || withdrawBusy) return;
-    setWithdrawBusy(true);
-    try {
-      await api.withdraw(withdrawing.id, withdrawing.revision);
-      notices.invalidate();
-      setActionError('');
-      setWithdrawing(null);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Não foi possível retirar o aviso.');
-      setWithdrawing(null);
-    } finally {
-      setWithdrawBusy(false);
-    }
-  };
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
     <PageHeading title="Mural de avisos" description="Comunicados e informações das turmas." action={user?.role !== 'student' && <Button onClick={() => setComposing('new')}><Plus aria-hidden="true" className="size-4" />Publicar aviso</Button>} />
@@ -58,14 +39,12 @@ export function AnnouncementsPage() {
     </div>
     {!notices.loading && !notices.error && !notices.data?.length && <Empty title="Sem avisos nesta turma" description="As novidades da equipe aparecerão aqui." />}
     {composing && <AnnouncementComposer item={composing === 'new' ? undefined : composing} onClose={() => { setComposing(null); notices.invalidate(); }} />}
-    <Dialog open={!!withdrawing} onClose={() => { if (!withdrawBusy) setWithdrawing(null); }} title="Retirar aviso">
-      {withdrawing && <>
-        <p className="mb-5 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">Retirar “<strong className="text-slate-900">{truncateTitle(withdrawing.title)}</strong>” das consultas? O registro e a autoria serão preservados.</p>
-        <div className="flex flex-wrap justify-end gap-3">
-          <Button variant="secondary" disabled={withdrawBusy} onClick={() => setWithdrawing(null)}>Cancelar</Button>
-          <Button variant="danger" loading={withdrawBusy} onClick={() => void confirmWithdraw()}>Retirar aviso</Button>
-        </div>
-      </>}
-    </Dialog>
+    <WithdrawAnnouncementDialog
+      item={withdrawing}
+      onClose={() => setWithdrawing(null)}
+      onWithdraw={item => api.withdraw(item.id, item.revision)}
+      onWithdrawn={() => notices.invalidate()}
+      onError={setActionError}
+    />
   </>;
 }

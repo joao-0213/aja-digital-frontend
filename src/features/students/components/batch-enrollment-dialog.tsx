@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Copy, Loader2, PencilLine, RefreshCw, XCircle } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { Badge, Button, Check, Dialog, ProgressBar, Textarea } from '@/components/ui';
+import { ConfirmAlert } from '@/components/shared/confirm-alert';
+import { countLabel, percent } from '@/lib/utils';
 import { createStudentsApi } from '../api';
 import {
   createBatchItems,
   describePreviewOutcome,
-  keepOnlyValidEmails,
   parseBatchEmails,
   runBatchConfirm,
   runBatchPreview,
@@ -189,9 +190,8 @@ export function BatchEnrollmentDialog({
     setProgress({ completed: result.completed, total: result.total });
 
     const finalSummary = summarizeBatch(result.items);
-    if (result.succeeded > 0) onRefresh();
 
-    // Preserve exact original UX for the 1-email happy path.
+    // Preserve exact original UX for the 1-email happy path without double-invalidating queries.
     if (result.items.length === 1 && finalSummary.successCount === 1 && !result.aborted) {
       clearDraft();
       notify('Situação da matrícula registrada. Confira o vínculo na lista.');
@@ -199,15 +199,19 @@ export function BatchEnrollmentDialog({
       return;
     }
 
+    if (result.succeeded > 0) onRefresh();
+
     if (result.aborted) {
       setAbortedNotice('Processamento interrompido. Os alunos já incluídos permanecem registrados.');
     }
 
     if (result.succeeded > 0 && finalSummary.errorCount === 0 && !result.aborted) {
       clearDraft();
-      notify(`${finalSummary.successCount} matrículas registradas. Confira os vínculos na lista.`);
+      notify(`${countLabel(finalSummary.successCount, 'matrícula registrada', 'matrículas registradas')}. Confira os vínculos na lista.`);
+    } else if (result.succeeded > 0 && finalSummary.errorCount > 0) {
+      notify(`${countLabel(result.succeeded, 'inclusão registrada', 'inclusões registradas')} e ${countLabel(finalSummary.errorCount, 'falha', 'falhas')}. Confira os detalhes na janela.`);
     } else if (result.succeeded > 0) {
-      notify(`${result.succeeded} inclusão(ões) registrada(s) e ${finalSummary.errorCount} com falha. Confira os detalhes na janela.`);
+      notify(`${countLabel(result.succeeded, 'inclusão registrada', 'inclusões registradas')} antes da interrupção. Confira os detalhes na janela.`);
     }
 
     setPhase('done');
@@ -242,25 +246,22 @@ export function BatchEnrollmentDialog({
     }
   };
 
-  const progressPercent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+  const progressPercent = percent(progress.completed, progress.total);
+  const queuedCount = useMemo(() => items.filter(item => item.status === 'queued').length, [items]);
+  const pendingPreviewCount = summary.previewErrorCount + queuedCount;
   const allReadySelected = summary.readyCount > 0 && summary.selectedCount === summary.readyCount;
-  const retryableConfirmCount = summary.errorCount;
-  const retryablePreviewCount = summary.previewErrorCount;
-  const hasAnyProblems = summary.problemEmails.length > 0;
   const showBatchSelectionControls = phase === 'review' && items.length > 1 && summary.readyCount > 0;
 
   return <Dialog open onClose={closeEditor} title={`Adicionar aluno em ${className}`}>
-    {confirmingClose ? <div role="alert" className="space-y-4">
-      <p className="text-sm leading-6 text-slate-600">
-        {parsed.valid.length > 1 || items.length > 1
-          ? 'Fechar sem concluir a inclusão destes e-mails?'
-          : 'Fechar sem concluir a inclusão deste e-mail?'}
-      </p>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button autoFocus variant="secondary" onClick={() => setConfirmingClose(false)}>Continuar</Button>
-        <Button variant="danger" onClick={() => { clearDraft(); close(); }}>Descartar inclusão</Button>
-      </div>
-    </div> : <form
+    {confirmingClose ? <ConfirmAlert
+      message={parsed.valid.length > 1 || items.length > 1
+        ? 'Fechar sem concluir a inclusão destes e-mails?'
+        : 'Fechar sem concluir a inclusão deste e-mail?'}
+      cancelLabel="Continuar"
+      confirmLabel="Descartar inclusão"
+      onCancel={() => setConfirmingClose(false)}
+      onConfirm={() => { clearDraft(); close(); }}
+    /> : <form
       className="space-y-5"
       onSubmit={event => {
         event.preventDefault();
@@ -297,19 +298,19 @@ export function BatchEnrollmentDialog({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={parsed.valid.length > 0 ? 'purple' : 'neutral'}>
-                {parsed.valid.length === 1 ? '1 e-mail válido' : `${parsed.valid.length} e-mails válidos`}
+                {countLabel(parsed.valid.length, 'e-mail válido', 'e-mails válidos')}
               </Badge>
               {parsed.duplicatesRemoved > 0 && <Badge tone="neutral">
-                {parsed.duplicatesRemoved === 1 ? '1 duplicado ignorado' : `${parsed.duplicatesRemoved} duplicados ignorados`}
+                {countLabel(parsed.duplicatesRemoved, 'duplicado ignorado', 'duplicados ignorados')}
               </Badge>}
               {parsed.invalid.length > 0 && <Badge tone="red">
-                {parsed.invalid.length === 1 ? '1 formato inválido' : `${parsed.invalid.length} formatos inválidos`}
+                {countLabel(parsed.invalid.length, 'formato inválido', 'formatos inválidos')}
               </Badge>}
             </div>
             {parsed.invalid.length > 0 && parsed.valid.length > 0 && <Button
               variant="ghost"
               className="min-h-8 px-2.5 py-1 text-xs"
-              onClick={() => { setRawEmails(keepOnlyValidEmails(rawEmails)); setInputError(''); }}
+              onClick={() => { setRawEmails(parsed.valid.join('\n')); setInputError(''); }}
             >
               Remover inválidos
             </Button>}
@@ -355,11 +356,15 @@ export function BatchEnrollmentDialog({
 
         {phase === 'done' && <div role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
           <p className="text-sm font-semibold text-slate-900">
-            {summary.errorCount === 0 && summary.successCount > 0
-              ? `Inclusão concluída: ${summary.successCount} ${summary.successCount === 1 ? 'aluno registrado' : 'alunos registrados'}.`
-              : summary.successCount > 0
-                ? `Processamento concluído com falhas parciais: ${summary.successCount} incluído(s) e ${summary.errorCount} com falha.`
-                : `Nenhuma inclusão foi concluída (${summary.errorCount} ${summary.errorCount === 1 ? 'falha' : 'falhas'}).`}
+            {summary.errorCount === 0 && summary.successCount > 0 && !abortedNotice
+              ? `Inclusão concluída: ${countLabel(summary.successCount, 'aluno registrado', 'alunos registrados')}.`
+              : summary.successCount > 0 && summary.errorCount > 0
+                ? `Processamento concluído com falhas parciais: ${countLabel(summary.successCount, 'incluído', 'incluídos')} e ${countLabel(summary.errorCount, 'falha', 'falhas')}.`
+                : summary.successCount > 0
+                  ? `Processamento interrompido: ${countLabel(summary.successCount, 'aluno registrado', 'alunos registrados')}.`
+                  : summary.errorCount > 0
+                    ? `Nenhuma inclusão foi concluída (${countLabel(summary.errorCount, 'falha', 'falhas')}).`
+                    : 'Processamento interrompido antes de registrar inclusões.'}
           </p>
           <div className="flex flex-wrap gap-2">
             {summary.activeCount > 0 && <Badge tone="green">{summary.activeCount} vinculado(s)</Badge>}
@@ -442,14 +447,18 @@ export function BatchEnrollmentDialog({
               <PencilLine aria-hidden="true" className="size-4" />
               Alterar lista
             </Button>}
-            {phase === 'review' && retryablePreviewCount > 0 && <Button
+            {phase === 'review' && pendingPreviewCount > 0 && <Button
               variant="secondary"
-              onClick={() => void executePreview(items, ['preview-error'])}
+              onClick={() => void executePreview(items)}
             >
               <RefreshCw aria-hidden="true" className="size-4" />
-              Reconsultar falhas ({retryablePreviewCount})
+              {queuedCount > 0 && summary.previewErrorCount === 0
+                ? `Continuar conferência (${queuedCount})`
+                : queuedCount > 0
+                  ? `Conferir pendentes (${pendingPreviewCount})`
+                  : `Reconsultar falhas (${summary.previewErrorCount})`}
             </Button>}
-            {phase === 'done' && hasAnyProblems && <>
+            {phase === 'done' && summary.problemEmails.length > 0 && <>
               <Button variant="secondary" onClick={() => backToInput(summary.problemEmails.join('\n'))}>
                 <PencilLine aria-hidden="true" className="size-4" />
                 Editar e-mails com erro
@@ -478,12 +487,19 @@ export function BatchEnrollmentDialog({
             </>}
 
             {phase === 'done' && <>
-              {retryableConfirmCount > 0 && <Button
+              {summary.selectedCount > 0 && <Button
+                variant="secondary"
+                onClick={() => void executeConfirm('selected')}
+              >
+                <RefreshCw aria-hidden="true" className="size-4" />
+                Continuar inclusão ({summary.selectedCount})
+              </Button>}
+              {summary.errorCount > 0 && <Button
                 variant="secondary"
                 onClick={() => void executeConfirm('retry-failed')}
               >
                 <RefreshCw aria-hidden="true" className="size-4" />
-                Tentar falhas novamente ({retryableConfirmCount})
+                Tentar falhas novamente ({summary.errorCount})
               </Button>}
               <Button onClick={() => { clearDraft(); close(); }}>Concluir</Button>
             </>}

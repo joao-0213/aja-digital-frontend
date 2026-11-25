@@ -66,6 +66,7 @@ export function StudentsPage() {
   const pending = enrollments.data?.items ?? [];
   const open = (action: Selection['action'], record?: EnrollmentDto) => { const next = { action, record, classId, className: schoolClass?.name ?? record?.className ?? 'Turma indisponível', intent: crypto.randomUUID() }; client.clearDraft('students-fields', sessionKey); client.saveDraft('students-open', next, sessionKey); setSelection(next); };
   const close = () => { client.clearDraft('students-open', sessionKey); setSelection(null); };
+  const refreshAll = () => { void students.invalidate(); void enrollments.invalidate(); void classes.invalidate(); };
   return <>
     <LinkButton secondary href={requestedClassId ? '/turmas' : '/'} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{requestedClassId ? 'Voltar às turmas' : 'Voltar ao painel'}</LinkButton>
     <PageHeading eyebrow="Acompanhamento acadêmico" title="Alunos" description="Consulte vínculos ativos, matrículas pendentes e histórico da turma." action={user?.role === 'admin' && <Button disabled={!schoolClass?.active || !!classes.error} onClick={() => open('add')}>Adicionar aluno por e-mail</Button>} />
@@ -83,9 +84,9 @@ export function StudentsPage() {
         className={selection.className}
         initialIntent={selection.intent}
         close={close}
-        onRefresh={() => { void students.invalidate(); void enrollments.invalidate(); void classes.invalidate(); }}
-        saved={() => { close(); void students.invalidate(); void enrollments.invalidate(); void classes.invalidate(); }}
+        onRefresh={refreshAll}
+        saved={() => { close(); refreshAll(); }}
       />
-      : <EnrollmentDialog key={selection.intent} selection={selection} close={close} saved={() => { close(); void students.invalidate(); void enrollments.invalidate(); void classes.invalidate(); }} />)}
+      : <EnrollmentDialog key={selection.intent} selection={selection} close={close} saved={() => { close(); refreshAll(); }} />)}
   </>;
 }

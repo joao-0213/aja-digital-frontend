@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, Dialog, Empty, Input, LinkButton, PageHeading, Select, Skeleton, ErrorState } from '@/components/ui';
+import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { countLabel, roleLabels } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -22,11 +23,10 @@ function UserDialog({ selection, close, saved }: { selection: Selection; close: 
   const initial: UserFields = { name: record?.name ?? '', email: record?.email ?? '' };
   const state = useHttpEditor<UserFields, User>(initial, record?.revision ?? 0, 'users-fields');
   const [confirmingClose, setConfirmingClose] = useState(false);
-  const dirty = JSON.stringify(state.fields) !== JSON.stringify(initial);
   const closeEditor = () => {
     if (state.busy) return;
     if (confirmingClose) { setConfirmingClose(false); return; }
-    if (!edit || !dirty) { state.clear(); close(); return; }
+    if (!edit || !state.dirty) { state.clear(); close(); return; }
     setConfirmingClose(true);
   };
   const save = async () => {
@@ -34,7 +34,13 @@ function UserDialog({ selection, close, saved }: { selection: Selection; close: 
     if (ok) { state.clear(); notify(edit ? 'Docente salvo. O acesso pode ser definido pelo fluxo de recuperação.' : 'Situação do usuário atualizada. Histórico preservado.'); saved(); }
   };
   const destructive = action === 'withdraw' || action === 'deactivate';
-  return <Dialog open onClose={closeEditor} title={edit ? record ? 'Editar docente' : 'Cadastrar docente' : action === 'role' ? 'Alterar perfil de acesso?' : action === 'withdraw' ? 'Excluir docente?' : 'Inativar docente?'}>{confirmingClose ? <div role="alert" className="space-y-4"><p className="text-sm leading-6 text-slate-600">Fechar esta edição sem salvar as alterações?</p><div className="flex flex-wrap justify-end gap-2"><Button autoFocus variant="secondary" onClick={() => setConfirmingClose(false)}>Continuar editando</Button><Button variant="danger" onClick={() => { state.clear(); close(); }}>Descartar alterações</Button></div></div> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
+  return <Dialog open onClose={closeEditor} title={edit ? record ? 'Editar docente' : 'Cadastrar docente' : action === 'role' ? 'Alterar perfil de acesso?' : action === 'withdraw' ? 'Excluir docente?' : 'Inativar docente?'}>{confirmingClose ? <ConfirmAlert
+    message="Fechar esta edição sem salvar as alterações?"
+    cancelLabel="Continuar editando"
+    confirmLabel="Descartar alterações"
+    onCancel={() => setConfirmingClose(false)}
+    onConfirm={() => { state.clear(); close(); }}
+  /> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
       {edit ? <><p className="text-sm leading-6 text-slate-600">Cargo global: Professor. Atribua o docente às disciplinas após o cadastro. A senha é definida pelo próprio usuário no fluxo de recuperação de acesso.</p><Input label="Nome" value={state.fields.name} onChange={event => state.editor.change({ ...state.fields, name: event.target.value })} required minLength={3} maxLength={100} disabled={state.busy} /><Input label="E-mail" type="email" value={state.fields.email} onChange={event => state.editor.change({ ...state.fields, email: event.target.value })} required maxLength={254} disabled={state.busy} /></> : <><p className="text-sm leading-6 [overflow-wrap:anywhere]">{record?.name}{action === 'role' ? ` passará a ser ${roleLabels[nextRole!].toLowerCase()}.` : ' perderá acesso à plataforma.'}</p><p className="text-sm leading-6 text-slate-600">A alteração de cargo, inativação ou exclusão encerra as atribuições incompatíveis. Conteúdos anteriores conservam autoria e histórico. A exclusão é lógica.</p></>}
       {state.conflicted && <RecordConflict author="Equipe administrativa" updatedAt={state.latest?.updatedAt} onReviewed={state.editor.acknowledge}><p>O cadastro mudou. Seu preenchimento foi mantido.</p>{state.latest ? <p>{state.latest.name} · {state.latest.email} · {roleLabels[state.latest.role]} · {state.latest.active === false ? 'Inativo' : 'Ativo'}</p> : <Button variant="secondary" onClick={() => void state.editor.review(() => api.read(record!.id))}>Consultar versão atual</Button>}</RecordConflict>}
       {state.error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.error}</p>}

@@ -9,7 +9,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, Textarea } from '@/components/ui';
 import { ErrorState } from '@/components/ui/error-state';
-import { cn, dateLabel } from '@/lib/utils';
+import { cn, countLabel, dateLabel } from '@/lib/utils';
 import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '@/lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
 import { createForumApi } from '../api';
@@ -61,6 +61,7 @@ function ForumThreadContent() {
   }, [api, id, topic?.read, query.loading]);
 
   const updateTopic = async (action: () => Promise<unknown>, clearReply = false) => {
+    if (busy) return;
     setBusy(true); setError('');
     try { await action(); if (clearReply) { setBody(''); setPendingReply(undefined); if (draftKey) sessionStorage.removeItem(draftKey); } query.invalidate(); }
     catch (cause) {
@@ -94,7 +95,7 @@ function ForumThreadContent() {
       {!topic.attachment && topic.legacyAttachmentName && <p className="mt-4 text-sm text-slate-500">{topic.legacyAttachmentName} · registro antigo sem arquivo. Peça ao autor para compartilhar novamente.</p>}
       {activeClass && (user?.id === topic.author.id || canManage) && <Button className="mt-4" variant="ghost" disabled={busy} onClick={() => setWithdrawTarget({ kind: 'topic' })}>Retirar pergunta</Button>}
     </Card>
-    <h2 className="mb-4 mt-8 text-lg font-semibold">{topic.replies.length}{topic.replies.length === 1 ? ' resposta' : ' respostas'}</h2>
+    <h2 className="mb-4 mt-8 text-lg font-semibold">{countLabel(topic.replies.length, 'resposta', 'respostas')}</h2>
     <div className="space-y-4">
       {topic.replies.map(reply => <Card key={reply.id} className={cn(reply.accepted && '!border-brand-300 !bg-brand-50/30')}>
         <div className="mb-4 flex flex-wrap items-center gap-3"><Avatar name={reply.author.name} size="sm" /><span className="text-sm font-semibold">{reply.author.name}</span>{reply.accepted && <span className="ml-auto"><Badge tone="green"><CheckCircle2 aria-hidden="true" className="size-3" />Solução aceita</Badge></span>}</div>

@@ -94,8 +94,7 @@ function AssessmentEditor({
   const initial = initialFields(record, firstModule);
   const context = `assessment-composer:${record?.id ?? 'new'}`;
   const form = useHttpEditor<AssessmentFields, AssessmentStaff>(initial, record?.revision ?? 0, context);
-  const { fields, editor } = form;
-  const dirty = JSON.stringify(fields) !== JSON.stringify(initial);
+  const { fields, dirty, editor } = form;
   const [activeRecord, setActiveRecord] = useState<AssessmentStaff | undefined>(record);
   const [businessConflict, setBusinessConflict] = useState(false);
   const [latestRecord, setLatestRecord] = useState<AssessmentStaff | null>(null);
@@ -110,7 +109,8 @@ function AssessmentEditor({
   const [pendingAction, setPendingAction] = useState<SaveAction | null>(null);
   const [resetConfirmedFor, setResetConfirmedFor] = useState('');
   const [validationError, setValidationError] = useState('');
-  const [minDeadline, setMinDeadline] = useState(() => minBrazilDateTimeLocal());
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const minDeadline = minBrazilDateTimeLocal(nowMs);
   const [deadlineEnabled, setDeadlineEnabled] = useState(() => !!fields.deadline);
   const [deadlineInput, setDeadlineInput] = useState(() => toBrazilDateTimeLocal(fields.deadline));
   const [intent] = useState(() => client.readDraft<string>(intentKey) ?? crypto.randomUUID());
@@ -142,16 +142,16 @@ function AssessmentEditor({
   const enforceFutureDeadline = !activeRecord || activeRecord.status === 'draft' || fields.deadline !== activeRecord.deadline;
   const deadlineError = deadlineEnabled && !fields.deadline
     ? 'Informe a data e o horário do prazo.'
-    : fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline)
+    : fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline, nowMs)
       ? 'O prazo de entrega não pode ser anterior ao momento atual.'
       : undefined;
 
-  const validate = () => {
+  const validate = (currentMs = Date.now()) => {
     if (!fields.title.trim()) return 'Informe o título da atividade.';
     if (!availableModules.some(item => item.id === fields.moduleId)) return 'Selecione um módulo ao qual você tenha acesso.';
     if (deadlineEnabled && !fields.deadline) return 'Informe a data e o horário do prazo.';
     if (fields.deadline && !fromBrazilDateTimeLocal(toBrazilDateTimeLocal(fields.deadline))) return 'Confira a data e o horário do prazo.';
-    if (fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline)) return 'O prazo de entrega não pode ser anterior ao momento atual.';
+    if (fields.deadline && enforceFutureDeadline && isDeadlineInPast(fields.deadline, currentMs)) return 'O prazo de entrega não pode ser anterior ao momento atual.';
     if (structuralLocked && !!activeRecord?.deadline !== !!fields.deadline) return 'Depois de uma entrega, mantenha a presença ou ausência do prazo atual.';
     if (fields.allowLate && !fields.deadline) return 'Para aceitar entregas atrasadas, defina um prazo.';
     if (fields.kind === 'quiz' && !fields.questions.length) return 'Adicione pelo menos uma questão ao questionário.';
@@ -214,7 +214,9 @@ function AssessmentEditor({
   };
 
   const save = async (action: SaveAction, confirmResetDrafts = false) => {
-    const message = validate();
+    const currentMs = Date.now();
+    setNowMs(currentMs);
+    const message = validate(currentMs);
     if (message) { setValidationError(message); setDialog(null); return; }
     setValidationError('');
     const payload = pendingCreate?.fields ?? { ...fields, ...(confirmResetDrafts ? { confirmResetDrafts: true } : {}) };
@@ -306,7 +308,9 @@ function AssessmentEditor({
       setDialog('reset');
       return;
     }
-    const message = validate();
+    const currentMs = Date.now();
+    setNowMs(currentMs);
+    const message = validate(currentMs);
     if (message) { setValidationError(message); return; }
     if (action === 'publish') setDialog('review');
     else void save('draft', questionStructureChanged);
@@ -372,8 +376,8 @@ function AssessmentEditor({
           {availableModules.map(item => <option key={item.id} value={item.id}>{subjects.find(value => value.id === item.subjectId)?.name} · {item.title}</option>)}
         </Select>
         <Select label="Obrigatoriedade" value={fields.required ? 'required' : 'optional'} disabled={structuralLocked || uncertain} onChange={event => update({ required: event.target.value === 'required' })}><option value="required">Obrigatória</option><option value="optional">Opcional</option></Select>
-        {!structuralLocked && <Check label="Definir prazo" checked={deadlineEnabled} disabled={uncertain} onChange={checked => { setMinDeadline(minBrazilDateTimeLocal()); setDeadlineEnabled(checked); const nextDeadline = checked ? defaultDeadline() : null; setDeadlineInput(toBrazilDateTimeLocal(nextDeadline)); update({ deadline: nextDeadline, allowLate: checked ? fields.allowLate : false }); }} />}
-        {deadlineEnabled ? <><Input label="Prazo de entrega" type="datetime-local" min={enforceFutureDeadline ? minDeadline : undefined} error={deadlineError} disabled={uncertain} value={deadlineInput} onFocus={() => setMinDeadline(minBrazilDateTimeLocal())} onChange={event => { setMinDeadline(minBrazilDateTimeLocal()); setDeadlineInput(event.target.value); update({ deadline: fromBrazilDateTimeLocal(event.target.value, fields.deadline) }); }} /><p className="text-xs text-slate-500">Horário de Brasília (UTC−3).</p><Check label="Aceitar entrega atrasada" checked={fields.allowLate} disabled={structuralLocked || uncertain} onChange={checked => update({ allowLate: checked })} /></> : <p className="text-sm text-slate-500">Sem prazo</p>}
+        {!structuralLocked && <Check label="Definir prazo" checked={deadlineEnabled} disabled={uncertain} onChange={checked => { setNowMs(Date.now()); setDeadlineEnabled(checked); const nextDeadline = checked ? defaultDeadline() : null; setDeadlineInput(toBrazilDateTimeLocal(nextDeadline)); update({ deadline: nextDeadline, allowLate: checked ? fields.allowLate : false }); }} />}
+        {deadlineEnabled ? <><Input label="Prazo de entrega" type="datetime-local" min={enforceFutureDeadline ? minDeadline : undefined} error={deadlineError} disabled={uncertain} value={deadlineInput} onFocus={() => setNowMs(Date.now())} onChange={event => { setNowMs(Date.now()); setDeadlineInput(event.target.value); update({ deadline: fromBrazilDateTimeLocal(event.target.value, fields.deadline) }); }} /><p className="text-xs text-slate-500">Horário de Brasília (UTC−3).</p><Check label="Aceitar entrega atrasada" checked={fields.allowLate} disabled={structuralLocked || uncertain} onChange={checked => update({ allowLate: checked })} /></> : <p className="text-sm text-slate-500">Sem prazo</p>}
         {fields.kind === 'work' && <><Check label="Permitir nota opcional" checked={fields.maxGrade !== null} disabled={structuralLocked || uncertain} onChange={checked => update({ maxGrade: checked ? 10 : null })} />{fields.maxGrade !== null && <Input label="Nota máxima" type="number" min="0.01" step="any" disabled={structuralLocked || uncertain} value={Number.isNaN(fields.maxGrade) ? '' : fields.maxGrade} onChange={event => update({ maxGrade: event.target.value === '' ? null : Number(event.target.value) })} />}</>}
         <p className="text-xs leading-5 text-slate-500">Envio único por aluno. Questionários guardam a ordem e uma cópia das questões no servidor. Trabalhos recebem arquivos e links.</p>
       </Card>

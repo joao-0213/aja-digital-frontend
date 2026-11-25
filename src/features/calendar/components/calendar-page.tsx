@@ -22,8 +22,20 @@ export function CalendarPage() {
   const query = useHttpQuery({ sessionKey, key: `calendar:${from}:${to}` }, useCallback(signal => api.range(from, to, signal), [api, from, to]));
   const entries = query.data ?? [];
   const selected = entries.find(item => item.id === selectedId);
-  const visible = entries.filter(item => filter === 'all' || filter === 'exam' && item.source === 'assessment' || filter === 'event' && item.source === 'announcement');
-  const expandedItems = expandedDate ? visible.filter(item => item.date === expandedDate) : [];
+  const visible = useMemo(
+    () => entries.filter(item => filter === 'all' || filter === 'exam' && item.source === 'assessment' || filter === 'event' && item.source === 'announcement'),
+    [entries, filter],
+  );
+  const itemsByDate = useMemo(() => {
+    const grouped = new Map<string, CalendarDto[]>();
+    for (const item of visible) {
+      const list = grouped.get(item.date);
+      if (list) list.push(item);
+      else grouped.set(item.date, [item]);
+    }
+    return grouped;
+  }, [visible]);
+  const expandedItems = expandedDate ? (itemsByDate.get(expandedDate) ?? []) : [];
   const start = month.getDay();
   const total = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const cells = Math.ceil((start + total) / 7) * 7;
@@ -50,7 +62,7 @@ export function CalendarPage() {
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">{['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => <div className="py-3 text-center text-xs font-semibold text-slate-400" key={day}>{day}</div>)}</div>
         <div className="grid grid-cols-7">{Array.from({ length: cells }, (_, index) => {
           const day = index - start + 1, date = `${from.slice(0, 7)}-${String(day).padStart(2, '0')}`, inMonth = day >= 1 && day <= total;
-          const dayItems = inMonth ? visible.filter(item => item.date === date) : [];
+          const dayItems = inMonth ? (itemsByDate.get(date) ?? []) : [];
           const shownItems = dayItems.slice(0, MAX_VISIBLE_EVENTS_PER_DAY);
           const hiddenCount = dayItems.length - shownItems.length;
           return <div key={index} className={cn('min-h-28 min-w-0 border-b border-r border-slate-100 p-2', !inMonth && 'bg-slate-50/60')}>

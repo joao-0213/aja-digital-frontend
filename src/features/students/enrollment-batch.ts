@@ -102,19 +102,17 @@ export function parseBatchEmails(raw: string): ParsedEmailBatch {
       continue;
     }
     seen.add(email);
-    if (email.length > MAX_EMAIL_LENGTH) {
-      const entry: ParsedEmailEntry = { raw: token, email, valid: false, reason: 'O e-mail excede o limite de 254 caracteres.' };
-      entries.push(entry);
-      invalid.push(entry);
-    } else if (!validEmail(email)) {
-      const entry: ParsedEmailEntry = { raw: token, email, valid: false, reason: 'Formato de e-mail inválido.' };
-      entries.push(entry);
-      invalid.push(entry);
-    } else {
-      const entry: ParsedEmailEntry = { raw: token, email, valid: true };
-      entries.push(entry);
-      valid.push(email);
-    }
+    const reason = email.length > MAX_EMAIL_LENGTH
+      ? 'O e-mail excede o limite de 254 caracteres.'
+      : !validEmail(email)
+        ? 'Formato de e-mail inválido.'
+        : undefined;
+    const entry: ParsedEmailEntry = reason
+      ? { raw: token, email, valid: false, reason }
+      : { raw: token, email, valid: true };
+    entries.push(entry);
+    if (entry.valid) valid.push(email);
+    else invalid.push(entry);
   }
 
   return { entries, valid, invalid, duplicatesRemoved, totalTokens: tokens.length };
@@ -202,6 +200,16 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function replaceItem(
+  items: BatchEnrollmentItem[],
+  index: number,
+  patch: Partial<BatchEnrollmentItem>,
+): BatchEnrollmentItem[] {
+  const next = items.slice();
+  next[index] = { ...next[index], ...patch };
+  return next;
+}
+
 /**
  * Checks each queued/failed-preview item via the existing preview endpoint with bounded concurrency.
  * An error on one email never prevents checking the remaining items (except 401 session expiration).
@@ -230,7 +238,7 @@ export async function runBatchPreview(
   let sessionExpired = false;
 
   const updateAt = (index: number, patch: Partial<BatchEnrollmentItem>, currentEmail?: string) => {
-    items = items.map((item, currentIndex) => (currentIndex === index ? { ...item, ...patch } : item));
+    items = replaceItem(items, index, patch);
     options.onUpdate?.(items, { completed, total, currentEmail });
   };
 
@@ -240,14 +248,12 @@ export async function runBatchPreview(
 
   const worker = async () => {
     while (true) {
-      if (sessionExpired) return;
+      if (sessionExpired || cursor >= targetIndices.length) return;
       if (options.isAborted?.()) {
         aborted = true;
         return;
       }
-      const nextPos = cursor++;
-      if (nextPos >= targetIndices.length) return;
-      const index = targetIndices[nextPos];
+      const index = targetIndices[cursor++];
       const target = items[index];
       updateAt(index, { status: 'checking', error: undefined }, target.email);
       try {
@@ -308,7 +314,7 @@ export async function runBatchConfirm(
   let sessionExpired = false;
 
   const updateAt = (index: number, patch: Partial<BatchEnrollmentItem>, currentEmail?: string) => {
-    items = items.map((item, currentIndex) => (currentIndex === index ? { ...item, ...patch } : item));
+    items = replaceItem(items, index, patch);
     options.onUpdate?.(items, { completed, total, currentEmail });
   };
 

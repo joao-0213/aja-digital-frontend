@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useSession, useApp } from '@/providers/app-context';
 import { Badge, Button, Card, Check, Dialog, Empty, Input, LinkButton, PageHeading, Select, Skeleton, ErrorState } from '@/components/ui';
+import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useHttpEditor } from '@/hooks/use-http-editor';
@@ -22,18 +23,23 @@ function ClassDialog({ selection, close, saved }: { selection: Selection; close:
   const state = useHttpEditor<ClassFields, SchoolClass>(initial, record?.revision ?? 0, 'classes-fields');
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [yearInput, setYearInput] = useState(() => String(state.fields.year));
-  const dirty = JSON.stringify(state.fields) !== JSON.stringify(initial);
   const closeEditor = () => {
     if (state.busy) return;
     if (confirmingClose) { setConfirmingClose(false); return; }
-    if (action !== 'edit' || !dirty) { state.clear(); close(); return; }
+    if (action !== 'edit' || !state.dirty) { state.clear(); close(); return; }
     setConfirmingClose(true);
   };
   const save = async () => {
     const ok = await state.editor.submit((fields, revision) => action === 'edit' ? api.save({ ...fields, name: fields.name.trim(), code: fields.code.trim().toUpperCase() }, revision, record?.id, intent) : api.command(record!.id, action, revision, intent), record ? () => api.read(record.id) : undefined);
     if (ok) { state.clear(); notify(action === 'edit' ? 'Turma salva.' : 'Situação da turma atualizada. Histórico preservado.'); saved(); }
   };
-  return <Dialog open onClose={closeEditor} title={action === 'edit' ? record ? 'Editar turma' : 'Criar nova turma' : action === 'close' ? 'Inativar turma?' : 'Reativar turma?'}>{confirmingClose ? <div role="alert" className="space-y-4"><p className="text-sm leading-6 text-slate-600">Fechar esta edição sem salvar as alterações da turma?</p><div className="flex flex-wrap justify-end gap-2"><Button autoFocus variant="secondary" onClick={() => setConfirmingClose(false)}>Continuar editando</Button><Button variant="danger" onClick={() => { state.clear(); close(); }}>Descartar alterações</Button></div></div> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
+  return <Dialog open onClose={closeEditor} title={action === 'edit' ? record ? 'Editar turma' : 'Criar nova turma' : action === 'close' ? 'Inativar turma?' : 'Reativar turma?'}>{confirmingClose ? <ConfirmAlert
+    message="Fechar esta edição sem salvar as alterações da turma?"
+    cancelLabel="Continuar editando"
+    confirmLabel="Descartar alterações"
+    onCancel={() => setConfirmingClose(false)}
+    onConfirm={() => { state.clear(); close(); }}
+  /> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
     {action === 'edit' ? <fieldset disabled={state.busy} className="space-y-4"><Input label="Nome da turma" value={state.fields.name} onChange={event => state.editor.change({ ...state.fields, name: event.target.value })} required maxLength={100} /><Input label="Código único" value={state.fields.code} onChange={event => state.editor.change({ ...state.fields, code: event.target.value })} required pattern="[A-Za-z0-9-]+" maxLength={20} /><div className="grid grid-cols-2 gap-4"><Input label="Ano" type="number" value={yearInput} onChange={event => { const raw = event.target.value; setYearInput(raw); if (raw !== '') state.editor.change({ ...state.fields, year: Number(raw) }); }} min={2020} max={2100} required /><Select label="Turno" value={state.fields.shift} onChange={event => state.editor.change({ ...state.fields, shift: event.target.value as SchoolClass['shift'] })}><option>Manhã</option><option>Tarde</option><option>Noite</option></Select></div></fieldset> : <p className="text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">O histórico de {record?.name} será preservado. Inativar encerra vínculos e cancela matrículas pendentes; alunos perdem acesso. Reativar não restaura vínculos encerrados.</p>}
     {state.conflicted && <RecordConflict author="Equipe administrativa" updatedAt={state.latest?.updatedAt} onReviewed={state.editor.acknowledge}><p>A turma mudou. Seu preenchimento foi mantido.</p>{state.latest ? <p>{state.latest.name} · {state.latest.code} · {state.latest.year} · {state.latest.shift} · {state.latest.active ? 'Ativa' : 'Inativa'}</p> : <Button variant="secondary" onClick={() => void state.editor.review(() => api.read(record!.id))}>Consultar versão atual</Button>}</RecordConflict>}
     {state.error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.error}</p>}
