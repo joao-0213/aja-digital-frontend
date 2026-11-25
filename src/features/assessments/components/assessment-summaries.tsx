@@ -2,6 +2,7 @@
 
 import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Empty, LinkButton } from '@/components/ui';
+import { sortByDeadlineAsc } from '@/lib/utils';
 import type { TrailModule } from '@/models';
 import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
 
@@ -47,7 +48,7 @@ export function AssessmentSummaries({
   submissionsError?: Error;
   retrySubmissions?: () => void;
 }) {
-  const activities = items.filter(item => item.moduleId === module.id);
+  const activities = sortByDeadlineAsc(items.filter(item => item.moduleId === module.id));
   return <section aria-label={`Atividades do módulo ${module.title}`} className="border-t border-slate-100 px-5 py-4">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <h4 className="flex items-center gap-2 text-sm font-semibold"><ClipboardCheck aria-hidden="true" className="size-4 text-brand-700" />Atividades</h4>

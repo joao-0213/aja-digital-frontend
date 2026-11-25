@@ -270,7 +270,7 @@ export function BatchEnrollmentDialog({
       }}
     >
       <p className="text-sm leading-6 text-slate-600">
-        Destino: <strong>{className}</strong>. Uma única turma ativa por aluno. Confira a conta e a situação antes de confirmar. A inclusão não cria uma conta nem comprova entrega de convite.
+        Destino: <strong>{className}</strong>. Cada aluno pode ter uma única turma ativa. Se o e-mail ainda não tiver conta confirmada, a matrícula ficará pendente até o cadastro.
       </p>
 
       {phase === 'input' && <>

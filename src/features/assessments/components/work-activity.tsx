@@ -11,7 +11,7 @@ import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { Badge, Button, Card, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Skeleton } from '@/components/ui';
-import { countLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import { resolveWorkUploadBatch, type WorkUploadIntent } from '../work-upload-batch';
 import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
@@ -40,7 +40,7 @@ function safeRecoveryRead(key: string): LocalRecovery | null {
 
 function FeedbackPublication({ feedback, maxGrade }: { feedback: WorkFeedback | null; maxGrade: number | null }) {
   return <Card className="mt-5"><h2 className="font-semibold">{feedback ? 'Feedback disponível' : 'Entregue — aguardando feedback'}</h2>{feedback && <>
-    <p className="mt-3 text-xs text-slate-500">{feedback.author.name} · {new Date(feedback.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+    <p className="mt-3 text-xs text-slate-500">{feedback.author.name} · {brazilDateTimeLabel(feedback.createdAt)}</p>
     <p className="mt-4 whitespace-pre-wrap text-sm leading-7">{feedback.comment}</p>
     <p className="mt-3 text-sm font-semibold">{feedback.grade == null ? 'Sem nota' : `Nota: ${feedback.grade} / ${maxGrade ?? '—'}`}</p>
   </>}</Card>;
@@ -67,7 +67,6 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
       <PageHeading eyebrow="Entrega de trabalho" title={activity.title} description={activity.description} />
       <ActivityConditions activity={activity} />
       <WorkStudent key={`${activity.id}:${user.id}`} activity={activity} initialSubmission={own && isStudentSubmission(own) ? own : null} userId={user.id} sessionId={sessionId ?? ''} />
-      <div className="mt-6"><LinkButton secondary href={subjectHref}><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton></div>
     </>;
   }
 
@@ -79,15 +78,14 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
     <ActivityConditions activity={activity} />
     <Card><h2 className="mb-4 font-semibold">Entregas concluídas</h2>
       {filtered.length ? <ul className="divide-y divide-slate-200">{filtered.map(submission => <li key={submission.id} className="flex flex-wrap items-center justify-between gap-3 py-4 text-sm">
-        <span>{submission.studentName}<span className="mt-1 block text-xs text-slate-500">{submission.feedbackPublished ? 'Feedback disponível' : 'Entregue — aguardando feedback'} · {submission.submittedAt && new Date(submission.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span></span>
+        <span>{submission.studentName}<span className="mt-1 block text-xs text-slate-500">{submission.feedbackPublished ? 'Feedback disponível' : 'Entregue — aguardando feedback'}{submission.submittedAt && ` · ${brazilDateTimeLabel(submission.submittedAt)}`}</span></span>
         <LinkButton secondary aria-label={`Consultar entrega de ${submission.studentName}`} href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}>Consultar entrega</LinkButton>
       </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Ainda não há entregas concluídas. Rascunhos dos alunos permanecem privados.</p>}
     </Card>
-    {selected && <><Card className="mt-5"><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-3 text-sm">Comprovante {selected.receipt?.id ?? 'indisponível'} · {selected.submittedAt && new Date(selected.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p><WorkAttachments items={selected.attachments} /></Card>
+    {selected && <><Card className="mt-5"><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-3 text-sm text-slate-600">{selected.submittedAt ? `Enviado em ${brazilDateTimeLabel(selected.submittedAt)} (Brasília)` : 'Entrega registrada'} · {countLabel(selected.attachments.length, 'anexo', 'anexos')}</p><WorkAttachments items={selected.attachments} /></Card>
       <FeedbackEditor key={selected.id} activity={activity} submission={selected} onPublished={() => { void submissions.invalidate(); }} />
     </>}
-    {selectedId && !selected && <p role="status" className="mt-5 text-sm">Entrega indisponível neste contexto.</p>}
-    <div className="mt-6"><LinkButton secondary href={subjectHref}>Ver atividades</LinkButton></div>
+    {selectedId && !selected && <p role="status" className="mt-5 text-sm">Entrega indisponível.</p>}
   </>;
 }
 
@@ -323,9 +321,9 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
   const canSubmit = isAssigned && !isSubmitted && !busy && !conflict && (items.length > 0 || !!submitIntent.current);
   const frozenPending = ambiguousPrepare.current || ambiguousPatch.current || !!submitIntent.current || uploadCommands.current.size > 0;
 
-  if (!isAssigned) return <Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída a você. O serviço valida matrícula e prazo ao salvar e ao enviar.</p></Card>;
+  if (!isAssigned) return <Card><p role="status" className="text-sm leading-7">Somente consulta — esta atividade não foi atribuída à sua matrícula.</p></Card>;
   if (submission?.submittedAt) return <>
-    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm [overflow-wrap:anywhere]">{activity.title} · {new Date(submission.receipt?.submittedAt ?? submission.submittedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (Brasília)</p><p className="mt-2 text-sm">Comprovante {submission.receipt?.id ?? 'indisponível'} · {countLabel(submission.attachments.length, 'anexo', 'anexos')}</p><p className="mt-3 text-sm text-slate-500">Envio único confirmado. Os anexos não podem ser substituídos.</p><WorkAttachments items={submission.attachments} /></Card>
+    <Card><Badge tone="green">Entrega confirmada</Badge><h2 className="mt-4 font-semibold">Comprovante de entrega</h2><p className="mt-3 text-sm [overflow-wrap:anywhere]">{activity.title} · {brazilDateTimeLabel(submission.receipt?.submittedAt ?? submission.submittedAt)} (Brasília)</p><p className="mt-2 text-sm text-slate-600">Entrega registrada · {countLabel(submission.attachments.length, 'anexo', 'anexos')}</p><p className="mt-3 text-sm text-slate-500">Envio único confirmado. Os anexos não podem ser substituídos.</p><WorkAttachments items={submission.attachments} /></Card>
     <FeedbackPublication feedback={submission.feedbackPublished} maxGrade={activity.maxGrade} />
   </>;
 

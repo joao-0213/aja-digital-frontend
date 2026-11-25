@@ -69,7 +69,7 @@ export function QuestionBank() {
         <p className="my-4 text-sm text-slate-400">{countLabel(list.data?.total ?? 0, 'questão encontrada', 'questões encontradas')}</p>
         <QuestionPicker items={list.data?.items ?? []} onSelect={q => changeUrl({ id: q.id })} />
         {!list.data?.items.length && <Empty title="Nenhuma questão com estes filtros" description="Experimente ampliar a busca ou limpar os filtros." action={<Button onClick={() => changeFilters(emptyQuestionFilters)}>Limpar filtros</Button>} />}
-        <div className="mt-6 flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1} onClick={() => changeUrl({ page: String(page - 1) })}>Anterior</Button><span className="text-sm text-slate-500">{page} / {pages}</span><Button variant="secondary" disabled={page >= pages} onClick={() => changeUrl({ page: String(page + 1) })}>Próxima</Button></div>
+        {pages > 1 && <div className="mt-6 flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1} onClick={() => changeUrl({ page: String(page - 1) })}>Anterior</Button><span className="text-sm text-slate-500">{page} / {pages}</span><Button variant="secondary" disabled={page >= pages} onClick={() => changeUrl({ page: String(page + 1) })}>Próxima</Button></div>}
       </>}</div>
     </div>
     <Dialog open={!!id} onClose={() => changeUrl({ id: null })} title="Explorar questão">

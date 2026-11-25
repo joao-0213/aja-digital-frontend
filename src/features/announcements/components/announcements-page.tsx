@@ -5,7 +5,7 @@ import { ArrowLeft, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Avatar, Badge, Button, Card, Empty, LinkButton, PageHeading, Select } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import { dateLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, dateLabel } from '@/lib/utils';
 import { createAnnouncementsApi, type AnnouncementDto } from '../api';
 import { AnnouncementComposer } from './announcement-composer';
 import { WithdrawAnnouncementDialog } from './withdraw-announcement-dialog';
@@ -32,8 +32,8 @@ export function AnnouncementsPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2"><Badge tone="purple">{options.data?.classes.find(row => row.id === item.classId)?.name ?? item.classId}</Badge>{item.subjectId && <Badge>{options.data?.subjects.find(row => row.id === item.subjectId)?.name ?? item.subjectId}</Badge>}<span className="ml-auto text-xs text-slate-400">{dateLabel(item.createdAt)}</span></div>
         {item.occurrence && <p className="mb-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">Acontecimento: {dateLabel(item.occurrence.date)} · {item.occurrence.allDay ? 'Dia inteiro' : item.occurrence.time} (Brasília)</p>}
         <h2 className="mb-4 text-xl font-semibold [overflow-wrap:anywhere]">{item.title}</h2><p className="whitespace-pre-wrap leading-8 text-slate-600 [overflow-wrap:anywhere]">{item.body}</p>
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><Avatar name={item.author.name} size="sm" /><span className="text-xs text-slate-500">{item.author.name}</span>{item.notify && <span className="ml-auto text-xs text-slate-400">Notificação solicitada à caixa local</span>}</div>
-        {item.updatedAt !== item.createdAt && <p className="mt-3 text-xs text-slate-500">Última alteração: {item.updatedAt && new Date(item.updatedAt).toLocaleString('pt-BR')}</p>}
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4"><Avatar name={item.author.name} size="sm" /><span className="text-xs text-slate-500">{item.author.name}</span>{item.notify && <span className="ml-auto text-xs text-slate-400">Notificação enviada por e-mail</span>}</div>
+        {item.updatedAt !== item.createdAt && <p className="mt-3 text-xs text-slate-500">Última alteração: {item.updatedAt && brazilDateTimeLabel(item.updatedAt)}</p>}
         {canManage(item) && <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => setComposing(item)}><Pencil aria-hidden="true" className="size-4" />Editar aviso</Button><Button variant="ghost" disabled={notices.loading} onClick={() => setWithdrawing(item)}><Trash2 aria-hidden="true" className="size-4" />Retirar aviso</Button></div>}
       </Card></div>)}
     </div>

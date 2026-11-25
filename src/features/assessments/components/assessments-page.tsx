@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { moduleDisplayNumber, resolveActorDisplayName, sortByDeadlineAsc } from '@/lib/utils';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff, type AttemptRead, type SubmissionRead } from '../api';
 
@@ -97,20 +98,25 @@ export function AssessmentsPage() {
   if (submissions.loading) return <Skeleton />;
   if (submissions.error) return <ErrorState message={submissions.error.message} retry={() => void submissions.retry()} />;
 
-  const modules = new Map((query.data?.modules ?? []).map(module => [module.id, module]));
+  const moduleList = query.data?.modules ?? [];
+  const modules = new Map(moduleList.map(module => [module.id, module]));
   const subjects = new Map((query.data?.subjects ?? []).map(subject => [subject.id, subject]));
   const staff = user.role !== 'student';
-  const canCreate = staff && (query.data?.modules ?? []).some(module => subjects.get(module.subjectId)?.canManageContent);
-  const items = [...(query.data?.assessments ?? [])].sort((a, b) => (modules.get(a.moduleId)?.order ?? 0) - (modules.get(b.moduleId)?.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR'));
+  const canCreate = staff && moduleList.some(module => subjects.get(module.subjectId)?.canManageContent);
+  const items = sortByDeadlineAsc(
+    [...(query.data?.assessments ?? [])].sort((a, b) => (modules.get(a.moduleId)?.order ?? 0) - (modules.get(b.moduleId)?.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR'))
+  );
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Atividades" description="Consulte as atividades publicadas e, para a equipe docente, prepare ou atualize os rascunhos." action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
+    <PageHeading title="Atividades" description={staff ? 'Consulte atividades publicadas e gerencie rascunhos das suas disciplinas.' : 'Acompanhe seus questionários e trabalhos organizados por prazo.'} action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
     {staff && <div role="group" aria-label="Filtrar atividades" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
       {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => <Button key={value} variant="ghost" aria-pressed={filter === value} className={filter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(value)}>{label}</Button>)}
     </div>}
     {items.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{items.map(activity => {
       const module = modules.get(activity.moduleId);
       const subject = module && subjects.get(module.subjectId);
+      const moduleNumber = moduleDisplayNumber(moduleList, module);
+      const authorName = resolveActorDisplayName(activity.updatedBy, [...(subject?.teachers ?? []), { id: user.id, name: user.name }]);
       const own = isStaffAssessment(activity);
       const count = own ? activity.questionIds.length : activity.questionCount;
       const assigned = isStaffAssessment(activity) ? true : activity.assigned;
@@ -121,13 +127,13 @@ export function AssessmentsPage() {
       const ownSubmission = relatedSubmissions.find(submission => !staff) ?? relatedSubmissions[0];
       return <Card key={activity.id} className="flex min-w-0 flex-col">
         <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
-        <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {module?.order ?? '—'}</p>
+        <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {moduleNumber ?? '—'}</p>
         <h2 className="mb-2 mt-2 text-lg font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
         <p className="mb-5 flex-1 whitespace-pre-wrap text-sm leading-6 text-slate-500 [overflow-wrap:anywhere]">{activity.description || 'Sem orientações adicionais.'}</p>
         <div className="mb-5 space-y-2 text-sm text-slate-500">
           <p>{activity.kind === 'work' ? 'Entrega de trabalho' : `${count} ${count === 1 ? 'questão' : 'questões'}`} · {activity.required ? 'Obrigatória' : 'Opcional'}</p>
           <p>{dateLabel(activity.deadline)}{activity.deadline && ` · ${activity.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}`}</p>
-          <p>{staff ? `Atualizada por ${activity.updatedBy}` : assigned ? 'Atribuída à sua matrícula' : 'Publicada antes da sua matrícula'}</p>
+          {staff ? <p>Atualizada por {authorName}</p> : !assigned && <p>Publicada antes da sua matrícula</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <LinkButton secondary href={`/questionarios?id=${encodeURIComponent(activity.id)}`}>Detalhes</LinkButton>

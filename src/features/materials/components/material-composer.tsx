@@ -8,7 +8,7 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import { videoSource } from '@/lib/material-video';
-import { countLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import type { TrailModule } from '@/models';
 import { createMaterialsApi, type MaterialDto, type MaterialEdit } from '../api';
 import { createMaterialPublication, type PublicationInput, type PublicationState } from '../lib/material-publication';
@@ -86,7 +86,7 @@ function ComposerForm({ context, onClose, onPublished, closeRef }: { context: Co
   };
   return <><p className="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm leading-6 text-brand-900"><span className="block text-xs text-brand-700">Destino</span><strong>{subject.name}</strong> / {module.title}</p>
     {confirmingClose ? <div role="alert" className="space-y-4"><p>{uncertain ? 'A publicação ainda precisa ser conferida. Fechar guarda o preenchimento nesta sessão para retomar a conferência.' : 'Descartar as alterações não salvas deste material?'}</p><div className="flex justify-end gap-2"><Button autoFocus variant="secondary" onClick={continueEditing}>Continuar editando</Button><Button onClick={() => void confirmClose()}>{uncertain ? 'Fechar e guardar' : 'Descartar alterações'}</Button></div></div> : <form ref={form} className="space-y-5" onSubmit={event => { event.preventDefault(); void save(); }}>
-      {material && <p className="text-xs text-slate-500">Autoria: {material.author.name}.{material.updatedAt && ` Última alteração: ${new Date(material.updatedAt).toLocaleString('pt-BR')}.`}</p>}
+      {material && <p className="text-xs text-slate-500">Autoria: {material.author.name}.{material.updatedAt && ` Última alteração: ${brazilDateTimeLabel(material.updatedAt)}.`}</p>}
       {state.conflicted && <RecordConflict author="Equipe docente" updatedAt={state.latest?.updatedAt} onReviewed={state.editor.acknowledge}>{state.latest ? <><p className="font-semibold">{'title' in state.latest ? state.latest.title : ''}</p><p>{'content' in state.latest ? state.latest.content : state.latest.description}</p>{'duration' in state.latest && <><p>Tempo de estudo atual: {countLabel(state.latest.duration, 'minuto', 'minutos')}</p>{state.latest.kind === 'video' && <p className="break-all">URL atual do vídeo: {state.latest.videoUrl || 'Sem fonte disponível'}</p>}</>}<p>Seu preenchimento e seus arquivos foram mantidos. A publicação exige a revisão conferida do destino.</p></> : <Button variant="secondary" onClick={() => void state.editor.review(material ? async () => (await api.read(material.id)).material : async () => (await api.context(module.id)).module)}>Consultar versão atual</Button>}</RecordConflict>}
       <fieldset disabled={state.busy || uncertain} className="space-y-5">
         <Select label="O que deseja publicar?" value={fields.kind} disabled={!!material} onChange={event => state.editor.change({ ...fields, kind: event.target.value as PublicationInput['kind'] })}><option value="pdf">Arquivos PDF</option><option value="lesson">Texto de apoio</option><option value="video">Vídeo por URL</option></Select>

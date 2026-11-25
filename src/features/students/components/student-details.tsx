@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { Avatar, Card, Empty, LinkButton, PageHeading, Skeleton, ErrorState } from '@/components/ui';
-import { dateLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, dateLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { createStudentsApi } from '../api';
 import { createAttendanceApi } from '@/features/attendance';
@@ -33,7 +33,7 @@ export function StudentDetails() {
     <PageHeading title={detail.student.name} description="Dados cadastrais, matrículas e histórico de frequência do aluno." />
     <div className="grid items-start gap-6 lg:grid-cols-[280px_1fr]">
       <Card><Avatar name={detail.student.name} size="lg" /><h2 className="mt-5 text-lg font-semibold [overflow-wrap:anywhere]">{detail.student.name}</h2><p className="mt-2 break-all text-sm text-slate-500">{detail.student.email}</p></Card>
-      <Card><h2 className="mb-5 font-semibold">Matrículas</h2>{detail.enrollments.map(item => <p key={item.id} className="py-2 text-sm leading-6 text-slate-600">{item.className ?? 'Turma indisponível'} · {item.status === 'active' ? 'Ativo' : item.status === 'pending' ? 'Pendente' : item.status === 'cancelled' ? 'Cancelado' : 'Encerrado'}<br />{item.legacy ? 'Matrícula anterior — data não registrada' : item.enrolledAt ? `Efetivada em ${new Date(item.enrolledAt).toLocaleString('pt-BR')}` : 'Data de efetivação não registrada'}{item.endedAt && ` · Encerrada em ${new Date(item.endedAt).toLocaleString('pt-BR')}`}</p>)}{!detail.enrollments.length && <p className="text-sm text-slate-500">Nenhuma matrícula neste contexto.</p>}</Card>
+      <Card><h2 className="mb-5 font-semibold">Matrículas</h2>{detail.enrollments.map(item => <p key={item.id} className="py-2 text-sm leading-6 text-slate-600">{item.className ?? 'Turma indisponível'} · {item.status === 'active' ? 'Ativo' : item.status === 'pending' ? 'Pendente' : item.status === 'cancelled' ? 'Cancelado' : 'Encerrado'}<br />{item.legacy ? 'Matrícula anterior — data não registrada' : item.enrolledAt ? `Efetivada em ${brazilDateTimeLabel(item.enrolledAt)}` : 'Data de efetivação não registrada'}{item.endedAt && ` · Encerrada em ${brazilDateTimeLabel(item.endedAt)}`}</p>)}{!detail.enrollments.length && <p className="text-sm text-slate-500">Nenhuma matrícula registrada.</p>}</Card>
     </div>
     <Card className="mt-6">
       <h2 className="mb-4 font-semibold">Histórico de frequência</h2>

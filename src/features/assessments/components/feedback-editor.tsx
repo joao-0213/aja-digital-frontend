@@ -6,6 +6,7 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { Button, Card, Input, Textarea } from '@/components/ui';
 import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
+import { brazilDateTimeLabel } from '@/lib/utils';
 import { createAssessmentsApi, type AssessmentRead, type SubmissionStaff, type WorkFeedback } from '../api';
 
 function feedbackMatches(value: SubmissionStaff['feedbackDraft'], comment: string, grade: number | null) {
@@ -16,7 +17,7 @@ function PublishedFeedback({ feedback, maxGrade }: { feedback: WorkFeedback | nu
   return <section role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
     <h3 className="font-semibold">{feedback ? 'Feedback disponível' : 'Entregue — aguardando feedback'}</h3>
     {feedback && <>
-      <p className="mt-2 text-xs text-slate-500">{feedback.author.name} · {new Date(feedback.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+      <p className="mt-2 text-xs text-slate-500">{feedback.author.name} · {brazilDateTimeLabel(feedback.createdAt)}</p>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-7">{feedback.comment}</p>
       <p className="mt-2 text-sm font-semibold">{feedback.grade == null ? 'Sem nota' : `Nota: ${feedback.grade} / ${maxGrade ?? '—'}`}</p>
     </>}
@@ -114,7 +115,7 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
     <h2 className="font-semibold">Retorno individual</h2>
     <p className="text-sm leading-6 text-slate-600">Salvar mantém o retorno privado. Publicar libera nota e comentário. Um rascunho novo conserva o retorno publicado anterior para o aluno.</p>
     <PublishedFeedback feedback={submission.feedbackPublished} maxGrade={activity.maxGrade} />
-    {submission.feedbackDraft && <p role="status" className="text-sm text-amber-800">Rascunho privado · {submission.feedbackDraft.author.name} · {new Date(submission.feedbackDraft.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>}
+    {submission.feedbackDraft && <p role="status" className="text-sm text-amber-800">Rascunho privado · {submission.feedbackDraft.author.name} · {brazilDateTimeLabel(submission.feedbackDraft.createdAt)}</p>}
     {conflict && <RecordConflict author={conflict.feedbackDraft?.author.name ?? conflict.feedbackPublished?.author.name ?? 'Equipe docente'} updatedAt={conflict.updatedAt} onReviewed={() => { setSubmission(conflict); setConflict(null); publishIntent.current = null; }}>
       <p>Rascunho atual: {conflict.feedbackDraft?.comment ?? 'Sem rascunho'} · Nota: {conflict.feedbackDraft?.grade ?? 'Sem nota'}</p>
       <p>Publicado: {conflict.feedbackPublished?.comment ?? 'Ainda não publicado'} · Nota: {conflict.feedbackPublished?.grade ?? 'Sem nota'}</p>
@@ -129,6 +130,6 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
     <p className="text-xs text-slate-500">Deixar a nota vazia significa sem nota; zero é uma nota válida.</p>
     {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
     <div className="flex flex-wrap gap-3"><Button variant="secondary" loading={busy} disabled={!!conflict} onClick={() => void saveDraft(false)}>Salvar rascunho de retorno</Button><Button loading={busy} disabled={!!conflict} onClick={() => void saveDraft(true)}>Publicar retorno</Button></div>
-    {submission.feedbackHistory.length > 0 && <details className="text-sm"><summary className="min-h-11 cursor-pointer py-3">Histórico de publicações</summary><ol className="space-y-4">{submission.feedbackHistory.map((feedback, index) => <li key={`${feedback.createdAt}:${index}`} className="whitespace-pre-wrap border-t border-slate-200 pt-3 [overflow-wrap:anywhere]">{new Date(feedback.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} · {feedback.author.name}<p>{feedback.comment}</p><p>{feedback.grade == null ? 'Sem nota' : `${feedback.grade} / ${activity.maxGrade ?? '—'}`}</p></li>)}</ol></details>}
+    {submission.feedbackHistory.length > 0 && <details className="text-sm"><summary className="min-h-11 cursor-pointer py-3">Histórico de publicações</summary><ol className="space-y-4">{submission.feedbackHistory.map((feedback, index) => <li key={`${feedback.createdAt}:${index}`} className="whitespace-pre-wrap border-t border-slate-200 pt-3 [overflow-wrap:anywhere]">{brazilDateTimeLabel(feedback.createdAt)} · {feedback.author.name}<p>{feedback.comment}</p><p>{feedback.grade == null ? 'Sem nota' : `${feedback.grade} / ${activity.maxGrade ?? '—'}`}</p></li>)}</ol></details>}
   </Card>;
 }

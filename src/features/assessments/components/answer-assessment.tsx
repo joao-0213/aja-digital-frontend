@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
-import { countLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AssessmentRead, type AttemptRead, type AttemptStudent } from '../api';
@@ -28,11 +28,10 @@ function TeamSubmissions({ attempts }: { attempts: AttemptRead[] }) {
     <PageHeading eyebrow="Consulta individual" title="Envios dos alunos" description="A equipe consulta somente tentativas entregues. Rascunhos privados não aparecem aqui." />
     <Card>
       {submitted.length ? <ul className="divide-y divide-slate-100">{submitted.map(attempt => <li key={attempt.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-        <div><p className="font-medium text-slate-800">{attempt.studentName}</p><p className="text-sm text-slate-600">{attempt.assessmentTitle}</p><p className="text-xs text-slate-500">{attempt.submittedAt && new Date(attempt.submittedAt).toLocaleString('pt-BR')}</p></div>
+        <div><p className="font-medium text-slate-800">{attempt.studentName}</p><p className="text-sm text-slate-600">{attempt.assessmentTitle}</p><p className="text-xs text-slate-500">{attempt.submittedAt && brazilDateTimeLabel(attempt.submittedAt)}</p></div>
         <Link className="inline-flex min-h-11 items-center font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900" href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`}>Consultar resultado</Link>
       </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Ainda não há envios. Rascunhos continuam privados para cada aluno.</p>}
     </Card>
-    <div className="mt-5"><LinkButton secondary href="/questionarios">Ver atividades</LinkButton></div>
   </div>;
 }
 
@@ -97,15 +96,15 @@ export function AnswerAssessment() {
       <div className="mb-5 flex flex-wrap gap-2"><Badge tone="purple">{countLabel(isStaffAssessment(activity) ? activity.questionIds.length : activity.questionCount, 'questão', 'questões')}</Badge><Badge>Envio único</Badge><Badge tone="amber">{deadlineLabel(activity.deadline)}</Badge><Badge>{activity.required ? 'Obrigatória' : 'Opcional'}</Badge></div>
       <h2 className="font-semibold">Antes de começar</h2>
       <ul className="my-5 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-600">
-        <li>As questões e a ordem ficam registrados nesta tentativa.</li>
-        <li>As respostas salvas no servidor podem ser retomadas em outro navegador.</li>
-        <li>Questões em branco não recebem pontos.</li>
-        <li>O serviço confirma atribuição e prazo no início e no envio.</li>
+        <li>A ordem das questões permanece a mesma se você precisar pausar e continuar depois.</li>
+        <li>Suas respostas são salvas automaticamente e podem ser retomadas em outro dispositivo.</li>
+        <li>Questões deixadas em branco não recebem pontos.</li>
+        <li>Confira o prazo de entrega antes de finalizar o envio.</li>
       </ul>
-      {submitted.length > 0 && <div className="mb-5 border-t border-slate-100 pt-4"><h3 className="mb-2 text-sm font-semibold">Envio registrado</h3>{submitted.map(attempt => <Link key={attempt.id} href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm"><span>{attempt.submittedAt && new Date(attempt.submittedAt).toLocaleString('pt-BR')}</span><span className="font-bold text-brand-700 underline underline-offset-4">Ver resultado</span></Link>)}</div>}
+      {submitted.length > 0 && <div className="mb-5 border-t border-slate-100 pt-4"><h3 className="mb-2 text-sm font-semibold">Envio registrado</h3>{submitted.map(attempt => <Link key={attempt.id} href={`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm"><span>{attempt.submittedAt && brazilDateTimeLabel(attempt.submittedAt)}</span><span className="font-bold text-brand-700 underline underline-offset-4">Ver resultado</span></Link>)}</div>}
       {startError && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{startError}</p>}
       <Button className="w-full" disabled={submitted.length > 0} loading={startBusy} onClick={() => void start()}>{submitted.length ? 'Questionário já enviado' : studentAttempts.length ? 'Retomar questionário' : 'Iniciar questionário'}</Button>
-      <p className="mt-3 text-center text-xs text-slate-500">Um único envio. A tentativa permanece ligada à sua conta.</p>
+      <p className="mt-3 text-center text-xs text-slate-500">Cada aluno pode realizar um único envio.</p>
     </Card>
   </div>;
 }
