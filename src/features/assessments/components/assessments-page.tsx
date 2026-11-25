@@ -1,15 +1,18 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, ClipboardCheck, Plus } from 'lucide-react';
-import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
+import { ArrowLeft, CalendarClock, ClipboardCheck, FileUp, Plus } from 'lucide-react';
+import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Select, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { moduleDisplayNumber, resolveActorDisplayName, sortByDeadlineAsc } from '@/lib/utils';
+import { cn, countLabel, moduleDisplayNumber, resolveActorDisplayName, sortByDeadlineAsc } from '@/lib/utils';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AssessmentRead, type AssessmentStaff, type AttemptRead, type SubmissionRead } from '../api';
+import { deadlineParts, groupStudentActivities } from '../lib/activity-list';
 
-type Filter = 'all' | 'draft' | 'published';
+type StaffFilter = 'all' | 'draft' | 'published';
+type StudentFilter = 'all' | 'pending' | 'completed';
 
 function isStaffAssessment(activity: AssessmentRead): activity is AssessmentStaff {
   return 'questionIds' in activity;
@@ -18,6 +21,19 @@ function isStaffAssessment(activity: AssessmentRead): activity is AssessmentStaf
 function dateLabel(value: string | null) {
   if (!value) return 'Sem prazo';
   return `Até ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))} (Brasília)`;
+}
+
+function DeadlineColumn({ deadline, urgent = false }: { deadline: string | null; urgent?: boolean }) {
+  const parts = deadlineParts(deadline);
+  if (!parts) {
+    return <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-slate-400 sm:w-28 sm:flex-col sm:items-start sm:gap-0.5">
+      <span>Sem prazo</span>
+    </div>;
+  }
+  return <div className="flex shrink-0 items-baseline gap-2 sm:w-28 sm:flex-col sm:gap-0.5">
+    <span className={cn('text-sm font-semibold tabular-nums', urgent ? 'text-brand-700' : 'text-slate-700')}>{parts.date}</span>
+    <span className="text-xs tabular-nums text-slate-500">{parts.time}</span>
+  </div>;
 }
 
 function ActivityDetails({ activity, canManage, userId, attempts, submissions }: { activity: AssessmentRead; canManage: boolean; userId: string; attempts: AttemptRead[]; submissions: SubmissionRead[] }) {
@@ -34,7 +50,7 @@ function ActivityDetails({ activity, canManage, userId, attempts, submissions }:
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2"><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : 'Publicada'}</Badge><Badge>{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</Badge><Badge>{activity.required ? 'Obrigatória' : 'Opcional'}</Badge></div>
-          <h2 className="text-xl font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 [overflow-wrap:anywhere]">{activity.title}</h1>
         </div>
         {canManage && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>}
       </div>
@@ -46,19 +62,19 @@ function ActivityDetails({ activity, canManage, userId, attempts, submissions }:
         {activity.kind === 'work' && activity.maxGrade !== null && <div><dt className="font-semibold text-slate-800">Nota máxima</dt><dd className="mt-1 text-slate-600">{activity.maxGrade}</dd></div>}
       </dl>
       {staff && <section className="border-t border-slate-100 pt-4">
-        <h3 className="font-semibold">Questões incluídas</h3>
+        <h2 className="font-semibold">Questões incluídas</h2>
         {activity.questions.length ? <ol className="mt-3 list-decimal space-y-3 pl-5">{activity.questions.map(question => <li key={question.id} className="text-sm leading-6 text-slate-700">{question.statement}<span className="ml-2 text-xs text-slate-500">{question.origin === 'author' ? 'Autoral desta atividade' : 'Cópia do acervo'}</span></li>)}</ol> : <p className="mt-2 text-sm text-slate-500">Este trabalho recebe arquivos e links.</p>}
       </section>}
       {activity.kind === 'quiz' && <section className="border-t border-slate-100 pt-4">
-        <h3 className="font-semibold">Tentativa</h3>
+        <h2 className="font-semibold">Tentativa</h2>
         {canManage ? submitted.length ? <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios entregues</LinkButton> : <p className="mt-2 text-sm text-slate-500">Ainda não há envios para consulta.</p>
           : activity.status !== 'published' ? <p className="mt-2 text-sm text-slate-500">Este rascunho não está disponível para resposta.</p>
             : !('assigned' in activity) || !activity.assigned ? <p className="mt-2 text-sm text-slate-500">Disponível apenas para consulta; esta atividade não foi atribuída à sua matrícula.</p>
               : submitted.length ? <LinkButton className="mt-3" href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
                 : <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar questionário' : 'Iniciar questionário'}</LinkButton>}
       </section>}
-      {activity.kind === 'work' && <section className="border-t border-slate-100 pt-4"><h3 className="font-semibold">Entrega de trabalho</h3>{canManage
-        ? <><p className="mt-2 text-sm text-slate-600">{workSubmissions.length} entrega(s) concluída(s). Rascunhos dos alunos permanecem privados.</p>{workSubmissions.length > 0 && <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas</LinkButton>}</>
+      {activity.kind === 'work' && <section className="border-t border-slate-100 pt-4"><h2 className="font-semibold">Entrega de trabalho</h2>{canManage
+        ? <><p className="mt-2 text-sm text-slate-600">{countLabel(workSubmissions.length, 'entrega concluída', 'entregas concluídas')}.</p>{workSubmissions.length > 0 && <LinkButton className="mt-3" href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas</LinkButton>}</>
         : !('assigned' in activity) || !activity.assigned
           ? <p role="status" className="mt-2 text-sm text-slate-600">Disponível apenas para consulta; esta atividade não foi atribuída à sua matrícula.</p>
           : ownWork?.submittedAt
@@ -72,9 +88,11 @@ export function AssessmentsPage() {
   const { client, sessionKey, resourceEpoch, status, user } = useSession();
   const params = useSearchParams();
   const detailId = params.get('id');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [staffFilter, setStaffFilter] = useState<StaffFilter>('all');
+  const [studentFilter, setStudentFilter] = useState<StudentFilter>('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
   const api = useMemo(() => createAssessmentsApi(client), [client]);
-  const query = useHttpQuery({ sessionKey, key: JSON.stringify(['assessments', filter, resourceEpoch]) }, useCallback(signal => api.overview(filter === 'all' ? {} : { status: filter }, signal, sessionKey), [api, filter, sessionKey]), status === 'authenticated');
+  const query = useHttpQuery({ sessionKey, key: JSON.stringify(['assessments', staffFilter, resourceEpoch]) }, useCallback(signal => api.overview(staffFilter === 'all' ? {} : { status: staffFilter }, signal, sessionKey), [api, staffFilter, sessionKey]), status === 'authenticated');
   const detail = useHttpQuery({ sessionKey, key: `assessment-detail:${detailId ?? ''}:${resourceEpoch}` }, useCallback(signal => api.read(detailId ?? '', signal), [api, detailId]), status === 'authenticated' && !!detailId);
   const attempts = useHttpQuery({ sessionKey, key: `assessment-attempts:${resourceEpoch}` }, useCallback(signal => api.allAttempts({}, signal, sessionKey), [api, sessionKey]), status === 'authenticated');
   const submissions = useHttpQuery({ sessionKey, key: `assessment-submissions:${resourceEpoch}` }, useCallback(signal => api.allSubmissions({}, signal, sessionKey), [api, sessionKey]), status === 'authenticated');
@@ -99,55 +117,175 @@ export function AssessmentsPage() {
   if (submissions.error) return <ErrorState message={submissions.error.message} retry={() => void submissions.retry()} />;
 
   const moduleList = query.data?.modules ?? [];
+  const subjectList = query.data?.subjects ?? [];
   const modules = new Map(moduleList.map(module => [module.id, module]));
-  const subjects = new Map((query.data?.subjects ?? []).map(subject => [subject.id, subject]));
+  const subjects = new Map(subjectList.map(subject => [subject.id, subject]));
   const staff = user.role !== 'student';
   const canCreate = staff && moduleList.some(module => subjects.get(module.subjectId)?.canManageContent);
+  const allAssessments = query.data?.assessments ?? [];
+  const subjectIdsWithActivities = new Set(allAssessments.map(item => modules.get(item.moduleId)?.subjectId).filter((id): id is string => !!id));
+  const filterSubjects = subjectList.filter(subject => subjectIdsWithActivities.has(subject.id));
+  const scopedAssessments = subjectFilter === 'all'
+    ? allAssessments
+    : allAssessments.filter(item => modules.get(item.moduleId)?.subjectId === subjectFilter);
+
+  if (!staff) {
+    const allGroups = groupStudentActivities(scopedAssessments, user.id, attempts.data ?? [], submissions.data ?? []);
+    const pendingCount = allGroups.find(group => group.key === 'pending')?.entries.length ?? 0;
+    const completedCount = (allGroups.find(group => group.key === 'completed')?.entries.length ?? 0)
+      + (allGroups.find(group => group.key === 'awaiting_feedback')?.entries.length ?? 0);
+    const visibleGroups = allGroups.filter(group => {
+      if (studentFilter === 'pending') return group.key === 'pending';
+      if (studentFilter === 'completed') return group.key === 'completed' || group.key === 'awaiting_feedback';
+      return true;
+    });
+
+    return <>
+      <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
+      <PageHeading title="Atividades" />
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div role="group" aria-label="Filtrar atividades por situação" className="flex flex-wrap gap-2">
+          {([
+            ['all', `Todas (${scopedAssessments.length})`],
+            ['pending', `Pendentes (${pendingCount})`],
+            ['completed', `Concluídas (${completedCount})`],
+          ] as const).map(([value, label]) => (
+            <Button key={value} variant="ghost" aria-pressed={studentFilter === value} className={studentFilter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setStudentFilter(value)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        {filterSubjects.length > 1 && <div className="w-full sm:w-64">
+          <Select aria-label="Filtrar por disciplina" value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)}>
+            <option value="all">Todas as disciplinas</option>
+            {filterSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+          </Select>
+        </div>}
+      </div>
+
+      {visibleGroups.length ? <div className="space-y-7">
+        {visibleGroups.map(group => <section key={group.key} aria-labelledby={`activities-group-${group.key}`}>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 id={`activities-group-${group.key}`} className="text-sm font-semibold uppercase tracking-wide text-slate-500">{group.title}</h2>
+            <span className="rounded-full bg-slate-200/70 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-600">{group.entries.length}</span>
+          </div>
+          <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            {group.entries.map(({ activity, status: itemStatus }) => {
+              const mod = modules.get(activity.moduleId);
+              const subject = mod && subjects.get(mod.subjectId);
+              const moduleNumber = moduleDisplayNumber(moduleList, mod);
+              const questionCount = isStaffAssessment(activity) ? activity.questionIds.length : activity.questionCount;
+              const KindIcon = activity.kind === 'work' ? FileUp : ClipboardCheck;
+              const meta = [
+                subject?.name ?? 'Disciplina',
+                moduleNumber ? `Módulo ${moduleNumber}` : null,
+                activity.kind === 'work' ? 'Trabalho' : countLabel(questionCount, 'questão', 'questões'),
+                activity.required ? 'Obrigatória' : 'Opcional',
+              ].filter(Boolean).join(' · ');
+
+              return <article key={activity.id} className="flex flex-col gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:gap-5">
+                <DeadlineColumn deadline={activity.deadline} urgent={group.key === 'pending'} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <KindIcon aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+                    <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="font-semibold text-slate-900 [overflow-wrap:anywhere] hover:text-brand-700">
+                      {activity.title}
+                    </Link>
+                    <Badge tone={itemStatus.tone}>{itemStatus.label}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{meta}</p>
+                  {activity.description && <p className="mt-1 line-clamp-1 text-sm text-slate-600">{activity.description}</p>}
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                    Detalhes
+                  </Link>
+                  {itemStatus.actionKind === 'primary' && <LinkButton href={itemStatus.actionHref}>{itemStatus.actionLabel}</LinkButton>}
+                  {itemStatus.actionKind === 'secondary' && <LinkButton secondary href={itemStatus.actionHref}>{itemStatus.actionLabel}</LinkButton>}
+                </div>
+              </article>;
+            })}
+          </div>
+        </section>)}
+      </div> : <Empty title="Nenhuma atividade nesta seleção" description="As atividades aparecerão aqui quando forem publicadas." />}
+    </>;
+  }
+
   const items = sortByDeadlineAsc(
-    [...(query.data?.assessments ?? [])].sort((a, b) => (modules.get(a.moduleId)?.order ?? 0) - (modules.get(b.moduleId)?.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR'))
+    [...scopedAssessments].sort((a, b) => (modules.get(a.moduleId)?.order ?? 0) - (modules.get(b.moduleId)?.order ?? 0) || a.title.localeCompare(b.title, 'pt-BR')),
   );
+
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
     <PageHeading title="Atividades" action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
-    {staff && <div role="group" aria-label="Filtrar atividades" className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-      {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => <Button key={value} variant="ghost" aria-pressed={filter === value} className={filter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setFilter(value)}>{label}</Button>)}
-    </div>}
-    {items.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{items.map(activity => {
-      const module = modules.get(activity.moduleId);
-      const subject = module && subjects.get(module.subjectId);
-      const moduleNumber = moduleDisplayNumber(moduleList, module);
-      const authorName = resolveActorDisplayName(activity.updatedBy, [...(subject?.teachers ?? []), { id: user.id, name: user.name }]);
-      const own = isStaffAssessment(activity);
-      const count = own ? activity.questionIds.length : activity.questionCount;
-      const assigned = isStaffAssessment(activity) ? true : activity.assigned;
-      const related = (attempts.data ?? []).filter(attempt => attempt.assessmentId === activity.id && (staff || attempt.userId === user.id));
-      const activeAttempt = related.find(attempt => !attempt.submittedAt);
-      const submitted = related.filter(attempt => attempt.submittedAt);
-      const relatedSubmissions = (submissions.data ?? []).filter(submission => submission.assessmentId === activity.id && (staff || submission.userId === user.id));
-      const ownSubmission = relatedSubmissions.find(submission => !staff) ?? relatedSubmissions[0];
-      return <Card key={activity.id} className="flex min-w-0 flex-col">
-        <div className="mb-4 flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs text-slate-500"><ClipboardCheck aria-hidden="true" className="size-5" />{activity.kind === 'work' ? 'Entrega de trabalho' : 'Questionário'}</span><Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : !assigned ? 'Somente consulta' : 'Publicada'}</Badge></div>
-        <p className="text-xs text-slate-400">{subject?.name ?? 'Disciplina'} · Módulo {moduleNumber ?? '—'}</p>
-        <h2 className="mb-2 mt-2 text-lg font-semibold [overflow-wrap:anywhere]">{activity.title}</h2>
-        <div className="mb-5 flex-1">{activity.description && <p className="whitespace-pre-wrap text-sm leading-6 text-slate-500 [overflow-wrap:anywhere]">{activity.description}</p>}</div>
-        <div className="mb-5 space-y-2 text-sm text-slate-500">
-          <p>{activity.kind === 'work' ? 'Entrega de trabalho' : `${count} ${count === 1 ? 'questão' : 'questões'}`} · {activity.required ? 'Obrigatória' : 'Opcional'}</p>
-          <p>{dateLabel(activity.deadline)}{activity.deadline && ` · ${activity.allowLate ? 'Aceita atraso' : 'Não aceita atraso'}`}</p>
-          {staff ? <p>Atualizada por {authorName}</p> : !assigned && <p>Publicada antes da sua matrícula</p>}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <LinkButton secondary href={`/questionarios?id=${encodeURIComponent(activity.id)}`}>Detalhes</LinkButton>
-          {activity.kind === 'quiz' && !staff && assigned && (submitted[0]
-            ? <LinkButton href={`/questionarios/resultado?id=${encodeURIComponent(submitted[0].id)}`}>Ver resultado</LinkButton>
-            : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>{activeAttempt ? 'Retomar' : 'Iniciar'}</LinkButton>)}
-          {activity.kind === 'quiz' && staff && submitted.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar envios</LinkButton>}
-          {activity.kind === 'work' && staff && relatedSubmissions.length > 0 && <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Consultar entregas ({relatedSubmissions.length})</LinkButton>}
-          {activity.kind === 'work' && !staff && assigned && (ownSubmission
-            ? <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}${ownSubmission.submittedAt ? `&entrega=${encodeURIComponent(ownSubmission.id)}` : ''}`}>{ownSubmission.submittedAt ? 'Consultar comprovante' : 'Retomar rascunho'}</LinkButton>
-            : <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>Preparar entrega</LinkButton>)}
-          {staff && <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>{activity.status === 'draft' ? 'Reabrir rascunho' : 'Editar atividade'}</LinkButton>}
-        </div>
-      </Card>;
-    })}</div> : <Empty title="Nenhuma atividade nesta lista" description={staff ? 'Crie um rascunho para preparar uma atividade da disciplina.' : 'As atividades aparecerão aqui quando forem publicadas.'} action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />}
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div role="group" aria-label="Filtrar atividades" className="flex flex-wrap gap-2">
+        {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => (
+          <Button key={value} variant="ghost" aria-pressed={staffFilter === value} className={staffFilter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setStaffFilter(value)}>
+            {label}
+          </Button>
+        ))}
+      </div>
+      {filterSubjects.length > 1 && <div className="w-full sm:w-64">
+        <Select aria-label="Filtrar por disciplina" value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)}>
+          <option value="all">Todas as disciplinas</option>
+          {filterSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+        </Select>
+      </div>}
+    </div>
+
+    {items.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      {items.map(activity => {
+        const mod = modules.get(activity.moduleId);
+        const subject = mod && subjects.get(mod.subjectId);
+        const moduleNumber = moduleDisplayNumber(moduleList, mod);
+        const authorName = resolveActorDisplayName(activity.updatedBy, [...(subject?.teachers ?? []), { id: user.id, name: user.name }]);
+        const questionCount = isStaffAssessment(activity) ? activity.questionIds.length : activity.questionCount;
+        const submitted = (attempts.data ?? []).filter(attempt => attempt.assessmentId === activity.id && attempt.submittedAt);
+        const relatedSubmissions = (submissions.data ?? []).filter(submission => submission.assessmentId === activity.id);
+        const hasResponses = activity.kind === 'quiz' ? submitted.length > 0 : relatedSubmissions.length > 0;
+        const KindIcon = activity.kind === 'work' ? FileUp : ClipboardCheck;
+        const meta = [
+          subject?.name ?? 'Disciplina',
+          moduleNumber ? `Módulo ${moduleNumber}` : null,
+          activity.kind === 'work' ? 'Trabalho' : countLabel(questionCount, 'questão', 'questões'),
+          activity.required ? 'Obrigatória' : 'Opcional',
+          `Atualizada por ${authorName}`,
+        ].filter(Boolean).join(' · ');
+
+        return <article key={activity.id} className="flex flex-col gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70 lg:flex-row lg:items-center lg:gap-5">
+          <DeadlineColumn deadline={activity.deadline} urgent={activity.status === 'published' && !!activity.deadline} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <KindIcon aria-hidden="true" className="size-4 shrink-0 text-slate-400" />
+              <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="font-semibold text-slate-900 [overflow-wrap:anywhere] hover:text-brand-700">
+                {activity.title}
+              </Link>
+              <Badge tone={activity.status === 'draft' ? 'neutral' : 'green'}>{activity.status === 'draft' ? 'Rascunho' : 'Publicada'}</Badge>
+              {activity.deadline && activity.allowLate && <span className="inline-flex items-center gap-1 text-xs text-slate-400"><CalendarClock aria-hidden="true" className="size-3.5" />Aceita atraso</span>}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">{meta}</p>
+            {activity.description && <p className="mt-1 line-clamp-1 text-sm text-slate-600">{activity.description}</p>}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link href={`/questionarios?id=${encodeURIComponent(activity.id)}`} className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+              Detalhes
+            </Link>
+            {activity.status === 'draft' ? (
+              <LinkButton href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Reabrir rascunho</LinkButton>
+            ) : hasResponses ? (
+              <>
+                <LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar</LinkButton>
+                <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}`}>
+                  {activity.kind === 'quiz' ? `Consultar envios (${submitted.length})` : `Consultar entregas (${relatedSubmissions.length})`}
+                </LinkButton>
+              </>
+            ) : (
+              <LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>
+            )}
+          </div>
+        </article>;
+      })}
+    </div> : <Empty title="Nenhuma atividade nesta lista" description="Crie um rascunho para preparar uma atividade da disciplina." action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />}
   </>;
 }

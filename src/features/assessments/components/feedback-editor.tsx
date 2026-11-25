@@ -120,9 +120,9 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
       <p>Publicado: {conflict.feedbackPublished?.comment ?? 'Ainda não publicado'} · Nota: {conflict.feedbackPublished?.grade ?? 'Sem nota'}</p>
       <p>Histórico: {conflict.feedbackHistory.length} publicação(ões).</p>
     </RecordConflict>}
-    <Textarea label="Comentário privado" value={comment} onChange={event => setComment(event.target.value)} maxLength={10000} disabled={busy || !!conflict} />
+    <Textarea label="Feedback para o aluno" value={comment} onChange={event => setComment(event.target.value)} maxLength={10000} disabled={busy || !!conflict} />
     {typeof activity.maxGrade === 'number'
-      ? <Input label={`Nota opcional (0 a ${activity.maxGrade})`} type="number" min="0" max={activity.maxGrade} step="any" value={grade} onChange={event => setGrade(event.target.value)} disabled={busy || !!conflict} />
+      ? <div className="max-w-[200px]"><Input label={`Nota opcional (0 a ${activity.maxGrade})`} type="number" min="0" max={activity.maxGrade} step="any" value={grade} onChange={event => setGrade(event.target.value)} disabled={busy || !!conflict} /></div>
       : grade !== ''
         ? <div className="space-y-2"><p className="text-sm text-amber-800">Este rascunho antigo contém nota, mas a atividade não possui escala.</p><Button variant="secondary" disabled={busy || !!conflict} onClick={() => setGrade('')}>Remover nota</Button></div>
         : <p className="text-sm text-slate-500">Esta atividade recebe retorno sem nota.</p>}

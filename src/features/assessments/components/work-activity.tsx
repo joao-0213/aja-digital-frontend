@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import type { AssessmentRead, SubmissionAttachment, SubmissionRead, SubmissionStaff, SubmissionStudent, WorkFeedback, WorkFileMetadata } from '../api';
@@ -11,7 +12,7 @@ import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { Badge, Button, Card, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Skeleton } from '@/components/ui';
-import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
+import { brazilDateTimeLabel, cn, countLabel } from '@/lib/utils';
 import { resolveWorkUploadBatch, type WorkUploadIntent } from '../work-upload-batch';
 import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
@@ -76,16 +77,35 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
     <LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     <PageHeading title={activity.title} description={activity.description} action={<LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>} />
     <ActivityConditions activity={activity} />
-    <Card><h2 className="mb-4 font-semibold">Entregas concluídas</h2>
-      {filtered.length ? <ul className="divide-y divide-slate-200">{filtered.map(submission => <li key={submission.id} className="flex flex-wrap items-center justify-between gap-3 py-4 text-sm">
-        <span>{submission.studentName}<span className="mt-1 block text-xs text-slate-500">{submission.feedbackPublished ? 'Feedback disponível' : 'Entregue — aguardando feedback'}{submission.submittedAt && ` · ${brazilDateTimeLabel(submission.submittedAt)}`}</span></span>
-        <LinkButton secondary aria-label={`Consultar entrega de ${submission.studentName}`} href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}>Consultar entrega</LinkButton>
-      </li>)}</ul> : <p className="text-sm leading-6 text-slate-600">Nenhuma entrega concluída ainda.</p>}
-    </Card>
-    {selected && <><Card className="mt-5"><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-3 text-sm text-slate-600">{selected.submittedAt ? `Enviado em ${brazilDateTimeLabel(selected.submittedAt)} (Brasília)` : 'Entrega registrada'} · {countLabel(selected.attachments.length, 'anexo', 'anexos')}</p><WorkAttachments items={selected.attachments} /></Card>
-      <FeedbackEditor key={selected.id} activity={activity} submission={selected} onPublished={() => { void submissions.invalidate(); }} />
-    </>}
-    {selectedId && !selected && <p role="status" className="mt-5 text-sm">Entrega indisponível.</p>}
+    <div className="grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+      <Card className="!p-0 overflow-hidden">
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Entregas ({filtered.length})</h2></div>
+        {filtered.length ? <ul className="divide-y divide-slate-100">{filtered.map(submission => {
+          const isSelected = submission.id === selected?.id;
+          return <li key={submission.id}>
+            <Link
+              aria-label={`Consultar entrega de ${submission.studentName}`}
+              aria-current={isSelected ? 'page' : undefined}
+              href={`/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(submission.id)}`}
+              className={cn('block border-l-2 px-5 py-4 transition-colors hover:bg-slate-50', isSelected ? 'border-l-brand-600 bg-brand-50/60' : 'border-l-transparent')}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-slate-900 [overflow-wrap:anywhere]">{submission.studentName}</span>
+                <Badge tone={submission.feedbackPublished ? 'green' : 'amber'}>{submission.feedbackPublished ? 'Avaliada' : 'Aguardando'}</Badge>
+              </div>
+              {submission.submittedAt && <p className="mt-1 text-xs text-slate-500">{brazilDateTimeLabel(submission.submittedAt)}</p>}
+            </Link>
+          </li>;
+        })}</ul> : <p className="p-5 text-sm leading-6 text-slate-600">Nenhuma entrega concluída ainda.</p>}
+      </Card>
+      <div className="min-w-0">
+        {selected ? <>
+          <Card><h2 className="font-semibold">Entrega de {selected.studentName}</h2><p className="mt-2 text-sm text-slate-600">{selected.submittedAt ? `Enviado em ${brazilDateTimeLabel(selected.submittedAt)} (Brasília)` : 'Entrega registrada'} · {countLabel(selected.attachments.length, 'anexo', 'anexos')}</p><WorkAttachments items={selected.attachments} /></Card>
+          <FeedbackEditor key={selected.id} activity={activity} submission={selected} onPublished={() => { void submissions.invalidate(); }} />
+        </> : selectedId ? <Card><p role="status" className="text-sm text-slate-600">Entrega indisponível.</p></Card>
+          : filtered.length > 0 && <Card><p className="text-sm text-slate-500">Selecione uma entrega ao lado para revisar os anexos e publicar o retorno.</p></Card>}
+      </div>
+    </div>
   </>;
 }
 
