@@ -40,7 +40,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
         setMessage((await client.requestRecovery(email)).message);
       } else {
         await client.register(name, email, password);
-        setMessage('Conta criada. Solicite as instruções de confirmação do e-mail para continuar.');
+        setMessage('Conta criada. Confira seu e-mail para confirmar a conta e continuar.');
       }
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível concluir. Tente novamente.');
@@ -58,7 +58,7 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
     <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
     <p className="mb-8 mt-3 text-base leading-6 text-slate-500">{confirming ? 'Confirme o endereço vinculado à sua conta.' : resetting ? 'Escolha uma nova senha para acessar sua conta.' : mode === 'login' ? 'Informe seu e-mail e senha para acessar.' : mode === 'register' ? 'Preencha os dados para criar sua conta.' : 'Informe seu e-mail para solicitar as instruções de recuperação.'}</p>
     {message ? <div role="status" className="rounded-xl border border-emerald-100 bg-emerald-50 p-6"><CheckCircle2 aria-hidden="true" className="mb-3 size-8 text-emerald-600" /><p className="text-sm leading-6">{message}</p>
-      {mode === 'register' && !token && <Button loading={busy} onClick={() => void requestConfirmation()} className="mt-4">Solicitar confirmação de e-mail</Button>}
+      {mode === 'register' && !token && <Button loading={busy} onClick={() => void requestConfirmation()} className="mt-4">Reenviar confirmação de e-mail</Button>}
       <Link href="/login" className="mt-5 block font-semibold text-brand-700">Voltar para o login</Link>
     </div> : <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-5">
       <fieldset disabled={busy} className="space-y-5">
