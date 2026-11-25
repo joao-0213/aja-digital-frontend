@@ -38,11 +38,11 @@ export function Dialog({
   }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-2xl border-0 bg-white p-0 shadow-2xl backdrop:bg-slate-900/40">
     <div className="p-6 sm:p-8">
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h2 id={id} className="text-xl font-semibold">
+        <h2 id={id} className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere]">
           {title}
         </h2>
         <Button variant="ghost" className="px-2" aria-label="Fechar janela" onClick={onClose}>
-          <X className="size-5" />
+          <X aria-hidden="true" className="size-5" />
         </Button>
       </div>
       {children}

@@ -74,14 +74,14 @@ export function WorkAttachments({ items, files, onRemove }: {
     <ul className="divide-y divide-slate-200">{items.map(item => <li key={item.kind === 'file' ? item.fileId : item.url} className="space-y-2 py-4 text-sm">
       <p className="break-words font-semibold">{item.name}</p>
       {item.kind === 'link'
-        ? <a className="inline-flex min-h-11 max-w-full items-center break-all text-brand-700 underline" href={item.url} target="_blank" rel="noopener noreferrer">{item.url}</a>
+        ? <a className="inline-flex min-h-11 max-w-full items-center break-all font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900" href={item.url} target="_blank" rel="noopener noreferrer">{item.url}</a>
         : <div className="flex flex-wrap gap-2">
           {SAFE_PREVIEW.test(files?.[item.fileId]?.type ?? (remotePreviewTypes[item.fileId]?.sessionKey === sessionKey && status === 'authenticated' ? remotePreviewTypes[item.fileId].mime : ''))
-            ? <Button variant="secondary" onClick={() => void open(item, true)}>Prévia de {item.name}</Button>
+            ? <Button variant="secondary" aria-label={`Prévia de ${item.name}`} onClick={() => void open(item, true)}>Prévia</Button>
             : <span className="self-center text-xs text-slate-500">Formato aceito; consulta por download.</span>}
-          <Button variant="secondary" onClick={() => void open(item, false)}>Baixar {item.name}</Button>
+          <Button variant="secondary" aria-label={`Baixar ${item.name}`} onClick={() => void open(item, false)}>Baixar</Button>
         </div>}
-      {onRemove && <Button variant="ghost" onClick={() => onRemove(item.kind === 'file' ? item.fileId : item.url)}>Remover {item.name}</Button>}
+      {onRemove && <Button variant="ghost" aria-label={`Remover ${item.name}`} onClick={() => onRemove(item.kind === 'file' ? item.fileId : item.url)}>Remover</Button>}
     </li>)}</ul>
     {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
     <Dialog open={!!preview} onClose={() => setPreview(undefined)} title={preview?.name ?? 'Prévia'}>

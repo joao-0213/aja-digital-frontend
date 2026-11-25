@@ -48,7 +48,7 @@ export function AttemptImage({ image }: { image: { src: string; alt: string } })
 
   if (error) return <div role="status" className="my-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
     <p>{error}</p>
-    {fileId && <button type="button" className="mt-2 min-h-11 font-semibold text-brand-700" onClick={() => setRetry(value => value + 1)}>Tentar carregar imagem novamente</button>}
+    {fileId && <button type="button" className="mt-2 min-h-11 font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900" onClick={() => setRetry(value => value + 1)}>Tentar carregar imagem novamente</button>}
   </div>;
   if (!source) return <p role="status" className="my-4 text-sm text-slate-500">Carregando imagem…</p>;
   return <img src={source} alt={image.alt} className="my-4 max-h-80 max-w-full" />;

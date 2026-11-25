@@ -27,6 +27,17 @@ export function fromBrazilDateTimeLocal(value: string, preserveTimeFrom?: string
   return toBrazilDateTimeLocal(result) === value ? result : null;
 }
 
+export function minBrazilDateTimeLocal(nowMs = Date.now()): string {
+  const roundedMs = Math.ceil(nowMs / 60_000) * 60_000;
+  return toBrazilDateTimeLocal(new Date(roundedMs).toISOString());
+}
+
+export function isDeadlineInPast(deadline: string | null | undefined, nowMs = Date.now()): boolean {
+  if (!deadline) return false;
+  const parsed = Date.parse(deadline);
+  return Number.isFinite(parsed) && parsed < nowMs;
+}
+
 export function needsAssessmentStructureRecovery(current: AssessmentStructure | undefined, local: EditorStructure, hasDeliveries: boolean): boolean {
   return !!current && hasDeliveries && (current.moduleId !== local.moduleId || current.questionIds.length !== local.questionIds.length || current.questionIds.some((id, index) => id !== local.questionIds[index]) || local.originals.length > 0);
 }

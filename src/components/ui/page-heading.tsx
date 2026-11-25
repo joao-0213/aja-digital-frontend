@@ -16,10 +16,10 @@ export function PageHeading({
       {eyebrow && <p className="mb-2 text-sm font-medium text-slate-500">
         {eyebrow}
       </p>}
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 [overflow-wrap:anywhere] sm:text-3xl">
         {title}
       </h1>
-      {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+      {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
         {description}
       </p>}
     </div>

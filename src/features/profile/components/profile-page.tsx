@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
-import { Avatar, Badge, Button, Card, Input, PageHeading, ErrorState, Skeleton } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Input, LinkButton, PageHeading, ErrorState, Skeleton } from '@/components/ui';
 import { roleLabels } from '@/lib/utils';
 import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -11,14 +13,23 @@ import { PrivacyNotice } from '@/features/privacy';
 export function ProfilePage() {
   const { user, client, sessionKey, resourceEpoch } = useSession();
   const { notify } = useApp();
+  const router = useRouter();
   const [restoredDraft] = useState(() => client.readProfileDraft());
   const [name, setName] = useState(restoredDraft?.name ?? user?.name ?? '');
   const [revision, setRevision] = useState(restoredDraft?.revision ?? user?.revision ?? 1);
   const [conflict, setConflict] = useState<{ name: string; revision: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [error, setError] = useState('');
   const enrollments = useHttpQuery({ sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` }, useCallback(signal => client.readEnrollments(signal), [client]));
   if (!user) return null;
+  const logout = async () => {
+    if (exiting) return;
+    setExiting(true);
+    try { await client.logout(); router.replace('/login'); }
+    catch (cause: unknown) { notify(cause instanceof Error ? cause.message : 'Não foi possível encerrar a sessão. Tente novamente.', true); }
+    finally { setExiting(false); }
+  };
   const save = async () => {
     if (busy || conflict) return;
     setBusy(true); setError('');
@@ -44,7 +55,8 @@ export function ProfilePage() {
     finally { setBusy(false); }
   };
   return <>
-    <PageHeading title="Meu perfil" description="Consulte e atualize seus dados cadastrais." />
+    <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
+    <PageHeading title="Meu perfil" description="Consulte e atualize seus dados cadastrais." action={<Button variant="secondary" loading={exiting} onClick={() => void logout()}><LogOut aria-hidden="true" className="size-4" />Sair da conta</Button>} />
     {user.emailConfirmedAt === null && <Card className="mb-6"><h2 className="font-semibold">Confirme seu e-mail</h2><p className="mb-4 mt-2 text-sm leading-6 text-slate-600">Solicite as instruções para confirmar o endereço da sua conta. O vínculo acadêmico será verificado após a confirmação.</p><Button loading={busy} onClick={() => void requestConfirmation()}>Solicitar confirmação de e-mail</Button></Card>}
     <div className="mb-4"><PrivacyNotice /></div>
     <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">

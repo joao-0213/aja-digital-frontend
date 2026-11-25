@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
 import type { Assessment } from '../src/models/assessments.ts';
 import type { Question } from '../src/models/questions.ts';
-import { needsAssessmentStructureRecovery, restoreAssessmentStructure } from '../src/features/assessments/lib/assessment-editor.ts';
+import { fromBrazilDateTimeLocal, isDeadlineInPast, minBrazilDateTimeLocal, needsAssessmentStructureRecovery, restoreAssessmentStructure } from '../src/features/assessments/lib/assessment-editor.ts';
 import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
 
 const assessment: Assessment = { id: 'activity', title: 'Publicado', description: 'Orientações publicadas', deadline: '2026-12-10T19:00', moduleId: 'm1', questionIds: ['q1', 'q2'], status: 'published', authorId: 'teacher', revision: 3 };
@@ -75,4 +75,15 @@ test('recovering current structure does not acknowledge a stale revision or bypa
   db.subjects[0].teacherIds = ['teacher'];
   db.assessments[0].deletedAt = '2026-11-02T19:00:00Z';
   assert.throws(() => applyDemoMutation(db, 'teacher', recipe, currentRevision), /retirado|indisponível/i);
+});
+
+test('past deadline validation rejects timestamps earlier than now and computes Brasília min input', () => {
+  const nowMs = Date.parse('2026-11-25T15:30:15-03:00');
+  assert.equal(minBrazilDateTimeLocal(nowMs), '2026-11-25T15:31');
+  assert.equal(minBrazilDateTimeLocal(Date.parse('2026-11-25T15:30:00-03:00')), '2026-11-25T15:30');
+  assert.equal(isDeadlineInPast(null, nowMs), false);
+  assert.equal(isDeadlineInPast(undefined, nowMs), false);
+  assert.equal(isDeadlineInPast(fromBrazilDateTimeLocal('2026-11-25T15:30'), nowMs), true);
+  assert.equal(isDeadlineInPast(fromBrazilDateTimeLocal('2026-11-25T15:31'), nowMs), false);
+  assert.equal(isDeadlineInPast(fromBrazilDateTimeLocal('2026-11-26T09:00'), nowMs), false);
 });

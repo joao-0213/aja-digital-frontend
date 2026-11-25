@@ -10,6 +10,18 @@ export function dateLabel(date: string, options?: Intl.DateTimeFormatOptions) {
     month: 'short'
   }).format(new Date(date.length === 10 ? `${date}T12:00:00` : date));
 }
+export function brazilDateTimeLabel(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(parsed);
+}
+export function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
 export function uid(prefix = 'id') {
   return `${prefix}-${crypto.randomUUID()}`;
 }

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Badge, Button, Card, Dialog, Empty, LinkButton, PageHeading, ProgressBar } from '@/components/ui';
-import { cn, percent } from '@/lib/utils';
+import { cn, countLabel, percent } from '@/lib/utils';
 import { attemptRecoveryOwnerFor, attemptRecoveryPointerKey, attemptRecoveryStorageKey, resolveAttemptRecovery, shouldLockAttemptInputs, type AttemptRecoveryIdentity, type AttemptRecoveryOwner } from '@/lib/assessment-attempts';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
@@ -72,6 +72,7 @@ export function QuizSession({
   const [dirty, setDirty] = useState(initial.restored);
   const [index, setIndex] = useState(0);
   const [confirm, setConfirm] = useState(false);
+  const [reloadPrompt, setReloadPrompt] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState<AttemptStudent | null>(null);
@@ -168,7 +169,7 @@ export function QuizSession({
   const useLocalAfterReview = async () => {
     if (!conflict) return;
     if (conflict.questionsUpdatedAt !== attempt.questionsUpdatedAt || conflict.questionOrder.join('\u0000') !== attempt.questionOrder.join('\u0000')) {
-      if (typeof window !== 'undefined' && window.confirm('As questões desta tentativa mudaram. As respostas locais antigas serão preservadas na chave anterior e não serão aplicadas à nova ordem. Recarregar a revisão atual?')) window.location.reload();
+      setReloadPrompt('As questões desta tentativa mudaram. As respostas locais antigas serão preservadas na chave anterior e não serão aplicadas à nova ordem. Recarregar a revisão atual?');
       return;
     }
     submitCommand.current.acknowledgeRevisionConflict(conflict.revision);
@@ -184,7 +185,7 @@ export function QuizSession({
   const discardLocalAfterReview = () => {
     if (!conflict) return;
     if (conflict.questionsUpdatedAt !== attempt.questionsUpdatedAt || conflict.questionOrder.join('\u0000') !== attempt.questionOrder.join('\u0000')) {
-      if (typeof window !== 'undefined' && window.confirm('A atividade foi atualizada. Recarregar para abrir a nova ordem? As respostas locais incompatíveis não serão aplicadas.')) window.location.reload();
+      setReloadPrompt('A atividade foi atualizada. Recarregar para abrir a nova ordem? As respostas locais incompatíveis não serão aplicadas.');
       return;
     }
     submitCommand.current.acknowledgeRevisionConflict(conflict.revision);
@@ -277,6 +278,7 @@ export function QuizSession({
   const remaining = attempt.questionOrder.length - answeredCount;
   const snapshotChanged = !!conflict && (conflict.questionsUpdatedAt !== attempt.questionsUpdatedAt || conflict.questionOrder.join('\u0000') !== attempt.questionOrder.join('\u0000'));
   return <div className="mx-auto max-w-4xl">
+    <LinkButton secondary href="/questionarios" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     {recoveryNotice && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">{recoveryNotice}</p>}
     <p className="mb-4 text-sm text-slate-600">Prazo: {deadline ? `${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }).format(new Date(deadline))} (Brasília)` : 'sem prazo'}{deadline && ` · ${allowLate ? 'atrasos aceitos pelo serviço' : 'envio deve ser confirmado antes do prazo'}`}</p>
     <PageHeading eyebrow="Questionário" title={title} action={<Badge tone={saveStatus === 'error' || saveStatus === 'conflict' ? 'red' : 'neutral'}>{saveStatus === 'saving' ? 'Salvando…' : saveStatus === 'error' ? 'Falha ao salvar' : saveStatus === 'conflict' ? 'Conflito para revisar' : dirty ? 'Respostas locais pendentes' : 'Respostas salvas'}</Badge>} />
@@ -291,30 +293,34 @@ export function QuizSession({
         <Button onClick={() => void useLocalAfterReview()}>Conferi as salvas; usar minhas respostas</Button>
       </div>}
     </section>}
-    <div className="mb-3 flex justify-between text-sm text-slate-500"><span>Questão {index + 1} de {attempt.questionOrder.length}</span><span>{answeredCount} respondidas</span></div>
+    <div className="mb-3 flex justify-between text-sm text-slate-500"><span>Questão {index + 1} de {attempt.questionOrder.length}</span><span>{countLabel(answeredCount, 'respondida', 'respondidas')}</span></div>
     <ProgressBar label="Questões respondidas" value={percent(answeredCount, attempt.questionOrder.length)} />
     <div className="my-6 flex flex-wrap gap-2" aria-label="Navegação entre questões">{attempt.questionOrder.map((id, position) => <Button key={id} disabled={lockInputs || !!conflict} variant={index === position ? 'primary' : 'secondary'} aria-label={`Questão ${position + 1}${answers[id] !== undefined && answers[id] !== null ? ', respondida' : ', em branco'}`} onClick={() => setIndex(position)} className={cn('!min-h-10 !px-3', index !== position && answers[id] !== undefined && answers[id] !== null && '!border-emerald-300 !bg-emerald-50 !text-emerald-700')}>{position + 1}{answers[id] !== undefined && answers[id] !== null && <CheckCircle2 aria-hidden="true" className="size-3" />}</Button>)}</div>
     <Card>
       <Badge tone="purple">{question.topic}</Badge>
-      <h2 className="mb-7 mt-5 whitespace-pre-wrap text-lg font-semibold leading-8">{question.statement}</h2>
+      <h2 className="mb-7 mt-5 whitespace-pre-wrap text-lg font-semibold leading-8 [overflow-wrap:anywhere]">{question.statement}</h2>
       {question.image && <AttemptImage image={question.image} />}
       <fieldset className="space-y-3" disabled={lockInputs || !!conflict}>
         <legend className="sr-only">Escolha uma alternativa</legend>
         {question.options.map((option, choice) => <label key={choice} className={cn('flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition hover:border-brand-200', answers[question.id] === choice ? 'border-brand-500 bg-brand-50' : 'border-slate-200')}>
-          <input type="radio" name={question.id} checked={answers[question.id] === choice} onChange={() => editAnswer(question.id, choice)} className="mt-1 size-4 accent-brand-600" />
-          <span className="text-base leading-6"><strong className="mr-3 text-slate-500">{String.fromCharCode(65 + choice)}.</strong>{option}</span>
+          <input type="radio" name={question.id} checked={answers[question.id] === choice} onChange={() => editAnswer(question.id, choice)} className="mt-1 size-4 shrink-0 accent-brand-600" />
+          <span className="min-w-0 text-base leading-6 [overflow-wrap:anywhere]"><strong className="mr-3 text-slate-500">{String.fromCharCode(65 + choice)}.</strong>{option}</span>
         </label>)}
       </fieldset>
       <Button variant="ghost" className="mt-3" disabled={lockInputs || !!conflict || answers[question.id] === undefined || answers[question.id] === null} onClick={() => editAnswer(question.id, null)}>Deixar em branco</Button>
     </Card>
     <div className="mt-6 flex flex-wrap justify-between gap-3"><Button variant="secondary" disabled={index === 0 || lockInputs || !!conflict} onClick={() => setIndex(value => value - 1)}>Questão anterior</Button>{index < attempt.questionOrder.length - 1 ? <Button disabled={lockInputs || !!conflict} onClick={() => setIndex(value => value + 1)}>Próxima questão</Button> : <Button disabled={!!conflict || lockInputs} onClick={() => setConfirm(true)}>Revisar e enviar</Button>}</div>
     {submitError && <p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{submitError}</p>}
-    {submissionNeedsReview && <Button variant="secondary" className="mt-4" loading={submitBusy} disabled={submitBusy} onClick={() => void retrySubmissionReview()}>Consultar estado actual da tentativa</Button>}
+    {submissionNeedsReview && <Button variant="secondary" className="mt-4" loading={submitBusy} disabled={submitBusy} onClick={() => void retrySubmissionReview()}>Consultar estado atual da tentativa</Button>}
     {submitCommand.current.current() && !finalizedReceipt.current && !submissionNeedsReview && <Button className="mt-4" loading={submitBusy} onClick={() => void submit()}>Tentar confirmar este mesmo envio novamente</Button>}
     <Dialog open={confirm} onClose={() => { if (!submitBusy) setConfirm(false); }} title="Enviar suas respostas?">
-      <p className="mb-5 leading-7 text-slate-600">Você respondeu {answeredCount} de {attempt.questionOrder.length} questões. Após o envio confirmado, as respostas não poderão ser alteradas.</p>
-      {remaining > 0 && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Há {remaining} questões em branco. Elas serão enviadas como não respondidas e não receberão pontos.</p>}
+      <p className="mb-5 leading-7 text-slate-600">Você respondeu {answeredCount} de {countLabel(attempt.questionOrder.length, 'questão', 'questões')}. Após o envio confirmado, as respostas não poderão ser alteradas.</p>
+      {remaining > 0 && <p className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{remaining === 1 ? 'Há 1 questão em branco. Ela será enviada como não respondida e não receberá pontos.' : `Há ${remaining} questões em branco. Elas serão enviadas como não respondidas e não receberão pontos.`}</p>}
       <div className="flex justify-end gap-3"><Button variant="secondary" disabled={submitBusy} onClick={() => setConfirm(false)}>Revisar</Button><Button loading={submitBusy} disabled={lockInputs || !!conflict} onClick={() => void submit()}>{submitCommand.current.current() ? 'Confirmar o mesmo envio' : 'Confirmar envio'}</Button></div>
+    </Dialog>
+    <Dialog open={!!reloadPrompt} onClose={() => setReloadPrompt(null)} title="Recarregar revisão atual?">
+      <p className="mb-5 text-sm leading-6 text-slate-600">{reloadPrompt}</p>
+      <div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={() => setReloadPrompt(null)}>Cancelar</Button><Button onClick={() => window.location.reload()}>Recarregar</Button></div>
     </Dialog>
   </div>;
 }

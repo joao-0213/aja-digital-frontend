@@ -12,7 +12,7 @@ export function Empty({
 }) {
   return <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center">
     <div className="mb-4 rounded-2xl bg-brand-50 p-4">
-      <Inbox className="size-7 text-brand-500" />
+      <Inbox aria-hidden="true" className="size-7 text-brand-500" />
     </div>
     <h2 className="font-semibold text-slate-800">
       {title}
