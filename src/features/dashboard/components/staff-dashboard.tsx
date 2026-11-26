@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronRight, MessageSquare, ClipboardCheck, GraduationCap, ListChecks, Upload, UserCog, Users } from 'lucide-react';
+import { BookOpen, ChevronRight, MessageSquare, ClipboardCheck, GraduationCap, ListChecks, Upload, UserCog, UserPlus, Users } from 'lucide-react';
 import { Card, Skeleton } from '@/components/ui';
 import { countLabel, dateLabel, sortByDeadlineAsc } from '@/lib/utils';
 import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
@@ -41,12 +41,47 @@ export function StaffDashboard() {
     {dashboard.loading && <Skeleton />}
     {dashboard.error && <p role="alert" className="mb-6 text-sm text-red-700">{dashboard.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={() => void dashboard.retry()}>Tentar novamente</button></p>}
     {data && <>
-      <section aria-label="Indicadores" className="mb-7 grid gap-3 sm:grid-cols-3">
-        <Card><p className="text-sm text-slate-500">{isAdmin ? 'Alunos ativos' : 'Meus alunos'}</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.studentCount}</p></Card>
-        <Card><p className="text-sm text-slate-500">Devolutivas pendentes</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.pendingFeedbackCount}</p><Link href="/questionarios" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver atividades<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>
+      <section aria-label="Indicadores" className="mb-6 grid grid-cols-3 gap-2 sm:mb-7 sm:gap-3">
+        <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+          <div>
+            <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+              <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">{isAdmin ? 'Alunos ativos' : 'Meus alunos'}</p>
+              <Users aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+            </div>
+            <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.studentCount}</p>
+          </div>
+        </Card>
+        <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+          <div>
+            <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+              <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Devolutivas pendentes</p>
+              <ClipboardCheck aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+            </div>
+            <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.pendingFeedbackCount}</p>
+          </div>
+          <Link href="/questionarios" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Atividades<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+        </Card>
         {isAdmin
-          ? <Card><p className="text-sm text-slate-500">Matrículas pendentes</p><p className="mt-1 text-2xl font-semibold tabular-nums">{data.pendingEnrollmentCount}</p><Link href="/alunos" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Acompanhar matrículas<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>
-          : <Card><p className="text-sm text-slate-500">Disciplinas ativas</p><p className="mt-1 text-2xl font-semibold tabular-nums">{activeSubjects.length}</p><Link href="/disciplinas" className="mt-2 inline-flex min-h-9 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver disciplinas<ChevronRight aria-hidden="true" className="size-4" /></Link></Card>}
+          ? <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <div>
+                <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+                  <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Matrículas pendentes</p>
+                  <UserPlus aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+                </div>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.pendingEnrollmentCount}</p>
+              </div>
+              <Link href="/alunos" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Matrículas<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+            </Card>
+          : <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <div>
+                <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+                  <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Disciplinas ativas</p>
+                  <BookOpen aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+                </div>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{activeSubjects.length}</p>
+              </div>
+              <Link href="/disciplinas" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Disciplinas<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+            </Card>}
       </section>
       <nav aria-label="Acessos rápidos" className="mb-8 grid gap-3 sm:grid-cols-3">
         {quickActions.map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}

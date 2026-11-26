@@ -2,27 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Filter } from 'lucide-react';
+import { ArrowLeft, PanelLeftOpen, X } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { createFilesApi } from '@/lib/http-files';
 import { HttpError } from '@/lib/http-client';
-import { Badge, Button, Card, Dialog, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
-import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
-import { cn, countLabel } from '@/lib/utils';
+import { Badge, Button, Dialog, Empty, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
+import { cn, countLabel, difficultyLabels } from '@/lib/utils';
 import { createQuestionsApi, type BankQuestion, type PracticeResult } from '../api';
 import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-filters';
-import { QuestionFilters } from './question-filters';
+import { countActiveQuestionFilters, QuestionFilters } from './question-filters';
 import { QuestionPicker } from './question-picker';
 
-const fields = { search: 'busca', subject: 'subject', topic: 'topic', difficulty: 'difficulty', institution: 'institution' } as const;
+const fields = { search: 'busca', subject: 'subject', topic: 'topic', difficulty: 'difficulty', institution: 'institution', year: 'year' } as const;
 
 export function QuestionBank() {
   const { client, sessionKey, resourceEpoch } = useSession();
   const { notify } = useApp();
   const router = useRouter(), params = useSearchParams();
   const api = useMemo(() => createQuestionsApi(client), [client]);
-  const filters = Object.fromEntries(Object.entries(fields).map(([key, name]) => [key, params.get(name) ?? emptyQuestionFilters[key as keyof QuestionFilterValue]])) as QuestionFilterValue;
+  const filters: Required<QuestionFilterValue> = {
+    search: params.get('busca') ?? emptyQuestionFilters.search,
+    subject: params.get('subject') ?? emptyQuestionFilters.subject,
+    topic: params.get('topic') ?? emptyQuestionFilters.topic,
+    difficulty: params.get('difficulty') ?? emptyQuestionFilters.difficulty,
+    institution: params.get('institution') ?? emptyQuestionFilters.institution,
+    year: params.get('year') ?? emptyQuestionFilters.year,
+  };
   const page = Math.max(1, Number(params.get('page')) || 1), id = params.get('id');
   const identity = `${sessionKey}:${resourceEpoch}:${id}`;
   const currentIdentity = useRef(identity); currentIdentity.current = identity;
@@ -33,7 +39,10 @@ export function QuestionBank() {
     const url = `/questoes${next.size ? `?${next}` : ''}`;
     if (replace) router.replace(url, { scroll: false }); else router.push(url, { scroll: false });
   };
-  const changeFilters = (next: QuestionFilterValue) => changeUrl({ ...Object.fromEntries(Object.entries(fields).map(([key, name]) => [name, next[key as keyof QuestionFilterValue] === emptyQuestionFilters[key as keyof QuestionFilterValue] ? null : next[key as keyof QuestionFilterValue]])), page: null }, true);
+  const changeFilters = (next: QuestionFilterValue) => {
+    const normalized: Required<QuestionFilterValue> = { ...emptyQuestionFilters, ...next };
+    changeUrl({ ...Object.fromEntries(Object.entries(fields).map(([key, name]) => [name, normalized[key as keyof Required<QuestionFilterValue>] === emptyQuestionFilters[key as keyof Required<QuestionFilterValue>] ? null : normalized[key as keyof Required<QuestionFilterValue>]])), page: null }, true);
+  };
   const list = useHttpQuery({ sessionKey, key: JSON.stringify(['questions', filterKey, page, resourceEpoch]) }, useCallback(signal => api.list(JSON.parse(filterKey) as QuestionFilterValue, page, signal), [api, filterKey, page]));
   const options = useHttpQuery({ sessionKey, key: `question-options:${resourceEpoch}` }, useCallback(async signal => {
     const all: BankQuestion[] = [];
@@ -47,6 +56,8 @@ export function QuestionBank() {
   }, [api, client, sessionKey]));
   const detail = useHttpQuery({ sessionKey, key: `question:${id}:${resourceEpoch}` }, useCallback(signal => api.read(id ?? '', signal), [api, id]), !!id);
   const [answer, setAnswer] = useState<number | null>(null), [result, setResult] = useState<PracticeResult | null>(null), [pending, setPending] = useState(false), [practiceError, setPracticeError] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const activeFilterCount = countActiveQuestionFilters(filters);
   useEffect(() => { setAnswer(null); setResult(null); setPending(false); setPracticeError(''); }, [id, sessionKey, resourceEpoch]);
   const practice = async () => {
     if (!id || answer === null || pending) return;
@@ -60,17 +71,36 @@ export function QuestionBank() {
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 5));
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
-    <PageHeading title="Banco de questões" />
-    <div className="grid items-start gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
-      <Card className="!p-5"><ResponsiveDisclosure breakpoint="lg" title={<><Filter aria-hidden="true" className="size-4" />Filtros</>}>
-        {options.error ? <ErrorState message={options.error.message} retry={() => void options.retry()} /> : <QuestionFilters questions={options.data ?? []} value={filters} onChange={changeFilters} />}
-      </ResponsiveDisclosure></Card>
-      <div>{list.loading ? <Skeleton /> : list.error ? <ErrorState message={list.error.message} retry={() => void list.retry()} /> : <>
-        <p className="my-4 text-sm text-slate-400">{countLabel(list.data?.total ?? 0, 'questão encontrada', 'questões encontradas')}</p>
-        <QuestionPicker items={list.data?.items ?? []} onSelect={q => changeUrl({ id: q.id })} />
-        {!list.data?.items.length && <Empty title="Nenhuma questão com estes filtros" description="Experimente ampliar a busca ou limpar os filtros." action={<Button onClick={() => changeFilters(emptyQuestionFilters)}>Limpar filtros</Button>} />}
-        {pages > 1 && <div className="mt-6 flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1} onClick={() => changeUrl({ page: String(page - 1) })}>Anterior</Button><span className="text-sm text-slate-500">{page} / {pages}</span><Button variant="secondary" disabled={page >= pages} onClick={() => changeUrl({ page: String(page + 1) })}>Próxima</Button></div>}
-      </>}</div>
+    <PageHeading
+      title="Banco de questões"
+      action={!filtersOpen && <Button variant="secondary" onClick={() => setFiltersOpen(true)}>
+        <PanelLeftOpen aria-hidden="true" className="size-4" />
+        Mostrar filtros
+        {activeFilterCount > 0 && <span className="inline-flex size-5 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-800 tabular-nums">{activeFilterCount}</span>}
+      </Button>}
+    />
+    <div className={cn('grid items-start gap-6', filtersOpen && 'lg:grid-cols-[272px_minmax(0,1fr)]')}>
+      {filtersOpen && (options.error
+        ? <ErrorState message={options.error.message} retry={() => void options.retry()} />
+        : <QuestionFilters questions={options.data ?? []} value={filters} onChange={changeFilters} onCollapse={() => setFiltersOpen(false)} />)}
+      <div className="min-w-0">
+        {list.loading ? <Skeleton /> : list.error ? <ErrorState message={list.error.message} retry={() => void list.retry()} /> : <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-slate-500">{countLabel(list.data?.total ?? 0, 'questão encontrada', 'questões encontradas')}</p>
+            {activeFilterCount > 0 && <div className="flex flex-wrap items-center gap-1.5">
+              {filters.subject !== 'all' && <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-medium text-brand-900"><span>{filters.subject}</span><button type="button" aria-label={`Remover filtro ${filters.subject}`} onClick={() => changeFilters({ ...filters, subject: 'all', topic: 'all' })} className="inline-flex size-4 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/70"><X aria-hidden="true" className="size-3" /></button></span>}
+              {filters.topic !== 'all' && <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-medium text-brand-900"><span>{filters.topic}</span><button type="button" aria-label={`Remover filtro ${filters.topic}`} onClick={() => changeFilters({ ...filters, topic: 'all' })} className="inline-flex size-4 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/70"><X aria-hidden="true" className="size-3" /></button></span>}
+              {filters.difficulty !== 'all' && <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-medium text-brand-900"><span>{difficultyLabels[filters.difficulty as keyof typeof difficultyLabels] ?? filters.difficulty}</span><button type="button" aria-label="Remover filtro de dificuldade" onClick={() => changeFilters({ ...filters, difficulty: 'all' })} className="inline-flex size-4 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/70"><X aria-hidden="true" className="size-3" /></button></span>}
+              {filters.institution !== 'all' && <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-medium text-brand-900"><span>{filters.institution}</span><button type="button" aria-label={`Remover filtro ${filters.institution}`} onClick={() => changeFilters({ ...filters, institution: 'all' })} className="inline-flex size-4 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/70"><X aria-hidden="true" className="size-3" /></button></span>}
+              {(filters.year ?? 'all') !== 'all' && <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 py-1 pl-2.5 pr-1.5 text-xs font-medium text-brand-900"><span>{filters.year}</span><button type="button" aria-label={`Remover filtro ${filters.year}`} onClick={() => changeFilters({ ...filters, year: 'all' })} className="inline-flex size-4 items-center justify-center rounded-full text-brand-700 hover:bg-brand-200/70"><X aria-hidden="true" className="size-3" /></button></span>}
+              <button type="button" onClick={() => changeFilters(emptyQuestionFilters)} className="px-1.5 text-xs font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-900">Limpar</button>
+            </div>}
+          </div>
+          <QuestionPicker items={list.data?.items ?? []} onSelect={q => changeUrl({ id: q.id })} />
+          {!list.data?.items.length && <Empty title="Nenhuma questão com estes filtros" description="Experimente ampliar a busca ou limpar os filtros." action={<Button onClick={() => changeFilters(emptyQuestionFilters)}>Limpar filtros</Button>} />}
+          {pages > 1 && <div className="mt-6 flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1} onClick={() => changeUrl({ page: String(page - 1) })}>Anterior</Button><span className="text-sm text-slate-500">{page} / {pages}</span><Button variant="secondary" disabled={page >= pages} onClick={() => changeUrl({ page: String(page + 1) })}>Próxima</Button></div>}
+        </>}
+      </div>
     </div>
     <Dialog open={!!id} onClose={() => changeUrl({ id: null })} title="Explorar questão">
       {detail.loading ? <Skeleton /> : detail.error ? detail.error instanceof HttpError && detail.error.kind === 'not-found' ? <Empty title="Questão indisponível" description="A referência não existe no acervo ou foi retirada." action={<Button onClick={() => changeUrl({ id: null })}>Voltar ao banco</Button>} /> : <ErrorState message={detail.error.message} retry={() => void detail.retry()} /> : detail.data && <>

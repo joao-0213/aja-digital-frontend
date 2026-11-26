@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useSession, useApp } from '@/providers/app-context';
-import { Button, Check, Dialog, Input, Select, Textarea, ErrorState, Skeleton } from '@/components/ui';
+import { Button, Dialog, Input, Select, Textarea, ErrorState, Skeleton } from '@/components/ui';
 import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -13,6 +13,7 @@ import { createSubjectsApi, type SubjectFields, type SubjectSummary } from '../a
 import { teachingTeamOptions } from '../lib/teaching-team';
 import { resolveSubjectIcon, SubjectIconPicker } from './subject-icons';
 import { subjectColorLabel, SubjectColorPicker } from './subject-colors';
+import { TeachingTeamPicker } from './teaching-team-picker';
 
 export interface SubjectSelection { record?: SubjectSummary; targetClass: string; intent: string }
 
@@ -27,7 +28,9 @@ export function SubjectEditor({ selection, close, saved }: { selection: SubjectS
   const [confirmMode, setConfirmMode] = useState<'close' | 'remove-teachers' | null>(null);
   const classes = useHttpQuery({ sessionKey, key: `subject-editor-classes:${resourceEpoch}` }, useCallback(signal => classApi.options(signal), [classApi]));
   const teachers = useHttpQuery({ sessionKey, key: `subject-editor-teachers:${resourceEpoch}` }, useCallback(signal => api.teachers(signal), [api]));
-  const options = teachingTeamOptions(teachers.data ?? [], state.fields.teacherIds).map(option => option.available ? option : { ...option, name: record?.teachers.find(item => item.id === option.id)?.name ?? 'Docente indisponível', reason: 'Este cadastro não está disponível para atribuição. Remova a seleção para continuar.' });
+  const options = teachingTeamOptions(teachers.data ?? [], state.fields.teacherIds).map(option => option.available
+    ? { ...option, email: teachers.data?.find(item => item.id === option.id)?.email }
+    : { ...option, name: record?.teachers.find(item => item.id === option.id)?.name ?? 'Docente indisponível', reason: 'Este cadastro não está disponível para atribuição. Remova a seleção para continuar.' });
   const unavailable = options.filter(option => !option.available);
   const activeClasses = classes.data?.filter(item => item.active) ?? [];
   const ready = !classes.loading && !teachers.loading && !classes.error && !teachers.error;
@@ -65,9 +68,12 @@ export function SubjectEditor({ selection, close, saved }: { selection: SubjectS
   /> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
     <fieldset disabled={state.busy} className="space-y-4"><Input label="Nome" value={state.fields.name} onChange={event => state.editor.change({ ...state.fields, name: event.target.value })} required maxLength={100} /><Textarea label="Descrição" value={state.fields.description} onChange={event => state.editor.change({ ...state.fields, description: event.target.value })} maxLength={10000} />
       {classes.loading ? <Skeleton /> : classes.error ? <ErrorState message={classes.error.message} retry={() => void classes.retry()} /> : <Select label="Turma" value={state.fields.classId} onChange={event => state.editor.change({ ...state.fields, classId: event.target.value })} required><option value="" disabled>Selecione uma turma</option>{!validClass && state.fields.classId && <option value={state.fields.classId} disabled>Turma indisponível para edição</option>}{activeClasses.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</Select>}
-      <fieldset className="space-y-3"><legend className="mb-2 text-sm font-medium text-slate-700">Equipe docente</legend>
-        {teachers.loading ? <Skeleton /> : teachers.error ? <ErrorState message={teachers.error.message} retry={() => void teachers.retry()} /> : <>{options.filter(option => option.available).map(option => <Check key={option.id} label={option.name} checked={option.selected} onChange={checked => state.editor.change({ ...state.fields, teacherIds: checked ? [...state.fields.teacherIds, option.id] : state.fields.teacherIds.filter(id => id !== option.id) })} />)}{!options.some(option => option.available) && <p className="text-sm text-slate-500">Cadastre um docente em Usuários e docentes. Você pode salvar a disciplina sem equipe.</p>}{unavailable.length > 0 && <div role="alert" className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>Revise os docentes selecionados. Seu texto e as demais seleções foram mantidos.</p>{unavailable.map(option => <div key={option.id}><p className="font-semibold">{option.name}</p><p className="mb-2 text-slate-600">{option.reason}</p><Button variant="secondary" aria-label={`Remover ${option.name} da seleção`} onClick={() => state.editor.change({ ...state.fields, teacherIds: state.fields.teacherIds.filter(id => id !== option.id) })}>Remover da seleção</Button></div>)}</div>}</>}
-      </fieldset>
+      {teachers.loading ? <Skeleton /> : teachers.error ? <ErrorState message={teachers.error.message} retry={() => void teachers.retry()} /> : <TeachingTeamPicker
+        options={options}
+        disabled={state.busy}
+        onToggle={(id, checked) => state.editor.change({ ...state.fields, teacherIds: checked ? [...state.fields.teacherIds, id] : state.fields.teacherIds.filter(current => current !== id) })}
+        onRemove={id => state.editor.change({ ...state.fields, teacherIds: state.fields.teacherIds.filter(current => current !== id) })}
+      />}
       <SubjectColorPicker value={state.fields.color} onChange={color => state.editor.change({ ...state.fields, color })} disabled={state.busy} />
       <SubjectIconPicker value={state.fields.icon ?? 'book'} color={state.fields.color} onChange={icon => state.editor.change({ ...state.fields, icon })} disabled={state.busy} />
     </fieldset>

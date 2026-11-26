@@ -15,8 +15,8 @@ export function BankSelector({ selectedIds, disabled, onSelect }: { selectedIds:
   const [search, setSearch] = useState(''), [page, setPage] = useState(1);
   const query = useHttpQuery({ sessionKey, key: JSON.stringify(['bank-selector', search, page, resourceEpoch]) }, useCallback(signal => api.list({ ...emptyQuestionFilters, search }, page, signal), [api, search, page]));
   return <div className="space-y-4">
-    <Input label="Buscar questões" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} />
+    <Input label="Buscar questões" type="search" placeholder="Enunciado, matéria ou tema…" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} />
     {query.loading ? <Skeleton /> : query.error ? <ErrorState message={query.error.message} retry={() => void query.retry()} /> : !query.data?.items.length ? <Empty title="Nenhuma questão encontrada" description="Experimente ampliar a busca." /> : <QuestionPicker items={query.data.items} selectedIds={selectedIds} disabled={disabled} selectionMode onSelect={onSelect} />}
-    <div className="flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1 || query.loading} onClick={() => setPage(page - 1)}>Anterior</Button><span>Página {page} · {countLabel(query.data?.total ?? 0, 'questão', 'questões')}</span><Button variant="secondary" disabled={!query.data || page * query.data.pageSize >= query.data.total || query.loading} onClick={() => setPage(page + 1)}>Próxima</Button></div>
+    {query.data && query.data.total > query.data.pageSize && <div className="flex items-center justify-center gap-3"><Button variant="secondary" disabled={page <= 1 || query.loading} onClick={() => setPage(page - 1)}>Anterior</Button><span className="text-sm text-slate-500">Página {page} · {countLabel(query.data.total, 'questão', 'questões')}</span><Button variant="secondary" disabled={page * query.data.pageSize >= query.data.total || query.loading} onClick={() => setPage(page + 1)}>Próxima</Button></div>}
   </div>;
 }

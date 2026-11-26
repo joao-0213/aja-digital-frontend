@@ -12,6 +12,7 @@ export function createQuestionsApi(client: Pick<SessionClient, 'request'>) {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (filters.search.trim()) params.set('q', filters.search.trim());
       for (const field of ['subject', 'topic', 'difficulty', 'institution'] as const) if (filters[field] !== 'all') params.set(field, filters[field]);
+      if (filters.year && filters.year !== 'all') params.set('year', filters.year);
       return client.request<QuestionPage>(`/questions?${params}`, { signal });
     },
     read: (id: string, signal?: AbortSignal) => client.request<BankQuestion>(`/questions/${encodeURIComponent(id)}`, { signal }),

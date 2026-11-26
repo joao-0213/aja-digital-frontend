@@ -7,10 +7,11 @@ import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
-import { Avatar, Badge, Button, Dialog, Empty, Input, LinkButton, PageHeading, Select, Textarea } from '@/components/ui';
+import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
 import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } from '@/lib/forum-draft';
-import { ForumAttachments } from './forum-attachments';
+import { ForumComposerDialog } from './forum-composer';
+import { ForumFilters } from './forum-filters';
 import { createForumApi, type ForumAttachmentDto, type ForumFilter, type ForumTopicFields } from '../api';
 
 type LegacyForumAttachment = { id: string; name: string; mime: string; size: number };
@@ -132,12 +133,18 @@ function ForumPageContent() {
     <LinkButton secondary href={backHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{backLabel}</LinkButton>
     <PageHeading title="Fórum de dúvidas" action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus aria-hidden="true" className="size-4" />Nova pergunta</Button>} />
     {options.error && <p role="alert" className="mb-4 text-sm text-rose-700">{options.error.message} <button type="button" onClick={options.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
-    <div className="mb-6 grid gap-3 md:grid-cols-[1fr_220px_220px_200px]">
-      <Input aria-label="Buscar no fórum" value={search} onChange={event => setSearch(event.target.value)} placeholder="Busque uma dúvida ou um assunto…" />
-      <Select aria-label="Turma do fórum" value={classId} onChange={event => { setClassId(event.target.value); setSubjectId('all'); }}><option value="all">Todas as turmas</option>{activeClasses.map(item => <option key={item.id} value={item.id}>{item.name}{!item.active ? ' · Encerrada' : ''}</option>)}</Select>
-      <Select aria-label="Disciplina do fórum" value={subjectId} onChange={event => setSubjectId(event.target.value)}><option value="all">Todas as disciplinas</option>{visibleSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
-      <Select aria-label="Filtrar conversas" value={filter} onChange={event => setFilter(event.target.value)}><option value="all">Todas as perguntas</option><option value="unread">Não lidas</option><option value="unanswered">Sem respostas</option><option value="solved">Resolvidas</option></Select>
-    </div>
+    <ForumFilters
+      search={search}
+      onSearchChange={setSearch}
+      classId={classId}
+      onClassChange={setClassId}
+      subjectId={subjectId}
+      onSubjectChange={setSubjectId}
+      filter={filter}
+      onFilterChange={setFilter}
+      classes={activeClasses}
+      subjects={visibleSubjects}
+    />
     <div className="space-y-3">
       {topics.loading && <p role="status" className="text-sm text-slate-500">Carregando perguntas…</p>}
       {topics.error && <p role="alert" className="text-sm text-rose-700">{topics.error.message} <button type="button" onClick={topics.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
@@ -146,30 +153,39 @@ function ForumPageContent() {
         return <Link key={topic.id} href={`/forum/topico?id=${encodeURIComponent(topic.id)}`} className="block min-w-0 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6">
           <div className="mb-3 flex flex-wrap items-center gap-2"><Badge>{activeSubjects.find(item => item.id === topic.subjectId)?.name ?? topic.subjectId}</Badge><span className="text-xs text-slate-400">{dateLabel(topic.createdAt)}</span>{solved && <Badge tone="green"><CheckCircle2 aria-hidden="true" className="size-3" />Resolvida</Badge>}{!topic.read && <Badge tone="purple">Nova</Badge>}</div>
           <h2 className="text-lg font-semibold text-slate-800 [overflow-wrap:anywhere]">{topic.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{topic.body}</p>
-          {topic.target && <p className="mt-3 text-xs text-brand-700 [overflow-wrap:anywhere]">Sobre {topic.target.type === 'material' ? 'material' : 'questão'} · {topic.target.id}</p>}
+          {topic.target && <p className="mt-3 text-xs text-brand-700">Referência: {topic.target.type === 'material' ? 'Material da disciplina' : 'Questão do banco'}</p>}
           <div className="mt-4 flex flex-wrap items-center gap-2"><Avatar name={topic.author.name} size="sm" /><span className="text-xs text-slate-500 [overflow-wrap:anywhere]">{topic.author.name}</span><span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400"><MessageSquare aria-hidden="true" className="size-4" />{countLabel(topic.replies.length, 'resposta', 'respostas')}</span></div>
         </Link>;
       })}
     </div>
     {!topics.loading && !topics.error && !(topics.data ?? []).some(topic => filter !== 'unanswered' || topic.replies.length === 0) && <Empty title="Sem perguntas nesta seleção" description="As dúvidas publicadas aparecerão aqui." />}
     {draftError && !open && <p role="alert" className="mt-4 text-sm text-rose-700">{draftError}</p>}
-    <Dialog open={open} onClose={() => { if (!busy) setOpen(false); }} title="Fazer uma pergunta">
-      <form onSubmit={event => void publish(event)} className="space-y-4">
-        <fieldset disabled={busy || !!pendingCreate} className="space-y-4">
-        <Select label="Disciplina" value={targetSubject} onChange={event => { setTargetSubject(event.target.value); if (attachment) void removeFile(); }} required><option value="">Selecione uma disciplina</option>{activeSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => <option key={item.id} value={item.id}>{item.name} · {activeClasses.find(row => row.id === item.classId)?.name}</option>)}</Select>
-        <Input label="Título da pergunta" value={title} onChange={event => setTitle(event.target.value)} required minLength={8} maxLength={180} />
-        <Textarea label="Conte sua dúvida" value={body} onChange={event => setBody(event.target.value)} required minLength={10} rows={5} />
-        <Input label="Tags (opcional, separadas por vírgulas)" value={tags} onChange={event => setTags(event.target.value)} />
-        {reference && <div className="rounded-lg bg-slate-50 p-3 text-sm">Referência: {reference.replace(':', ' · ')} <Button variant="ghost" type="button" onClick={() => setReference('')}>Remover</Button></div>}
-        <Input key={fileInputVersion} label="Anexo (opcional)" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" disabled={busy || !targetSubject} onChange={event => void chooseFile(event.target.files?.[0])} />
-        <p className="text-xs leading-5 text-slate-500">PDF, PNG, JPEG ou WebP (até 5 MB).</p>
-        {attachment && <ForumAttachments item={attachment} readContent={(id, inline) => api.readFileContent(id, inline)} onRemove={() => void removeFile()} />}
-        {legacyAttachment && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">O anexo legado “{legacyAttachment.name}” foi preservado no rascunho local e não será enviado automaticamente. Selecione o arquivo novamente para anexá-lo a esta publicação. <Button type="button" variant="ghost" onClick={() => setLegacyAttachment(undefined)}>Remover da composição</Button></p>}
-        {draftError && <p role="alert" className="text-sm text-rose-700">{draftError}</p>}
-        </fieldset>
-        {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-        <div className="flex justify-end gap-2"><Button variant="secondary" type="button" disabled={busy} onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !targetSubject} loading={busy}>{pendingCreate ? 'Tentar publicar novamente' : 'Publicar pergunta'}</Button></div>
-      </form>
-    </Dialog>
+    <ForumComposerDialog
+      open={open}
+      onClose={() => { if (!busy) setOpen(false); }}
+      subjects={activeSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => ({ id: item.id, name: item.name, classId: item.classId, className: activeClasses.find(row => row.id === item.classId)?.name }))}
+      targetSubject={targetSubject}
+      onChangeSubject={next => { setTargetSubject(next); if (attachment) void removeFile(); }}
+      title={title}
+      onChangeTitle={setTitle}
+      body={body}
+      onChangeBody={setBody}
+      tags={tags}
+      onChangeTags={setTags}
+      reference={reference}
+      onClearReference={() => setReference('')}
+      attachment={attachment}
+      legacyAttachment={legacyAttachment}
+      onClearLegacyAttachment={() => setLegacyAttachment(undefined)}
+      fileInputVersion={fileInputVersion}
+      onChooseFile={file => void chooseFile(file)}
+      onRemoveFile={() => void removeFile()}
+      readFileContent={(id, inline) => api.readFileContent(id, inline)}
+      draftError={draftError}
+      error={error}
+      busy={busy}
+      hasPendingCreate={!!pendingCreate}
+      onSubmit={event => void publish(event)}
+    />
   </>;
 }

@@ -53,6 +53,7 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
   const selectedId = params.get('entrega');
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const submissions = useHttpQuery({ sessionKey, key: `work-submissions:${activity.id}:${resourceEpoch}` }, useCallback(signal => api.allSubmissions({ assessmentId: activity.id }, signal, sessionKey), [activity.id, api, sessionKey]), status === 'authenticated');
+  const roster = useHttpQuery({ sessionKey, key: `work-roster:${activity.moduleId}:${resourceEpoch}` }, useCallback(signal => api.rosterForModule(activity.moduleId, signal, sessionKey), [activity.moduleId, api, sessionKey]), status === 'authenticated' && user?.role !== 'student');
 
   if (status === 'loading' || submissions.loading) return <Skeleton />;
   if (status !== 'authenticated' || !user) return <Empty title="Entre para consultar a entrega" action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
@@ -73,13 +74,19 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
 
   const selected = rows.find(row => row.id === selectedId && isStaffSubmission(row)) as SubmissionStaff | undefined;
   const filtered = rows.filter(isStaffSubmission);
+  const submittedUserIds = new Set(filtered.map(item => item.userId));
+  const pendingStudents = (roster.data ?? []).filter(student => !submittedUserIds.has(student.id));
+  const totalEnrolled = filtered.length + pendingStudents.length;
   return <>
     <LinkButton secondary href={subjectHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar para atividades</LinkButton>
     <PageHeading title={activity.title} description={activity.description} action={<LinkButton secondary href={`/questionarios/criar?id=${encodeURIComponent(activity.id)}`}>Editar atividade</LinkButton>} />
     <ActivityConditions activity={activity} />
     <div className="grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
       <Card className="!p-0 overflow-hidden">
-        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-semibold">Entregas ({filtered.length})</h2></div>
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+          <h2 className="font-semibold">Entregas ({filtered.length})</h2>
+          {totalEnrolled > filtered.length && <span className="text-xs text-slate-500">{filtered.length} de {totalEnrolled} entregaram</span>}
+        </div>
         {filtered.length ? <ul className="divide-y divide-slate-100">{filtered.map(submission => {
           const isSelected = submission.id === selected?.id;
           return <li key={submission.id}>
@@ -97,6 +104,15 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
             </Link>
           </li>;
         })}</ul> : <p className="p-5 text-sm leading-6 text-slate-600">Nenhuma entrega concluída ainda.</p>}
+        {pendingStudents.length > 0 && <div className="border-t border-slate-200 bg-slate-50/60">
+          <p className="px-5 pb-2 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Sem entrega ({pendingStudents.length})</p>
+          <ul className="divide-y divide-slate-100">
+            {pendingStudents.map(student => <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+              <span className="text-sm text-slate-700 [overflow-wrap:anywhere]">{student.name}</span>
+              <Badge tone="neutral">Não entregue</Badge>
+            </li>)}
+          </ul>
+        </div>}
       </Card>
       <div className="min-w-0">
         {selected ? <>

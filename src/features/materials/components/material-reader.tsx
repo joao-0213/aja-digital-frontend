@@ -14,6 +14,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { createMaterialsApi } from '../api';
 import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
+import { MaterialLibrary } from './material-library';
 
 function ReaderContent({ id }: { id: string }) {
   const { client, sessionKey, resourceEpoch } = useSession();
@@ -43,7 +44,7 @@ function ReaderContent({ id }: { id: string }) {
   const [editing, setEditing] = useState(() => client.readDraft<boolean>(`material-edit-open:${id}`) ?? false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
-  if (!id) return <Empty title="Selecione um material" action={<LinkButton href="/disciplinas">Ver disciplinas</LinkButton>} />;
+  if (!id) return <MaterialLibrary />;
   if (query.loading) return <Skeleton />;
   if (query.error) return <><ErrorState message={query.error.message} retry={() => void query.retry()} /><LinkButton href="/disciplinas">Voltar às disciplinas</LinkButton></>;
   if (!detail) return <Empty title="Material indisponível" action={<LinkButton href="/disciplinas">Ver disciplinas</LinkButton>} />;

@@ -362,5 +362,19 @@ export function createAssessmentsApi(client: AssessmentClient) {
     return assessment;
   }
 
-  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, saveAndPublish, saveDraft, attemptPage, allAttempts, readAttempt, startAttempt, saveAttemptAnswers, submitAttempt, readAttemptResult, allSubmissions, readSubmission, prepareSubmission, updateSubmission, submitWork, saveFeedback, publishFeedback, uploadWorkFile, readWorkFile, readWorkFileContent, discardWorkFile };
+  async function rosterForModule(moduleId: string, signal?: AbortSignal, sessionKey = currentSessionKey()): Promise<{ id: string; name: string; email: string }[]> {
+    const guard = sessionFence(sessionKey, signal); guard();
+    const mod = await client.request<TrailModule>(`/modules/${encodeURIComponent(moduleId)}`, { signal }); guard();
+    const detail = await client.request<{ subject: { classId: string } }>(`/subjects/${encodeURIComponent(mod.subjectId)}`, { signal }); guard();
+    const items: { id: string; name: string; email: string }[] = [];
+    for (let page = 1; ; page++) {
+      guard();
+      const result = await client.request<{ items: { id: string; name: string; email: string; active?: boolean }[]; total: number }>(`/students?classId=${encodeURIComponent(detail.subject.classId)}&page=${page}&pageSize=100`, { signal });
+      guard();
+      for (const student of result.items) if (student.active !== false) items.push({ id: student.id, name: student.name, email: student.email });
+      if (result.items.length < 100 || items.length >= result.total) return items;
+    }
+  }
+
+  return { list, all, read, readForSession, create, edit, publish, context, overview, builder, rosterForModule, saveAndPublish, saveDraft, attemptPage, allAttempts, readAttempt, startAttempt, saveAttemptAnswers, submitAttempt, readAttemptResult, allSubmissions, readSubmission, prepareSubmission, updateSubmission, submitWork, saveFeedback, publishFeedback, uploadWorkFile, readWorkFile, readWorkFileContent, discardWorkFile };
 }

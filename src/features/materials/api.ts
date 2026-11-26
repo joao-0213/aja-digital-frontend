@@ -50,6 +50,15 @@ export function createMaterialsApi(client: Pick<SessionClient, 'request'> & Part
       }
     },
     read: (id: string, signal?: AbortSignal) => client.request<MaterialDetail>(`/materials/${encodeURIComponent(id)}`, { signal }),
+    subjects: async (signal?: AbortSignal) => {
+      const items: SubjectSummary[] = [];
+      const guard = fence(signal);
+      for (let page = 1; ; page++) {
+        guard(); const result = await client.request<{ items: SubjectSummary[]; total: number }>(`/subjects?page=${page}&pageSize=100`, { signal }); guard();
+        items.push(...result.items);
+        if (items.length >= result.total || !result.items.length) return items;
+      }
+    },
     outline: (subjectId: string, signal?: AbortSignal) => client.request<SubjectDetail>(`/subjects/${encodeURIComponent(subjectId)}`, { signal }),
     context: async (moduleId: string, signal?: AbortSignal) => {
       const guard = fence(signal);

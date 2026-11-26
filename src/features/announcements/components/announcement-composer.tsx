@@ -6,13 +6,17 @@ import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { useSession } from '@/providers/app-context';
+import { useApp, useSession } from '@/providers/app-context';
+import { countLabel } from '@/lib/utils';
 import { announcementSubjectAfterClassChange, brasiliaMinTimeForDate, brasiliaTodayDate, initialAnnouncementFields, isOccurrenceInPast } from '../announcement-form';
 import { getOrCreateAnnouncementIntent } from '../announcement-intent';
 import { createAnnouncementsApi, type AnnouncementDto, type AnnouncementFields } from '../api';
 
+const ALL_CLASSES = '__all__';
+
 export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar = false, onClose }: { item?: AnnouncementDto; subjectId?: string; classId?: string; defaultCalendar?: boolean; onClose: () => void }) {
   const { client, sessionKey, user } = useSession();
+  const { notify } = useApp();
   const api = useMemo(() => createAnnouncementsApi(client), [client]);
   const fields = useMemo(() => {
     const base = initialAnnouncementFields(item, subjectId, classId);
@@ -24,6 +28,7 @@ export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar
   const { fields: value, dirty, busy, conflicted, latest, blocked, error, editor, clear } = useHttpEditor<AnnouncementFields, AnnouncementDto>(fields, item?.revision ?? 0, context);
   const [calendar, setCalendar] = useState(!!(restored?.fields ?? fields).occurrence || defaultCalendar);
   const [confirmingClose, setConfirmingClose] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
   const [localError, setLocalError] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
   const options = useHttpQuery({ sessionKey, key: 'announcement-options' }, useCallback(signal => api.options(signal), [api]));
@@ -32,9 +37,13 @@ export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar
     if (contextSubject && !value.classId) editor.change({ ...value, classId: contextSubject.classId, subjectId: contextSubject.id });
   }, [editor, options.data, subjectId, value]);
   const set = <K extends keyof AnnouncementFields>(key: K, next: AnnouncementFields[K]) => { setLocalError(''); editor.change({ ...value, [key]: next }); };
+  const activeClasses = options.data?.classes.filter(row => row.active && !row.deletedAt) ?? [];
+  const canBroadcastAll = !item && !subjectId && user?.role === 'admin' && activeClasses.length >= 2;
+  const isAllClasses = canBroadcastAll && value.classId === ALL_CLASSES;
+  const isBusy = busy || broadcasting;
   const hasRealChanges = item ? dirty : value.title.trim() !== '' || value.body.trim() !== '' || (!defaultCalendar && calendar) || (defaultCalendar && !!value.occurrence?.date) || (!subjectId && !!value.classId);
   const close = () => {
-    if (busy) return;
+    if (isBusy) return;
     if (confirmingClose) { setConfirmingClose(false); return; }
     if (!hasRealChanges) { clear(); onClose(); return; }
     setConfirmingClose(true);
@@ -44,7 +53,7 @@ export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar
   const minDate = enforceFutureOccurrence ? today : undefined;
   const minTime = enforceFutureOccurrence && value.occurrence?.date ? brasiliaMinTimeForDate(value.occurrence.date, nowMs) : undefined;
   const occurrenceInPast = calendar && enforceFutureOccurrence && isOccurrenceInPast(value.occurrence, nowMs);
-  const subjectOptions = options.data?.subjects.filter(subject => subject.classId === value.classId) ?? [];
+  const subjectOptions = isAllClasses ? [] : options.data?.subjects.filter(subject => subject.classId === value.classId) ?? [];
   return <Dialog open onClose={close} title={item ? 'Editar aviso' : defaultCalendar ? 'Novo evento no calendário' : 'Publicar aviso'}>
     {item && (latest || blocked) && <RecordConflict author={latest?.author.name ?? 'Equipe AJA'} updatedAt={latest?.updatedAt} onReviewed={() => editor.acknowledge()}><p><strong>{latest?.title ?? item.title}</strong></p><p>{latest?.body ?? item.body}</p><p>Acontecimento: {latest?.occurrence ? `${latest.occurrence.date} · ${latest.occurrence.allDay ? 'Dia inteiro' : latest.occurrence.time}` : 'Sem compromisso'}</p><p>Notificar por e-mail: {latest?.notify ? 'Sim' : 'Não'}</p></RecordConflict>}
     {options.error && <p role="alert" className="text-sm text-red-700">{options.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={options.retry}>Tentar novamente</button></p>}
@@ -69,18 +78,45 @@ export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar
       const submitted = { ...value, occurrence };
       const fingerprint = JSON.stringify(submitted);
       const intent = item ? undefined : getOrCreateAnnouncementIntent(client, context, sessionKey, fingerprint);
+      if (isAllClasses && intent) {
+        setBroadcasting(true);
+        let publishedCount = 0;
+        const failedNames: string[] = [];
+        try {
+          for (const targetClass of activeClasses) {
+            try {
+              await api.create({ ...submitted, classId: targetClass.id, subjectId: null }, `${intent}:${targetClass.id}`);
+              publishedCount += 1;
+            } catch {
+              failedNames.push(targetClass.name);
+            }
+          }
+          if (!failedNames.length) {
+            clear();
+            notify(`Aviso publicado para ${countLabel(publishedCount, 'turma ativa', 'turmas ativas')}.`);
+            onClose();
+          } else {
+            setLocalError(`Não foi possível publicar em ${failedNames.join(', ')}. Tente novamente para concluir as turmas restantes sem duplicar as já enviadas.`);
+          }
+        } finally {
+          setBroadcasting(false);
+        }
+        return;
+      }
       const saved = await editor.submit(
         (draft, revision) => item ? api.edit(item.id, draft, revision) : api.create({ ...draft, occurrence }, intent!),
         item ? () => api.read(item.id) : undefined
       );
       if (saved) { clear(); onClose(); }
     }}>
-      <fieldset disabled={busy || blocked} className="space-y-4">
-        <Select label="Turma" value={value.classId} disabled={!!item} required onChange={event => { const selected = event.target.value; setLocalError(''); editor.change({ ...value, classId: selected, subjectId: announcementSubjectAfterClassChange(value.subjectId, options.data?.subjects ?? [], selected, subjectId) }); }}>
-          <option value="">Selecione a turma</option>{options.data?.classes.filter(row => row.active && !row.deletedAt).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
+      <fieldset disabled={isBusy || blocked} className="space-y-4">
+        <Select label="Turma" value={value.classId} disabled={!!item} required onChange={event => { const selected = event.target.value; setLocalError(''); editor.change({ ...value, classId: selected, subjectId: selected === ALL_CLASSES ? null : announcementSubjectAfterClassChange(value.subjectId, options.data?.subjects ?? [], selected, subjectId) }); }}>
+          <option value="">Selecione a turma</option>
+          {canBroadcastAll && <option value={ALL_CLASSES}>Todas as turmas ativas ({activeClasses.length})</option>}
+          {activeClasses.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
         </Select>
-        <Select label="Disciplina" value={value.subjectId ?? ''} disabled={!!item} required={user?.role === 'teacher'} onChange={event => set('subjectId', event.target.value || null)}>
-          <option value="">Toda a turma</option>{subjectOptions.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+        <Select label="Disciplina" value={isAllClasses ? '' : value.subjectId ?? ''} disabled={!!item || isAllClasses} required={user?.role === 'teacher'} onChange={event => set('subjectId', event.target.value || null)}>
+          <option value="">{isAllClasses ? 'Todas as turmas ativas' : 'Toda a turma'}</option>{subjectOptions.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
         </Select>
         <Input label="Título" value={value.title} onChange={event => set('title', event.target.value)} required maxLength={150} />
         <Textarea label="Mensagem" value={value.body} onChange={event => set('body', event.target.value)} required rows={6} />
@@ -93,7 +129,7 @@ export function AnnouncementComposer({ item, subjectId, classId, defaultCalendar
         {item?.occurrence && !calendar && <p role="status" className="text-sm text-amber-800">Ao salvar, o compromisso sairá do calendário. O aviso será mantido.</p>}
         <Check label="Notificar alunos por e-mail" checked={value.notify} onChange={enabled => set('notify', enabled)} />
         {(localError || error) && <p role="alert" className="text-sm text-red-700">{localError || error}</p>}
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="secondary" onClick={close}>Cancelar</Button><Button type="submit" loading={busy} disabled={conflicted}>{item ? 'Salvar aviso' : 'Publicar aviso'}</Button></div>
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="secondary" onClick={close}>Cancelar</Button><Button type="submit" loading={isBusy} disabled={conflicted}>{item ? 'Salvar aviso' : isAllClasses ? 'Publicar para todas' : 'Publicar aviso'}</Button></div>
       </fieldset>
     </form>}
   </Dialog>;
