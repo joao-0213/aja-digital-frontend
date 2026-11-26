@@ -7,7 +7,7 @@ import { Menu } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { Avatar, Button, Dialog, Skeleton, ErrorState } from '@/components/ui';
 import { cn, roleLabels } from '@/lib/utils';
-import { nav } from './navigation';
+import { nav, navGroupsForRole, navLabelForRole } from './navigation';
 import { Logo } from '@/components/shared/logo';
 const publicRoutes = new Set(['/login', '/cadastro', '/recuperar-senha']);
 
@@ -31,12 +31,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigation = (compact = false, desktop = false) => <>
     <div className="mb-8 shrink-0 px-4"><Logo symbolOnly={compact} /></div>
     <nav id={desktop ? 'desktop-navigation' : undefined} aria-label="Navegação principal" className={cn('space-y-6', desktop ? 'app-sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pl-3 pr-0.5' : 'px-3')}>
-      {['Estudos', 'Comunidade', 'Gestão'].map((group, index) => {
+      {navGroupsForRole(role).map((group, index) => {
         const items = nav.filter((item, i) => (index === 0 ? i < 4 : index === 1 ? i >= 4 && i < 7 : i >= 7) && (!item.staff || role !== 'student') && (!item.admin || role === 'admin'));
         if (!items.length) return null;
         return <div key={group}><p aria-hidden={desktop && compact} className={cn('mb-2 h-4 whitespace-nowrap px-3 text-xs font-medium text-slate-500', desktop && 'app-sidebar-label')}>{group}</p><div className="space-y-1">{items.map(item => {
           const active = item.href === '/' ? path === '/' : path.startsWith(item.href);
-          return <Link key={item.href} href={item.href} onClick={() => setMobile(false)} title={compact ? item.label : undefined} aria-label={item.label} aria-current={active ? 'page' : undefined} className={cn('min-h-11 items-center rounded-lg py-2.5 text-sm transition-colors', desktop ? 'grid grid-cols-[55px_minmax(0,1fr)]' : 'flex gap-3 px-[18px]', active ? 'bg-brand-100 font-semibold text-brand-700' : 'font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900')}><item.icon aria-hidden="true" className={cn('size-[18px] shrink-0', desktop && 'justify-self-center')} strokeWidth={1.8} /><span aria-hidden={desktop && compact} className={cn('min-w-0 overflow-hidden whitespace-nowrap', desktop && 'app-sidebar-label')}>{item.label}</span></Link>;
+          const label = navLabelForRole(item, role);
+          return <Link key={item.href} href={item.href} onClick={() => setMobile(false)} title={compact ? label : undefined} aria-label={label} aria-current={active ? 'page' : undefined} className={cn('min-h-11 items-center rounded-lg py-2.5 text-sm transition-colors', desktop ? 'grid grid-cols-[55px_minmax(0,1fr)]' : 'flex gap-3 px-[18px]', active ? 'bg-brand-100 font-semibold text-brand-700' : 'font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900')}><item.icon aria-hidden="true" className={cn('size-[18px] shrink-0', desktop && 'justify-self-center')} strokeWidth={1.8} /><span aria-hidden={desktop && compact} className={cn('min-w-0 overflow-hidden whitespace-nowrap', desktop && 'app-sidebar-label')}>{label}</span></Link>;
         })}</div></div>;
       })}
     </nav>

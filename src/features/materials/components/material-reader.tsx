@@ -17,8 +17,9 @@ import { MaterialComposer } from './material-composer';
 import { MaterialLibrary } from './material-library';
 
 function ReaderContent({ id }: { id: string }) {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey, resourceEpoch, user } = useSession();
   const { notify } = useApp();
+  const isStudent = user?.role === 'student';
   const api = useMemo(() => createMaterialsApi(client), [client]);
   const query = useHttpQuery({ sessionKey, key: `material:${id}:${resourceEpoch}` }, useCallback(signal => api.read(id, signal), [api, id]), !!id);
   const detail = query.data;
@@ -31,7 +32,7 @@ function ReaderContent({ id }: { id: string }) {
     const result = await api.progress(id, undefined, signal);
     if (client.getSnapshot().sessionKey !== sessionKey) throw new HttpError('cancelled', 'A sessão deste material mudou.');
     return result;
-  }, [api, client, id, sessionKey]), !!detail);
+  }, [api, client, id, sessionKey]), !!detail && isStudent);
   const binary = useHttpQuery({ sessionKey, key: `material-file:${fileId}:${resourceEpoch}` }, useCallback(signal => api.files.download(fileId, 'inline', signal), [api, fileId]), !!fileId);
   const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
   useEffect(() => {
@@ -84,8 +85,8 @@ function ReaderContent({ id }: { id: string }) {
         {material.kind === 'pdf' && <div className="mb-6">{!fileId ? <p className="rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-900">Arquivo indisponível.</p> : binary.loading ? <p role="status" className="p-4 text-sm text-slate-500">Abrindo PDF…</p> : binary.error ? <ErrorState message={binary.error.message} retry={() => void binary.retry()} /> : fileUrl ? <><div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-50 p-4"><span className="min-w-0 break-all text-sm text-brand-900">{material.file?.name ?? 'Documento PDF'}{material.file && ` · ${(material.file.size / 1024).toFixed(0)} KB`}</span><div className="flex flex-wrap items-center gap-2"><a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-200 bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-brand-100/50"><ExternalLink aria-hidden="true" className="size-4" />Abrir PDF</a><a href={fileUrl} download={material.file?.name ?? 'material.pdf'} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"><Download aria-hidden="true" className="size-4" />Baixar PDF</a></div></div><object data={fileUrl} type="application/pdf" aria-label={`PDF: ${material.title}`} className="hidden h-[560px] w-full rounded-lg border border-slate-200 bg-slate-50 sm:block"><div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-600"><p>Prévia indisponível neste navegador.</p><a href={fileUrl} download={material.file?.name ?? 'material.pdf'} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"><Download aria-hidden="true" className="size-4" />Baixar PDF</a></div></object></> : <p role="status" className="text-sm text-slate-500">Preparando a prévia…</p>}</div>}
         <article className="space-y-5 leading-8 text-slate-600 [overflow-wrap:anywhere]">{material.content.split('\n\n').map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}</article>
         {progress.error && <div className="mt-5"><ErrorState message={progress.error.message} retry={() => void progress.retry()} /></div>}{error && <p role="alert" className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-6">{material.kind === 'lesson' ? <Button variant="secondary" onClick={downloadText}><Download aria-hidden="true" className="size-4" />Baixar como .txt</Button> : <span />}<Button loading={completing} disabled={done || progress.loading} onClick={() => void complete()}><CheckCircle2 aria-hidden="true" className="size-4" />{done ? 'Material concluído' : 'Marcar como concluído'}</Button></div>
-      </div></Card><div className="mt-5 flex flex-wrap justify-between gap-3"><LinkButton secondary href={`/forum?disciplina=${encodeURIComponent(subject.id)}&material=${encodeURIComponent(material.id)}`}>Fiquei com uma dúvida</LinkButton><LinkButton secondary href={back}>Voltar à disciplina</LinkButton></div></div>
+        {(material.kind === 'lesson' || isStudent) && <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-6">{material.kind === 'lesson' ? <Button variant="secondary" onClick={downloadText}><Download aria-hidden="true" className="size-4" />Baixar como .txt</Button> : <span />}{isStudent && <Button loading={completing} disabled={done || progress.loading} onClick={() => void complete()}><CheckCircle2 aria-hidden="true" className="size-4" />{done ? 'Material concluído' : 'Marcar como concluído'}</Button>}</div>}
+      </div></Card><div className="mt-5 flex flex-wrap justify-between gap-3"><LinkButton secondary href={`/forum?disciplina=${encodeURIComponent(subject.id)}&material=${encodeURIComponent(material.id)}`}>{isStudent ? 'Fiquei com uma dúvida' : 'Abrir fórum da disciplina'}</LinkButton><LinkButton secondary href={back}>Voltar à disciplina</LinkButton></div></div>
     </div>
   </>;
 }

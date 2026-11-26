@@ -92,7 +92,7 @@ export function MaterialLibrary() {
     {catalog.loading ? <Skeleton /> : catalog.error ? <ErrorState message={catalog.error.message} retry={() => void catalog.retry()} /> : !filtered.length ? (
       <Empty
         title={hasFilters ? 'Nenhum material encontrado' : 'Nenhum material disponível'}
-        description={hasFilters ? 'Tente alterar a busca ou limpar os filtros selecionados.' : 'Os materiais publicados nas suas disciplinas aparecerão aqui.'}
+        description={hasFilters ? 'Tente alterar a busca ou limpar os filtros selecionados.' : user?.role === 'admin' ? 'Os materiais publicados nas disciplinas aparecerão aqui.' : 'Os materiais publicados nas suas disciplinas aparecerão aqui.'}
         action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(''); setSubjectId('all'); setKind('all'); }}>Limpar filtros</Button> : <LinkButton href="/disciplinas">Ver disciplinas</LinkButton>}
       />
     ) : <>

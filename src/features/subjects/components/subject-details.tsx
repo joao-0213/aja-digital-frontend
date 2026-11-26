@@ -90,7 +90,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
             <Pencil aria-hidden="true" className="size-4" />{editing ? 'Concluir organização' : 'Organizar módulos'}
           </Button>
         </div>}
-        <SubjectIcon aria-hidden="true" className="pointer-events-none absolute -bottom-6 right-6 hidden size-36 text-white/70 sm:block" strokeWidth={1.2} />
+        <SubjectIcon aria-hidden="true" className="pointer-events-none absolute -bottom-6 right-6 hidden size-36 text-white sm:block" strokeWidth={1.2} />
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-slate-100 bg-white px-5 py-3.5 text-sm sm:px-7">
         <span className="text-slate-500">Equipe docente: <span className="font-medium text-slate-800">{subject.teachers.map(teacher => teacher.name).join(', ') || 'Sem docentes atribuídos'}</span></span>

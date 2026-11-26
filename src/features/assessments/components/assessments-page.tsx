@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarClock, ClipboardCheck, FileUp, Plus } from 'lucide-react';
-import { Badge, Button, Card, Empty, ErrorState, LinkButton, PageHeading, Select, Skeleton } from '@/components/ui';
+import { Badge, Card, Empty, ErrorState, LinkButton, PageHeading, Select, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { cn, countLabel, moduleDisplayNumber, resolveActorDisplayName, sortByDeadlineAsc } from '@/lib/utils';
 import { useSession } from '@/providers/app-context';
@@ -33,6 +33,65 @@ function DeadlineColumn({ deadline, urgent = false }: { deadline: string | null;
   return <div className="flex shrink-0 items-baseline gap-2 sm:w-28 sm:flex-col sm:gap-0.5">
     <span className={cn('text-sm font-semibold tabular-nums', urgent ? 'text-brand-700' : 'text-slate-700')}>{parts.date}</span>
     <span className="text-xs tabular-nums text-slate-500">{parts.time}</span>
+  </div>;
+}
+
+interface ActivityTab<T extends string> {
+  value: T;
+  label: string;
+  count?: number;
+}
+
+function ActivityTabs<T extends string>({
+  ariaLabel,
+  tabs,
+  value,
+  onChange,
+  subjectFilter,
+  filterSubjects,
+  onSubjectChange,
+}: {
+  ariaLabel: string;
+  tabs: readonly ActivityTab<T>[];
+  value: T;
+  onChange: (next: T) => void;
+  subjectFilter: string;
+  filterSubjects: { id: string; name: string }[];
+  onSubjectChange: (next: string) => void;
+}) {
+  return <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:border-b sm:border-slate-200">
+    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-6 border-b border-slate-200 sm:border-b-0">
+      {tabs.map(tab => {
+        const active = value === tab.value;
+        return <button
+          key={tab.value}
+          type="button"
+          role="tab"
+          aria-selected={active}
+          onClick={() => onChange(tab.value)}
+          className={cn(
+            '-mb-px inline-flex min-h-12 cursor-pointer items-center gap-2 border-b-2 px-1 py-3 text-sm font-semibold transition-colors',
+            active ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-900',
+          )}
+        >
+          <span>{tab.label}</span>
+          {tab.count !== undefined && (
+            <span className={cn(
+              'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+              active ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-600',
+            )}>
+              {tab.count}
+            </span>
+          )}
+        </button>;
+      })}
+    </div>
+    {filterSubjects.length > 1 && <div className="w-full sm:w-64 sm:pb-2">
+      <Select aria-label="Filtrar por disciplina" value={subjectFilter} onChange={event => onSubjectChange(event.target.value)}>
+        <option value="all">Todas as disciplinas</option>
+        {filterSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+      </Select>
+    </div>}
   </div>;
 }
 
@@ -143,25 +202,19 @@ export function AssessmentsPage() {
     return <>
       <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
       <PageHeading title="Atividades" />
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div role="group" aria-label="Filtrar atividades por situação" className="flex flex-wrap gap-2">
-          {([
-            ['all', `Todas (${scopedAssessments.length})`],
-            ['pending', `Pendentes (${pendingCount})`],
-            ['completed', `Concluídas (${completedCount})`],
-          ] as const).map(([value, label]) => (
-            <Button key={value} variant="ghost" aria-pressed={studentFilter === value} className={studentFilter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setStudentFilter(value)}>
-              {label}
-            </Button>
-          ))}
-        </div>
-        {filterSubjects.length > 1 && <div className="w-full sm:w-64">
-          <Select aria-label="Filtrar por disciplina" value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)}>
-            <option value="all">Todas as disciplinas</option>
-            {filterSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
-          </Select>
-        </div>}
-      </div>
+      <ActivityTabs
+        ariaLabel="Filtrar atividades por situação"
+        tabs={[
+          { value: 'all', label: 'Todas', count: scopedAssessments.length },
+          { value: 'pending', label: 'Pendentes', count: pendingCount },
+          { value: 'completed', label: 'Concluídas', count: completedCount },
+        ] as const}
+        value={studentFilter}
+        onChange={setStudentFilter}
+        subjectFilter={subjectFilter}
+        filterSubjects={filterSubjects}
+        onSubjectChange={setSubjectFilter}
+      />
 
       {visibleGroups.length ? <div className="space-y-7">
         {visibleGroups.map(group => <section key={group.key} aria-labelledby={`activities-group-${group.key}`}>
@@ -218,21 +271,19 @@ export function AssessmentsPage() {
   return <>
     <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
     <PageHeading title="Atividades" action={canCreate && <LinkButton href="/questionarios/criar"><Plus aria-hidden="true" className="size-4" />Criar atividade</LinkButton>} />
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-      <div role="group" aria-label="Filtrar atividades" className="flex flex-wrap gap-2">
-        {([['all', 'Todas'], ['draft', 'Rascunhos'], ['published', 'Publicadas']] as const).map(([value, label]) => (
-          <Button key={value} variant="ghost" aria-pressed={staffFilter === value} className={staffFilter === value ? 'bg-brand-100 !text-brand-700' : undefined} onClick={() => setStaffFilter(value)}>
-            {label}
-          </Button>
-        ))}
-      </div>
-      {filterSubjects.length > 1 && <div className="w-full sm:w-64">
-        <Select aria-label="Filtrar por disciplina" value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)}>
-          <option value="all">Todas as disciplinas</option>
-          {filterSubjects.map(subject => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
-        </Select>
-      </div>}
-    </div>
+    <ActivityTabs
+      ariaLabel="Filtrar atividades"
+      tabs={[
+        { value: 'all', label: 'Todas' },
+        { value: 'draft', label: 'Rascunhos' },
+        { value: 'published', label: 'Publicadas' },
+      ] as const}
+      value={staffFilter}
+      onChange={setStaffFilter}
+      subjectFilter={subjectFilter}
+      filterSubjects={filterSubjects}
+      onSubjectChange={setSubjectFilter}
+    />
 
     {items.length ? <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
       {items.map(activity => {

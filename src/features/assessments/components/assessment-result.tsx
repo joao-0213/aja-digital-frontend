@@ -26,7 +26,7 @@ function AttemptChoices({ attempts }: { attempts: AttemptRead[] }) {
   </div>;
 }
 
-function ResultContent({ result }: { result: AttemptResult }) {
+function ResultContent({ result, isStudent }: { result: AttemptResult; isStudent: boolean }) {
   const questions = new Map(result.questions.map(question => [question.id, question]));
   const attempt = result.attempt;
   const summary = summarizeQuizResult(result);
@@ -40,7 +40,7 @@ function ResultContent({ result }: { result: AttemptResult }) {
       {summary.showGradeDetail && <p className="mt-1 text-sm text-slate-500">Nota {formatScore(result.score)} de {formatScore(result.maxScore)}</p>}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <LinkButton href={`/questionarios/responder?id=${encodeURIComponent(attempt.assessmentId)}`}>Ver atividade</LinkButton>
-        <LinkButton secondary href="/disciplinas">Voltar aos estudos</LinkButton>
+        <LinkButton secondary href="/disciplinas">{isStudent ? 'Voltar aos estudos' : 'Ver disciplinas'}</LinkButton>
       </div>
     </Card>
     <h2 className="mb-4 text-lg font-semibold">Revisão das respostas</h2>
@@ -53,7 +53,7 @@ function ResultContent({ result }: { result: AttemptResult }) {
         <div className="mb-4 flex items-center justify-between"><span className="text-sm font-semibold">Questão {index + 1}</span><Badge tone={correct ? 'green' : 'amber'}>{correct ? 'Correta' : answer === null || answer === undefined ? 'Em branco' : 'Revisar'}</Badge></div>
         <p className="whitespace-pre-wrap leading-7 [overflow-wrap:anywhere]">{question.statement}</p>
         {question.image && <AttemptImage image={question.image} />}
-        <p className="mt-4 text-sm text-slate-500 [overflow-wrap:anywhere]">Sua resposta: {answer === null || answer === undefined ? 'Em branco' : question.options[answer] ?? 'Alternativa indisponível'}</p>
+        <p className="mt-4 text-sm text-slate-500 [overflow-wrap:anywhere]">{isStudent ? 'Sua resposta' : 'Resposta do aluno'}: {answer === null || answer === undefined ? 'Em branco' : question.options[answer] ?? 'Alternativa indisponível'}</p>
         <p className="mt-2 text-sm font-semibold text-emerald-700 [overflow-wrap:anywhere]">Resposta correta: {question.options[question.correct]}</p>
         <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{question.explanation}</p>
       </Card>;
@@ -62,7 +62,7 @@ function ResultContent({ result }: { result: AttemptResult }) {
 }
 
 export function AssessmentResult() {
-  const { client, sessionKey, resourceEpoch, status } = useSession();
+  const { client, sessionKey, resourceEpoch, status, user } = useSession();
   const id = useSearchParams().get('id') ?? '';
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const direct = useHttpQuery({ sessionKey, key: `attempt-result:${id}:${resourceEpoch}` }, useCallback(signal => api.readAttemptResult(id, signal, sessionKey), [api, id, sessionKey]), status === 'authenticated' && !!id);
@@ -71,7 +71,7 @@ export function AssessmentResult() {
 
   if (status === 'loading' || direct.loading) return <Skeleton />;
   if (!id) return <Empty title="Resultado não encontrado" description="Abra um resultado pela lista de atividades." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;
-  if (direct.data) return <ResultContent result={direct.data} />;
+  if (direct.data) return <ResultContent result={direct.data} isStudent={user?.role === 'student'} />;
   if (notFound) {
     if (choices.loading) return <Skeleton />;
     if (choices.error) return <ErrorState message={choices.error.message} retry={() => void choices.retry()} />;
