@@ -19,6 +19,8 @@ import { ModuleEditor, type ModuleSelection } from './module-editor';
 import { createMaterialsApi, ModuleMaterials } from '@/features/materials';
 import { AssessmentSummaries, createAssessmentsApi } from '@/features/assessments';
 import { SubjectWall } from './subject-wall';
+import { resolveSubjectIcon } from './subject-icons';
+import { subjectCovers } from './subject-colors';
 
 function SubjectContent({ id, materialsView }: { id: string; materialsView: boolean }) {
   const { client, sessionKey, resourceEpoch, user } = useSession();
@@ -67,9 +69,37 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
     } finally { setReorderBusy(false); }
   };
   const subjectQuery = encodeURIComponent(id);
+  const cover = subjectCovers[subject.color] ?? subjectCovers.violet;
+  const { Icon: SubjectIcon, value: iconName } = resolveSubjectIcon(subject);
   return <>
     <LinkButton secondary href="/disciplinas" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar às disciplinas</LinkButton>
-    <header className="course-banner mb-6 rounded-xl border border-slate-200 p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><p className="mb-2 text-xs font-semibold tracking-wide text-brand-700 [overflow-wrap:anywhere]">{subject.className}</p><h1 className="text-2xl font-semibold tracking-tight text-slate-900 [overflow-wrap:anywhere] sm:text-3xl">{subject.name}</h1>{subject.description && <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{subject.description}</p>}</div>{canEdit && materialsView && <Button variant={editing ? 'primary' : 'secondary'} aria-pressed={editing} onClick={() => setEditing(!editing)}><Pencil aria-hidden="true" className="size-4" />{editing ? 'Concluir organização' : 'Organizar módulos'}</Button>}</div><div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-sm"><span className="text-slate-500">Equipe docente: <span className="text-slate-700">{subject.teachers.map(teacher => teacher.name).join(', ') || 'Sem docentes atribuídos'}</span></span><Link href={`/forum?disciplina=${subjectQuery}`} className="inline-flex min-h-11 items-center gap-2 font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900"><MessageSquare aria-hidden="true" className="size-4" />Dúvidas da turma</Link>{canEdit && <Link href={`/frequencia?disciplina=${subjectQuery}`} className="inline-flex min-h-11 items-center gap-2 font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900"><ListChecks aria-hidden="true" className="size-4" />Fazer chamada</Link>}</div></header>
+    <header className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <div className="relative flex flex-wrap items-start justify-between gap-4 px-5 py-6 sm:px-7 sm:py-7" style={{ background: cover.background, color: cover.color }}>
+        <div className="relative z-10 flex min-w-0 flex-1 items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/85 shadow-xs ring-1 ring-black/5">
+            <SubjectIcon aria-hidden="true" data-subject-icon={iconName} className="size-8" strokeWidth={1.65} />
+          </div>
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold tracking-wide [overflow-wrap:anywhere]">{subject.className}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 [overflow-wrap:anywhere] sm:text-3xl">{subject.name}</h1>
+            {subject.description && <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">{subject.description}</p>}
+          </div>
+        </div>
+        {canEdit && materialsView && <div className="relative z-10">
+          <Button variant={editing ? 'primary' : 'secondary'} aria-pressed={editing} onClick={() => setEditing(!editing)}>
+            <Pencil aria-hidden="true" className="size-4" />{editing ? 'Concluir organização' : 'Organizar módulos'}
+          </Button>
+        </div>}
+        <SubjectIcon aria-hidden="true" className="pointer-events-none absolute -bottom-6 right-6 hidden size-36 text-white/70 sm:block" strokeWidth={1.2} />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-slate-100 bg-white px-5 py-3.5 text-sm sm:px-7">
+        <span className="text-slate-500">Equipe docente: <span className="font-medium text-slate-800">{subject.teachers.map(teacher => teacher.name).join(', ') || 'Sem docentes atribuídos'}</span></span>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 sm:ml-auto">
+          <Link href={`/forum?disciplina=${subjectQuery}`} className="inline-flex min-h-10 items-center gap-2 font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-900"><MessageSquare aria-hidden="true" className="size-4" />Dúvidas da turma</Link>
+          {canEdit && <Link href={`/frequencia?disciplina=${subjectQuery}`} className="inline-flex min-h-10 items-center gap-2 font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-900"><ListChecks aria-hidden="true" className="size-4" />Fazer chamada</Link>}
+        </div>
+      </div>
+    </header>
     {visit.error && <div role="alert" className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm"><p>Sua visita não foi registrada. As novidades foram mantidas. {visit.error.message}</p><Button variant="secondary" onClick={() => void visit.retry()}>Tentar registrar visita novamente</Button></div>}
     {visit.hasUpdates && <p className="mb-4 text-sm text-brand-700">Há publicações novas nesta disciplina.</p>}
     <nav aria-label="Seções da disciplina" className="mb-6 flex gap-6 border-b border-slate-200">{[{ label: 'Mural', href: `/disciplinas/detalhes?id=${subjectQuery}`, active: !materialsView }, { label: 'Materiais e atividades', href: `/disciplinas/detalhes?id=${subjectQuery}&aba=materiais`, active: materialsView }].map(tab => <Link key={tab.label} href={tab.href} aria-current={tab.active ? 'page' : undefined} className={`min-h-12 border-b-2 px-1 py-3 text-sm font-semibold ${tab.active ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>{tab.label}</Link>)}</nav>
