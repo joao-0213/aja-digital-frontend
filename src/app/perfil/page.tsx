@@ -3,7 +3,9 @@ import { Skeleton } from '@/components/ui';
 import { ProfilePage } from '@/features/profile';
 
 export default function Page() {
-  return <Suspense fallback={<Skeleton />}>
-    <ProfilePage />
-  </Suspense>;
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <ProfilePage />
+    </Suspense>
+  );
 }

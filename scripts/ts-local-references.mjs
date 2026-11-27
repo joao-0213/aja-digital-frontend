@@ -3,14 +3,26 @@ import path from 'node:path';
 import ts from 'typescript';
 
 export const SOURCE_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
-export const MODULE_EXTENSIONS = ['.ts', '.tsx', '.d.ts', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json'];
+export const MODULE_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.d.ts',
+  '.mts',
+  '.cts',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.json'
+];
 
 const tsconfigCache = new Map();
 
 export function walkSourceFiles(directory) {
-  const entries = fs.readdirSync(directory, { withFileTypes: true })
+  const entries = fs
+    .readdirSync(directory, { withFileTypes: true })
     .sort((left, right) => left.name.localeCompare(right.name));
-  return entries.flatMap(entry => {
+  return entries.flatMap((entry) => {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return walkSourceFiles(fullPath);
     return SOURCE_FILE_PATTERN.test(entry.name) ? [fullPath] : [];
@@ -20,12 +32,19 @@ export function walkSourceFiles(directory) {
 export function scriptKindForFile(file) {
   if (file.endsWith('.tsx')) return ts.ScriptKind.TSX;
   if (file.endsWith('.jsx')) return ts.ScriptKind.JSX;
-  if (file.endsWith('.js') || file.endsWith('.mjs') || file.endsWith('.cjs')) return ts.ScriptKind.JS;
+  if (file.endsWith('.js') || file.endsWith('.mjs') || file.endsWith('.cjs'))
+    return ts.ScriptKind.JS;
   return ts.ScriptKind.TS;
 }
 
 export function parseTypeScriptFile(file, sourceText = fs.readFileSync(file, 'utf8')) {
-  return ts.createSourceFile(file, sourceText, ts.ScriptTarget.Latest, true, scriptKindForFile(file));
+  return ts.createSourceFile(
+    file,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindForFile(file)
+  );
 }
 
 function readTsconfigPaths(root) {
@@ -54,13 +73,20 @@ function resolveAliasBases(root, specifier) {
     const star = pattern.indexOf('*');
     if (star < 0) {
       if (specifier !== pattern) continue;
-      return substitutions.map(substitution => path.resolve(baseUrl, substitution));
+      return substitutions.map((substitution) => path.resolve(baseUrl, substitution));
     }
     const prefix = pattern.slice(0, star);
     const suffix = pattern.slice(star + 1);
-    if (!specifier.startsWith(prefix) || !specifier.endsWith(suffix) || specifier.length < prefix.length + suffix.length) continue;
+    if (
+      !specifier.startsWith(prefix) ||
+      !specifier.endsWith(suffix) ||
+      specifier.length < prefix.length + suffix.length
+    )
+      continue;
     const capture = specifier.slice(prefix.length, suffix.length ? -suffix.length : undefined);
-    return substitutions.map(substitution => path.resolve(baseUrl, substitution.replace('*', capture)));
+    return substitutions.map((substitution) =>
+      path.resolve(baseUrl, substitution.replace('*', capture))
+    );
   }
   return [];
 }
@@ -68,8 +94,8 @@ function resolveAliasBases(root, specifier) {
 function candidatePathsForBase(base) {
   return [
     base,
-    ...MODULE_EXTENSIONS.map(extension => `${base}${extension}`),
-    ...MODULE_EXTENSIONS.map(extension => path.join(base, `index${extension}`))
+    ...MODULE_EXTENSIONS.map((extension) => `${base}${extension}`),
+    ...MODULE_EXTENSIONS.map((extension) => path.join(base, `index${extension}`))
   ];
 }
 
@@ -85,16 +111,19 @@ export function resolveLocalModule(root, importerFile, specifier) {
   if (!bases.length) return null;
 
   for (const base of bases) {
-    const found = candidatePathsForBase(base).find(candidate => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    const found = candidatePathsForBase(base).find(
+      (candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()
+    );
     if (found) return { specifier, target: found, candidateTarget: found };
   }
   return { specifier, target: null, candidateTarget: bases[0] };
 }
 
 export function collectLocalReferences(root, file, sourceOrAst) {
-  const sourceFile = typeof sourceOrAst === 'string' || sourceOrAst === undefined
-    ? parseTypeScriptFile(file, sourceOrAst)
-    : sourceOrAst;
+  const sourceFile =
+    typeof sourceOrAst === 'string' || sourceOrAst === undefined
+      ? parseTypeScriptFile(file, sourceOrAst)
+      : sourceOrAst;
 
   const references = [];
   const pushReference = (specifier, syntax, typeOnly, sideEffect = false) => {
@@ -114,22 +143,68 @@ export function collectLocalReferences(root, file, sourceOrAst) {
     });
   };
 
-  const visit = node => {
-    if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+  const visit = (node) => {
+    if (
+      ts.isImportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteralLike(node.moduleSpecifier)
+    ) {
       const clause = node.importClause;
-      const named = clause?.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements : null;
-      const clauseTypeOnly = Boolean(clause?.isTypeOnly || clause?.phaseModifier === ts.SyntaxKind.TypeKeyword);
-      const inlineTypeOnly = Boolean(clause && !clause.name && named && named.length > 0 && named.every(element => element.isTypeOnly));
+      const named =
+        clause?.namedBindings && ts.isNamedImports(clause.namedBindings)
+          ? clause.namedBindings.elements
+          : null;
+      const clauseTypeOnly = Boolean(
+        clause?.isTypeOnly || clause?.phaseModifier === ts.SyntaxKind.TypeKeyword
+      );
+      const inlineTypeOnly = Boolean(
+        clause &&
+          !clause.name &&
+          named &&
+          named.length > 0 &&
+          named.every((element) => element.isTypeOnly)
+      );
       pushReference(node.moduleSpecifier.text, 'import', clauseTypeOnly || inlineTypeOnly, !clause);
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
-      const named = node.exportClause && ts.isNamedExports(node.exportClause) ? node.exportClause.elements : null;
-      const inlineTypeOnly = Boolean(named && named.length > 0 && named.every(element => element.isTypeOnly));
-      pushReference(node.moduleSpecifier.text, 'export', Boolean(node.isTypeOnly) || inlineTypeOnly);
-    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression && ts.isStringLiteralLike(node.moduleReference.expression)) {
-      pushReference(node.moduleReference.expression.text, 'import-equals', Boolean(node.isTypeOnly));
-    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length > 0 && ts.isStringLiteralLike(node.arguments[0])) {
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteralLike(node.moduleSpecifier)
+    ) {
+      const named =
+        node.exportClause && ts.isNamedExports(node.exportClause)
+          ? node.exportClause.elements
+          : null;
+      const inlineTypeOnly = Boolean(
+        named && named.length > 0 && named.every((element) => element.isTypeOnly)
+      );
+      pushReference(
+        node.moduleSpecifier.text,
+        'export',
+        Boolean(node.isTypeOnly) || inlineTypeOnly
+      );
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      node.moduleReference.expression &&
+      ts.isStringLiteralLike(node.moduleReference.expression)
+    ) {
+      pushReference(
+        node.moduleReference.expression.text,
+        'import-equals',
+        Boolean(node.isTypeOnly)
+      );
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length > 0 &&
+      ts.isStringLiteralLike(node.arguments[0])
+    ) {
       pushReference(node.arguments[0].text, 'dynamic-import', false);
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) {
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteralLike(node.argument.literal)
+    ) {
       pushReference(node.argument.literal.text, 'import-type', true);
     }
     ts.forEachChild(node, visit);

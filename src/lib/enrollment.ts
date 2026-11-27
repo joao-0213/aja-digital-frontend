@@ -8,72 +8,166 @@ export type EnrollmentCommand =
   | { type: 'cancel' | 'end'; id: string };
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
-export const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
-export const hasEnrollmentConflict = (db: MockDatabase, studentId: string) => db.classes.filter(c => c.active && !c.deletedAt && c.studentIds.includes(studentId)).length > 1;
+export const validEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+export const hasEnrollmentConflict = (db: MockDatabase, studentId: string) =>
+  db.classes.filter((c) => c.active && !c.deletedAt && c.studentIds.includes(studentId)).length > 1;
 const available = (user: User) => user.active !== false && !user.deletedAt;
 
 /** The compatibility list remains persisted; dated records describe the lifecycle. */
 export function activeEnrollment(db: MockDatabase, studentId: string, classId: string) {
-  return db.enrollments?.find(e => e.studentId === studentId && e.classId === classId && e.status === 'active' && !e.deletedAt);
+  return db.enrollments?.find(
+    (e) =>
+      e.studentId === studentId && e.classId === classId && e.status === 'active' && !e.deletedAt
+  );
 }
 
-export function isAssessmentAssigned(db: MockDatabase, assessment: Assessment, studentId: string): boolean {
-  const subjectId = db.modules.find(m => m.id === assessment.moduleId)?.subjectId;
-  const classId = db.subjects.find(s => s.id === subjectId)?.classId;
+export function isAssessmentAssigned(
+  db: MockDatabase,
+  assessment: Assessment,
+  studentId: string
+): boolean {
+  const subjectId = db.modules.find((m) => m.id === assessment.moduleId)?.subjectId;
+  const classId = db.subjects.find((s) => s.id === subjectId)?.classId;
   if (!classId) return false;
   const enrollment = activeEnrollment(db, studentId, classId);
-  return enrollment ? !enrollment.unassignedAssessmentIds.includes(assessment.id) : !!db.classes.find(c => c.id === classId && c.active && !c.deletedAt && c.studentIds.includes(studentId));
+  return enrollment
+    ? !enrollment.unassignedAssessmentIds.includes(assessment.id)
+    : !!db.classes.find(
+        (c) => c.id === classId && c.active && !c.deletedAt && c.studentIds.includes(studentId)
+      );
 }
 
 /** Civil lesson dates use Brasília, independent of the browser/server timezone. */
-export function enrolledForLesson(db: MockDatabase, classId: string, studentId: string, date: string): boolean {
-  const history = db.enrollments?.filter(e => e.classId === classId && e.studentId === studentId && (e.enrolledAt || e.legacy === true)) ?? [];
-  if (!history.length) return !!db.classes.find(c => c.id === classId && c.studentIds.includes(studentId));
+export function enrolledForLesson(
+  db: MockDatabase,
+  classId: string,
+  studentId: string,
+  date: string
+): boolean {
+  const history =
+    db.enrollments?.filter(
+      (e) =>
+        e.classId === classId && e.studentId === studentId && (e.enrolledAt || e.legacy === true)
+    ) ?? [];
+  if (!history.length)
+    return !!db.classes.find((c) => c.id === classId && c.studentIds.includes(studentId));
   const day = (timestamp: string) => {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(timestamp));
-    const value = (type: string) => parts.find(part => part.type === type)!.value;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date(timestamp));
+    const value = (type: string) => parts.find((part) => part.type === type)!.value;
     return `${value('year')}-${value('month')}-${value('day')}`;
   };
-  return history.some(e => {
-    if (!e.enrolledAt) return e.legacy === true && e.status === 'ended' && (!e.endedAt || day(e.endedAt) >= date) && db.attendance.some(a => !a.deletedAt && a.date === date && a.records[studentId] !== undefined && db.subjects.some(s => s.id === a.subjectId && s.classId === classId));
+  return history.some((e) => {
+    if (!e.enrolledAt)
+      return (
+        e.legacy === true &&
+        e.status === 'ended' &&
+        (!e.endedAt || day(e.endedAt) >= date) &&
+        db.attendance.some(
+          (a) =>
+            !a.deletedAt &&
+            a.date === date &&
+            a.records[studentId] !== undefined &&
+            db.subjects.some((s) => s.id === a.subjectId && s.classId === classId)
+        )
+      );
     // An unknown historical exit cannot establish eligibility for a new lesson.
-    if (e.status === 'ended' && !e.endedAt) return db.attendance.some(a => !a.deletedAt && a.date === date && a.records[studentId] !== undefined && db.subjects.some(s => s.id === a.subjectId && s.classId === classId));
+    if (e.status === 'ended' && !e.endedAt)
+      return db.attendance.some(
+        (a) =>
+          !a.deletedAt &&
+          a.date === date &&
+          a.records[studentId] !== undefined &&
+          db.subjects.some((s) => s.id === a.subjectId && s.classId === classId)
+      );
     return (e.legacy || day(e.enrolledAt!) <= date) && (!e.endedAt || day(e.endedAt) >= date);
   });
 }
 
 function activate(db: MockDatabase, enrollment: Enrollment, student: User, now: string) {
-  const destination = db.classes.find(c => c.id === enrollment.classId && c.active && !c.deletedAt);
-  if (!destination) throw new Error('Turma indisponível para matrícula. Solicite a regularização à administração.');
-  if (!available(student)) throw new Error('Conta inativa ou excluída. Solicite a regularização à administração.');
-  if (student.role !== 'student') throw new Error('Este e-mail pertence a uma conta com outro cargo. A inclusão não altera o cargo para aluno.');
-  const other = db.classes.find(c => c.id !== destination.id && c.active && !c.deletedAt && c.studentIds.includes(student.id));
-  if (other) throw new Error(`O aluno já tem vínculo ativo em ${other.name}. Regularize esse vínculo antes de incluir em outra turma; não há transferência automática.`);
+  const destination = db.classes.find(
+    (c) => c.id === enrollment.classId && c.active && !c.deletedAt
+  );
+  if (!destination)
+    throw new Error('Turma indisponível para matrícula. Solicite a regularização à administração.');
+  if (!available(student))
+    throw new Error('Conta inativa ou excluída. Solicite a regularização à administração.');
+  if (student.role !== 'student')
+    throw new Error(
+      'Este e-mail pertence a uma conta com outro cargo. A inclusão não altera o cargo para aluno.'
+    );
+  const other = db.classes.find(
+    (c) => c.id !== destination.id && c.active && !c.deletedAt && c.studentIds.includes(student.id)
+  );
+  if (other)
+    throw new Error(
+      `O aluno já tem vínculo ativo em ${other.name}. Regularize esse vínculo antes de incluir em outra turma; não há transferência automática.`
+    );
   if (student.emailConfirmedAt === null) return;
   enrollment.studentId = student.id;
   enrollment.status = 'active';
   enrollment.enrolledAt = now;
-  const modules = new Set(db.modules.filter(m => db.subjects.some(s => s.id === m.subjectId && s.classId === destination.id)).map(m => m.id));
-  enrollment.unassignedAssessmentIds = db.assessments.filter(a => modules.has(a.moduleId) && !a.deletedAt && a.status === 'published' && a.deadline && deadlineTime(a.deadline) <= new Date(now).getTime()).map(a => a.id);
+  const modules = new Set(
+    db.modules
+      .filter((m) => db.subjects.some((s) => s.id === m.subjectId && s.classId === destination.id))
+      .map((m) => m.id)
+  );
+  enrollment.unassignedAssessmentIds = db.assessments
+    .filter(
+      (a) =>
+        modules.has(a.moduleId) &&
+        !a.deletedAt &&
+        a.status === 'published' &&
+        a.deadline &&
+        deadlineTime(a.deadline) <= new Date(now).getTime()
+    )
+    .map((a) => a.id);
   if (!destination.studentIds.includes(student.id)) destination.studentIds.push(student.id);
 }
 
 /** Only this command surface can confirm email or consume a pending reservation. */
-export function executeEnrollmentCommand(db: MockDatabase, actor: User, command: EnrollmentCommand, now: string) {
+export function executeEnrollmentCommand(
+  db: MockDatabase,
+  actor: User,
+  command: EnrollmentCommand,
+  now: string
+) {
   db.enrollments ??= [];
   if (command.type === 'register') {
     const email = normalizeEmail(command.email);
-    if (!validEmail(email) || command.name.trim().length < 3 || command.name.trim().length > 100) throw new Error('Informe nome e e-mail válidos.');
-    if (db.users.some(u => normalizeEmail(u.email) === email)) throw new Error('Este e-mail já está cadastrado. Entre na conta existente ou solicite regularização; ela não será reativada pelo cadastro.');
-    if (db.users.some(u => u.id === command.id)) throw new Error('Este cadastro já existe. Entre para retomar a confirmação.');
-    db.users.push({ id: command.id, name: command.name.trim(), email, role: 'student', emailConfirmedAt: null });
+    if (!validEmail(email) || command.name.trim().length < 3 || command.name.trim().length > 100)
+      throw new Error('Informe nome e e-mail válidos.');
+    if (db.users.some((u) => normalizeEmail(u.email) === email))
+      throw new Error(
+        'Este e-mail já está cadastrado. Entre na conta existente ou solicite regularização; ela não será reativada pelo cadastro.'
+      );
+    if (db.users.some((u) => u.id === command.id))
+      throw new Error('Este cadastro já existe. Entre para retomar a confirmação.');
+    db.users.push({
+      id: command.id,
+      name: command.name.trim(),
+      email,
+      role: 'student',
+      emailConfirmedAt: null
+    });
     return;
   }
   if (command.type === 'confirm') {
-    if (actor.role !== 'student') throw new Error('A confirmação deve ser feita na própria conta de aluno.');
-    const student = db.users.find(u => u.id === actor.id)!;
-    const pending = db.enrollments.filter(e => e.status === 'pending' && !e.deletedAt && e.email === normalizeEmail(student.email));
-    if (pending.length > 1) throw new Error('Há pendências em mais de uma turma. Peça ao administrador para cancelar o destino incorreto e tente novamente. Sua conta foi preservada.');
+    if (actor.role !== 'student')
+      throw new Error('A confirmação deve ser feita na própria conta de aluno.');
+    const student = db.users.find((u) => u.id === actor.id)!;
+    const pending = db.enrollments.filter(
+      (e) => e.status === 'pending' && !e.deletedAt && e.email === normalizeEmail(student.email)
+    );
+    if (pending.length > 1)
+      throw new Error(
+        'Há pendências em mais de uma turma. Peça ao administrador para cancelar o destino incorreto e tente novamente. Sua conta foi preservada.'
+      );
     student.emailConfirmedAt ??= now;
     if (pending[0]) activate(db, pending[0], student, now);
     return;
@@ -82,26 +176,52 @@ export function executeEnrollmentCommand(db: MockDatabase, actor: User, command:
   if (command.type === 'add') {
     const email = normalizeEmail(command.email);
     if (!validEmail(email)) throw new Error('Informe um e-mail válido.');
-    const destination = db.classes.find(c => c.id === command.classId && c.active && !c.deletedAt);
+    const destination = db.classes.find(
+      (c) => c.id === command.classId && c.active && !c.deletedAt
+    );
     if (!destination) throw new Error('Esta turma está inativa ou indisponível.');
-    const student = db.users.find(u => normalizeEmail(u.email) === email);
-    if (student && (!available(student) || student.role !== 'student')) throw new Error('Esta conta está inativa, excluída ou tem outro cargo. A inclusão não altera seu estado ou cargo.');
-    const previous = db.enrollments.find(e => e.classId === command.classId && !!student && e.studentId === student.id)
-      ?? db.enrollments.find(e => e.classId === command.classId && e.email === email);
-    if (previous?.studentId && previous.studentId !== student?.id) throw new Error('Este e-mail consta no histórico de outra conta nesta turma. Solicite a conferência administrativa; nenhum vínculo foi criado ou transferido.');
+    const student = db.users.find((u) => normalizeEmail(u.email) === email);
+    if (student && (!available(student) || student.role !== 'student'))
+      throw new Error(
+        'Esta conta está inativa, excluída ou tem outro cargo. A inclusão não altera seu estado ou cargo.'
+      );
+    const previous =
+      db.enrollments.find(
+        (e) => e.classId === command.classId && !!student && e.studentId === student.id
+      ) ?? db.enrollments.find((e) => e.classId === command.classId && e.email === email);
+    if (previous?.studentId && previous.studentId !== student?.id)
+      throw new Error(
+        'Este e-mail consta no histórico de outra conta nesta turma. Solicite a conferência administrativa; nenhum vínculo foi criado ou transferido.'
+      );
     if (previous) {
-      if (previous.status === 'cancelled' || previous.status === 'ended' || previous.deletedAt) throw new Error('Matrícula encerrada ou cancelada neste destino. Não há restauração pela interface.');
+      if (previous.status === 'cancelled' || previous.status === 'ended' || previous.deletedAt)
+        throw new Error(
+          'Matrícula encerrada ou cancelada neste destino. Não há restauração pela interface.'
+        );
       if (student && previous.status === 'pending') activate(db, previous, student, now);
       return;
     }
-    const enrollment: Enrollment = { id: `enrollment-${globalThis.crypto.randomUUID()}`, classId: command.classId, email, status: 'pending', createdAt: now, createdBy: actor.id, unassignedAssessmentIds: [] };
+    const enrollment: Enrollment = {
+      id: `enrollment-${globalThis.crypto.randomUUID()}`,
+      classId: command.classId,
+      email,
+      status: 'pending',
+      createdAt: now,
+      createdBy: actor.id,
+      unassignedAssessmentIds: []
+    };
     db.enrollments.push(enrollment);
     if (student) activate(db, enrollment, student, now);
     return;
   }
-  const enrollment = db.enrollments.find(e => e.id === command.id);
-  if (!enrollment || enrollment.deletedAt) throw new Error('Matrícula indisponível. Não há restauração pela interface.');
-  if (command.type === 'cancel' && enrollment.status !== 'pending' || command.type === 'end' && enrollment.status !== 'active') throw new Error('A matrícula mudou. Confira o estado atual antes de continuar.');
+  const enrollment = db.enrollments.find((e) => e.id === command.id);
+  if (!enrollment || enrollment.deletedAt)
+    throw new Error('Matrícula indisponível. Não há restauração pela interface.');
+  if (
+    (command.type === 'cancel' && enrollment.status !== 'pending') ||
+    (command.type === 'end' && enrollment.status !== 'active')
+  )
+    throw new Error('A matrícula mudou. Confira o estado atual antes de continuar.');
   closeEnrollment(db, enrollment, now);
 }
 
@@ -109,29 +229,72 @@ function closeEnrollment(db: MockDatabase, enrollment: Enrollment, now: string) 
   enrollment.status = enrollment.status === 'pending' ? 'cancelled' : 'ended';
   enrollment.endedAt = now;
   enrollment.deletedAt = now;
-  const schoolClass = db.classes.find(c => c.id === enrollment.classId);
-  if (schoolClass && enrollment.studentId) schoolClass.studentIds = schoolClass.studentIds.filter(id => id !== enrollment.studentId);
+  const schoolClass = db.classes.find((c) => c.id === enrollment.classId);
+  if (schoolClass && enrollment.studentId)
+    schoolClass.studentIds = schoolClass.studentIds.filter((id) => id !== enrollment.studentId);
 }
 
 /** Preserve existing callers while enforcing the same membership invariant on every write. */
-export function reconcileEnrollments(current: MockDatabase, draft: MockDatabase, actor: User, now: string) {
+export function reconcileEnrollments(
+  current: MockDatabase,
+  draft: MockDatabase,
+  actor: User,
+  now: string
+) {
   draft.enrollments ??= [];
   for (const enrollment of draft.enrollments) {
-    const schoolClass = draft.classes.find(c => c.id === enrollment.classId);
-    const student = draft.users.find(u => u.id === enrollment.studentId);
-    if ((enrollment.status === 'pending' || enrollment.status === 'active') && (!schoolClass?.active || schoolClass.deletedAt || enrollment.status === 'active' && (!student || !available(student) || student.role !== 'student' || !schoolClass.studentIds.includes(student.id)))) closeEnrollment(draft, enrollment, now);
+    const schoolClass = draft.classes.find((c) => c.id === enrollment.classId);
+    const student = draft.users.find((u) => u.id === enrollment.studentId);
+    if (
+      (enrollment.status === 'pending' || enrollment.status === 'active') &&
+      (!schoolClass?.active ||
+        schoolClass.deletedAt ||
+        (enrollment.status === 'active' &&
+          (!student ||
+            !available(student) ||
+            student.role !== 'student' ||
+            !schoolClass.studentIds.includes(student.id))))
+    )
+      closeEnrollment(draft, enrollment, now);
   }
   for (const schoolClass of draft.classes) {
-    const previous = current.classes.find(c => c.id === schoolClass.id);
+    const previous = current.classes.find((c) => c.id === schoolClass.id);
     for (const studentId of [...schoolClass.studentIds]) {
-      const student = draft.users.find(u => u.id === studentId);
-      if (!student || !available(student) || student.role !== 'student') throw new Error('A matrícula exige uma conta de aluno ativa.');
+      const student = draft.users.find((u) => u.id === studentId);
+      if (!student || !available(student) || student.role !== 'student')
+        throw new Error('A matrícula exige uma conta de aluno ativa.');
       if (!schoolClass.active || schoolClass.deletedAt) continue;
-      if (student.emailConfirmedAt === null && !previous?.studentIds.includes(studentId)) throw new Error('Confirme o e-mail na sua conta antes de acessar a turma.');
-      if ((!previous?.active || !previous.studentIds.includes(studentId)) && hasEnrollmentConflict(draft, studentId)) throw new Error('O aluno já tem outra turma ativa. Regularize o vínculo; não há transferência automática.');
-      if (!activeEnrollment(draft, studentId, schoolClass.id) && !previous?.studentIds.includes(studentId)) {
-        if (draft.enrollments.some(e => e.classId === schoolClass.id && (e.studentId === studentId || e.email === normalizeEmail(student.email)) && e.deletedAt)) throw new Error('Vínculo excluído: não há restauração pela interface.');
-        const enrollment: Enrollment = { id: `enrollment-${globalThis.crypto.randomUUID()}`, classId: schoolClass.id, email: normalizeEmail(student.email), status: 'pending', createdAt: now, createdBy: actor.id, unassignedAssessmentIds: [] };
+      if (student.emailConfirmedAt === null && !previous?.studentIds.includes(studentId))
+        throw new Error('Confirme o e-mail na sua conta antes de acessar a turma.');
+      if (
+        (!previous?.active || !previous.studentIds.includes(studentId)) &&
+        hasEnrollmentConflict(draft, studentId)
+      )
+        throw new Error(
+          'O aluno já tem outra turma ativa. Regularize o vínculo; não há transferência automática.'
+        );
+      if (
+        !activeEnrollment(draft, studentId, schoolClass.id) &&
+        !previous?.studentIds.includes(studentId)
+      ) {
+        if (
+          draft.enrollments.some(
+            (e) =>
+              e.classId === schoolClass.id &&
+              (e.studentId === studentId || e.email === normalizeEmail(student.email)) &&
+              e.deletedAt
+          )
+        )
+          throw new Error('Vínculo excluído: não há restauração pela interface.');
+        const enrollment: Enrollment = {
+          id: `enrollment-${globalThis.crypto.randomUUID()}`,
+          classId: schoolClass.id,
+          email: normalizeEmail(student.email),
+          status: 'pending',
+          createdAt: now,
+          createdBy: actor.id,
+          unassignedAssessmentIds: []
+        };
         draft.enrollments.push(enrollment);
         activate(draft, enrollment, student, now);
       }

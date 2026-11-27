@@ -6,11 +6,11 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 export async function resolve(specifier, context, nextResolve) {
   if (
-    context.parentURL?.startsWith('file://')
-    && !context.parentURL.includes('/node_modules/')
-    && !specifier.startsWith('node:')
-    && !specifier.startsWith('file://')
-    && (specifier.startsWith('.') || specifier.startsWith('@/') || specifier.startsWith('/'))
+    context.parentURL?.startsWith('file://') &&
+    !context.parentURL.includes('/node_modules/') &&
+    !specifier.startsWith('node:') &&
+    !specifier.startsWith('file://') &&
+    (specifier.startsWith('.') || specifier.startsWith('@/') || specifier.startsWith('/'))
   ) {
     const parentFile = fileURLToPath(context.parentURL);
     const resolved = resolveLocalModule(projectRoot, parentFile, specifier);

@@ -16,13 +16,13 @@ export const emptyQuestionFilters: Required<QuestionFilterValue> = {
   topic: 'all',
   difficulty: 'all',
   institution: 'all',
-  year: 'all',
+  year: 'all'
 };
 
 export function filterQuestions(questions: Question[], filters: QuestionFilterValue) {
   const year = filters.year ?? 'all';
   return questions.filter(
-    q =>
+    (q) =>
       q.origin !== 'author' &&
       !q.deletedAt &&
       (filters.subject === 'all' || q.subject === filters.subject) &&
@@ -30,6 +30,6 @@ export function filterQuestions(questions: Question[], filters: QuestionFilterVa
       (filters.difficulty === 'all' || q.difficulty === filters.difficulty) &&
       (filters.institution === 'all' || q.institution === filters.institution) &&
       (year === 'all' || String(q.year) === year) &&
-      textMatch(`${q.statement} ${q.subject} ${q.topic}`, filters.search),
+      textMatch(`${q.statement} ${q.subject} ${q.topic}`, filters.search)
   );
 }

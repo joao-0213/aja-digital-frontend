@@ -3,7 +3,9 @@ import { Skeleton } from '@/components/ui';
 import { CalendarPage } from '@/features/calendar';
 
 export default function Page() {
-  return <Suspense fallback={<Skeleton />}>
-    <CalendarPage />
-  </Suspense>;
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <CalendarPage />
+    </Suspense>
+  );
 }

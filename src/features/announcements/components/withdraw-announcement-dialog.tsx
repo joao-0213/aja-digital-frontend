@@ -14,7 +14,7 @@ export function WithdrawAnnouncementDialog({
   onClose,
   onWithdraw,
   onWithdrawn,
-  onError,
+  onError
 }: {
   item: AnnouncementDto | null;
   onClose: () => void;
@@ -40,13 +40,30 @@ export function WithdrawAnnouncementDialog({
     }
   };
 
-  return <Dialog open={!!item} onClose={() => { if (!busy) onClose(); }} title="Retirar aviso">
-    {item && <>
-      <p className="mb-5 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">Retirar “<strong className="text-slate-900">{truncateTitle(item.title)}</strong>” das consultas? O registro e a autoria serão preservados.</p>
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="secondary" disabled={busy} onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" loading={busy} onClick={() => void confirm()}>Retirar aviso</Button>
-      </div>
-    </>}
-  </Dialog>;
+  return (
+    <Dialog
+      open={!!item}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      title="Retirar aviso"
+    >
+      {item && (
+        <>
+          <p className="mb-5 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
+            Retirar “<strong className="text-slate-900">{truncateTitle(item.title)}</strong>” das
+            consultas? O registro e a autoria serão preservados.
+          </p>
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="secondary" disabled={busy} onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button variant="danger" loading={busy} onClick={() => void confirm()}>
+              Retirar aviso
+            </Button>
+          </div>
+        </>
+      )}
+    </Dialog>
+  );
 }

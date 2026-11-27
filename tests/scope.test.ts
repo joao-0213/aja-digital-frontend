@@ -8,14 +8,45 @@ import { beginAttempt, submitAttempt } from './support/legacy/assessment-attempt
 function legacy() {
   return {
     version: 1,
-    users: [{ id: 'u', name: 'Aluno Exemplo', email: 'aluno@exemplo.com', role: 'student', quota: 'income', course: 'Curso', institution: 'Alvo', bio: 'Texto privado', avatar: 'data:image/png;base64,old' }],
-    classes: [{ id: 'c', studentIds: ['u'] }], subjects: [], modules: [], materials: [],
+    users: [
+      {
+        id: 'u',
+        name: 'Aluno Exemplo',
+        email: 'aluno@exemplo.com',
+        role: 'student',
+        quota: 'income',
+        course: 'Curso',
+        institution: 'Alvo',
+        bio: 'Texto privado',
+        avatar: 'data:image/png;base64,old'
+      }
+    ],
+    classes: [{ id: 'c', studentIds: ['u'] }],
+    subjects: [],
+    modules: [],
+    materials: [],
     questions: [{ id: 'q1', institution: 'Origem', options: ['A', 'B'], correct: 0 }],
-    assessments: [{ id: 'a', status: 'published', questionIds: ['q1', 'q2'], shuffle: true, attempts: 3 }],
-    attempts: [{ id: 'old', assessmentId: 'a', userId: 'u', startedAt: '2026-10-01', questionOrder: ['q2', 'q1'], answers: { q2: 1 } }],
-    topics: [{ id: 't', replies: [{ id: 'r', votes: { positive: 1, negative: -1 }, accepted: true }] }],
+    assessments: [
+      { id: 'a', status: 'published', questionIds: ['q1', 'q2'], shuffle: true, attempts: 3 }
+    ],
+    attempts: [
+      {
+        id: 'old',
+        assessmentId: 'a',
+        userId: 'u',
+        startedAt: '2026-10-01',
+        questionOrder: ['q2', 'q1'],
+        answers: { q2: 1 }
+      }
+    ],
+    topics: [
+      { id: 't', replies: [{ id: 'r', votes: { positive: 1, negative: -1 }, accepted: true }] }
+    ],
     documents: [{ name: 'laudo-ficticio.pdf', reason: 'Informação removida' }],
-    announcements: [], events: [], attendance: [], progress: [{ userId: 'u', materialId: 'm', completed: true }]
+    announcements: [],
+    events: [],
+    attendance: [],
+    progress: [{ userId: 'u', materialId: 'm', completed: true }]
   } as unknown as MockDatabase;
 }
 
@@ -23,10 +54,15 @@ test('migration removes retired personal data and documents without losing accou
   const before = legacy();
   assert.equal(isDatabase(before), true);
   const after = migrateDatabase(before);
-  assert.deepEqual(after.users, [{ id: 'u', name: 'Aluno Exemplo', email: 'aluno@exemplo.com', role: 'student' }]);
+  assert.deepEqual(after.users, [
+    { id: 'u', name: 'Aluno Exemplo', email: 'aluno@exemplo.com', role: 'student' }
+  ]);
   assert.equal('documents' in after, false);
   assert.deepEqual(after.classes, before.classes);
-  assert.deepEqual(after.attempts.map(({ questions, ...attempt }) => attempt), before.attempts);
+  assert.deepEqual(
+    after.attempts.map(({ questions, ...attempt }) => attempt),
+    before.attempts
+  );
   assert.equal(after.attempts[0].questions?.[0].id, 'q1');
   assert.deepEqual(after.progress, before.progress);
   assert.equal(after.questions[0].institution, 'Origem');
@@ -71,8 +107,12 @@ test('one submission survives duplicate calls, legacy unfinished drafts and requ
 function storage(value: string | null = null) {
   return {
     getItem: (_key: string) => value,
-    setItem: (_key: string, next: string) => { value = next; },
-    removeItem: (_key: string) => { value = null; }
+    setItem: (_key: string, next: string) => {
+      value = next;
+    },
+    removeItem: (_key: string) => {
+      value = null;
+    }
   };
 }
 
@@ -80,7 +120,9 @@ test('blocked migration write keeps migrated accounts in memory and restores tea
   for (const role of ['teacher', 'admin'] as const) {
     for (const error of ['QuotaExceededError', 'SecurityError']) {
       const local = storage(JSON.stringify(legacy()));
-      local.setItem = () => { throw new DOMException('Blocked', error); };
+      local.setItem = () => {
+        throw new DOMException('Blocked', error);
+      };
       const restored = readDemoState(local, storage(role));
       assert.equal(restored.role, role);
       assert.equal(restored.storageError, true);
@@ -102,7 +144,9 @@ test('restoring database and session handles independent failures and invalid st
   assert.equal(invalid.getItem(''), null);
   assert.equal(readDemoState(storage('{'), storage('admin')).role, 'admin');
   const blocked = storage();
-  blocked.getItem = () => { throw new DOMException('Blocked', 'SecurityError'); };
+  blocked.getItem = () => {
+    throw new DOMException('Blocked', 'SecurityError');
+  };
   assert.equal(readDemoState(blocked, storage('admin')).role, 'admin');
   const noSession = readDemoState(storage(JSON.stringify(legacy())), blocked);
   assert.equal(noSession.database?.users[0].id, 'u');
@@ -119,7 +163,10 @@ test('chronology compares instants across UTC, explicit offsets and legacy local
       { id: 'late', createdAt: '2026-10-04T20:10:00', accepted: true, votes: 10 },
       { id: 'early', createdAt: '2026-10-04T23:00:00Z', accepted: false, votes: 0 }
     ];
-    assert.deepEqual([...replies].sort((a, b) => compareTimestamps(a.createdAt, b.createdAt)).map(r => r.id), ['early', 'late']);
+    assert.deepEqual(
+      [...replies].sort((a, b) => compareTimestamps(a.createdAt, b.createdAt)).map((r) => r.id),
+      ['early', 'late']
+    );
     assert.ok(compareTimestamps('invalid', replies[0].createdAt) > 0);
     assert.equal(compareTimestamps('invalid', ''), 0);
     assert.ok(compareTimestamps(replies[0].createdAt, 'invalid') < 0);
@@ -135,11 +182,23 @@ test('last material includes completed visits and excludes another user, inacces
     { userId: 'u', materialId: 'first', lastAccess: '2026-10-01T10:00:00Z', completed: false },
     { userId: 'u', materialId: 'last', lastAccess: '2026-10-02T10:00:00Z', completed: true },
     { userId: 'other', materialId: 'first', lastAccess: '2026-10-03T10:00:00Z', completed: false },
-    { userId: 'u', materialId: 'inaccessible', lastAccess: '2026-10-04T10:00:00Z', completed: false },
+    {
+      userId: 'u',
+      materialId: 'inaccessible',
+      lastAccess: '2026-10-04T10:00:00Z',
+      completed: false
+    },
     { userId: 'u', materialId: 'first', lastAccess: 'invalid', completed: false }
   ];
   assert.equal(lastAccessedMaterial('u', materials, visits)?.id, 'last');
-  assert.equal(lastAccessedMaterial('u', materials, visits.map(p => ({ ...p, completed: true })))?.id, 'last');
+  assert.equal(
+    lastAccessedMaterial(
+      'u',
+      materials,
+      visits.map((p) => ({ ...p, completed: true }))
+    )?.id,
+    'last'
+  );
   assert.equal(lastAccessedMaterial('u', materials, []), undefined);
   assert.equal(lastAccessedMaterial('missing', materials, visits), undefined);
   assert.equal(lastAccessedMaterial('u', [], visits), undefined);

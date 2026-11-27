@@ -8,7 +8,10 @@ import { createHttpClient } from '../src/lib/http-client.ts';
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 }
 
@@ -16,7 +19,10 @@ test('query clears previous data synchronously and ignores old account/filter re
   const query = createHttpQuery<string>();
   const a = deferred<string>();
   let oldSignal!: AbortSignal;
-  const pending = query.run({ sessionKey: 'a', key: 'filter1' }, signal => { oldSignal = signal; return a.promise; });
+  const pending = query.run({ sessionKey: 'a', key: 'filter1' }, (signal) => {
+    oldSignal = signal;
+    return a.promise;
+  });
   await query.run({ sessionKey: 'a', key: 'filter2' }, async () => 'filtered');
   assert.equal(oldSignal.aborted, true);
   assert.equal(query.getSnapshot().data, 'filtered');
@@ -35,7 +41,11 @@ test('query clears previous data synchronously and ignores old account/filter re
 test('query retry and invalidation call the loader again; error never keeps stale success', async () => {
   const query = createHttpQuery<number>();
   let calls = 0;
-  const load = async () => { calls++; if (calls === 2) throw new Error('Offline'); return calls; };
+  const load = async () => {
+    calls++;
+    if (calls === 2) throw new Error('Offline');
+    return calls;
+  };
   await query.run({ sessionKey: 'a', key: 'list' }, load);
   assert.equal(query.getSnapshot().data, 1);
   await query.invalidate();
@@ -72,7 +82,11 @@ test('query retry and invalidation perform real HTTP requests against a listenin
     calls++;
     res.setHeader('Content-Type', 'application/json');
     res.writeHead(calls === 1 ? 503 : 200);
-    res.end(calls === 1 ? JSON.stringify({ error: { code: 'API_UNAVAILABLE', message: 'Tente novamente.' } }) : JSON.stringify({ value: calls }));
+    res.end(
+      calls === 1
+        ? JSON.stringify({ error: { code: 'API_UNAVAILABLE', message: 'Tente novamente.' } })
+        : JSON.stringify({ value: calls })
+    );
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -81,7 +95,9 @@ test('query retry and invalidation perform real HTTP requests against a listenin
   try {
     const client = createHttpClient({ baseUrl: `http://127.0.0.1:${address.port}/api/v1` });
     const query = createHttpQuery<{ value: number }>();
-    await query.run({ sessionKey: 'account-1-session-1', key: 'actual-list' }, signal => client.request('/items', { signal }));
+    await query.run({ sessionKey: 'account-1-session-1', key: 'actual-list' }, (signal) =>
+      client.request('/items', { signal })
+    );
     assert.equal(query.getSnapshot().status, 'error');
     await query.retry();
     assert.deepEqual(query.getSnapshot().data, { value: 2 });
@@ -93,6 +109,9 @@ test('query retry and invalidation perform real HTTP requests against a listenin
     query.cancel();
     assert.equal(query.getSnapshot().data, undefined);
   } finally {
-    await new Promise<void>(resolve => { server.closeAllConnections(); server.close(() => resolve()); });
+    await new Promise<void>((resolve) => {
+      server.closeAllConnections();
+      server.close(() => resolve());
+    });
   }
 });

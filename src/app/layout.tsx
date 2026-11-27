@@ -9,24 +9,21 @@ export const metadata: Metadata = {
     default: 'AJA Digital · Portal acadêmico',
     template: '%s · AJA Digital'
   },
-  description: 'Plataforma de apoio ao Cursinho Solidário AJA. Acesse disciplinas, materiais, atividades e comunidade.',
+  description:
+    'Plataforma de apoio ao Cursinho Solidário AJA. Acesse disciplinas, materiais, atividades e comunidade.',
   icons: {
     icon: '/favicon.svg'
   }
 };
 
-export default function RootLayout({
-  children
-}: {
-  children: ReactNode;
-}) {
-  return <html lang="pt-BR">
-    <body>
-      <Providers>
-        <AppShell>
-          {children}
-        </AppShell>
-      </Providers>
-    </body>
-  </html>;
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="pt-BR">
+      <body>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
+      </body>
+    </html>
+  );
 }

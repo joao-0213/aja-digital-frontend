@@ -3,7 +3,9 @@ import { Skeleton } from '@/components/ui';
 import { ForumThread } from '@/features/forum';
 
 export default function Page() {
-  return <Suspense fallback={<Skeleton />}>
-    <ForumThread />
-  </Suspense>;
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <ForumThread />
+    </Suspense>
+  );
 }

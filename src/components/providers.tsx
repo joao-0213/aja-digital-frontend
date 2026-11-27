@@ -18,7 +18,9 @@ export function Providers({ children }: { children: ReactNode }) {
   useStudyTools(client, session.sessionKey, session.status === 'authenticated');
   useEffect(() => {
     void client.refresh();
-    const refresh = () => { if (document.visibilityState === 'visible') void client.refresh(); };
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void client.refresh();
+    };
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
@@ -35,8 +37,12 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [client, session.expiresAt]);
   const value = useMemo(() => ({ notify }), [notify]);
 
-  return <SessionContext.Provider value={client}><AppContext.Provider value={value}>
-    {children}
-    <ToastRegion toasts={toasts} onDismiss={dismiss} />
-  </AppContext.Provider></SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={client}>
+      <AppContext.Provider value={value}>
+        {children}
+        <ToastRegion toasts={toasts} onDismiss={dismiss} />
+      </AppContext.Provider>
+    </SessionContext.Provider>
+  );
 }

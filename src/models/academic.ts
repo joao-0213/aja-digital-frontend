@@ -1,6 +1,16 @@
 import type { RecordMeta } from './audit';
 
-export type SubjectIcon = 'book' | 'calculator' | 'atom' | 'flask' | 'leaf' | 'globe' | 'languages' | 'landmark' | 'palette' | 'graduation';
+export type SubjectIcon =
+  | 'book'
+  | 'calculator'
+  | 'atom'
+  | 'flask'
+  | 'leaf'
+  | 'globe'
+  | 'languages'
+  | 'landmark'
+  | 'palette'
+  | 'graduation';
 
 export interface SchoolClass extends RecordMeta {
   id: string;

@@ -10,7 +10,7 @@ export interface QuizResultSummary {
 }
 
 export function summarizeQuizResult(result: AttemptResult): QuizResultSummary {
-  const questionById = new Map(result.questions.map(question => [question.id, question]));
+  const questionById = new Map(result.questions.map((question) => [question.id, question]));
   const totalQuestions = result.attempt.questionOrder.length;
   let resolvedQuestions = 0;
   let correctQuestions = 0;
@@ -26,18 +26,20 @@ export function summarizeQuizResult(result: AttemptResult): QuizResultSummary {
   }
 
   const hasQuestionBreakdown = totalQuestions > 0 && resolvedQuestions === totalQuestions;
-  const percentage = result.maxScore > 0
-    ? percent(result.score, result.maxScore)
-    : hasQuestionBreakdown
-      ? percent(correctQuestions, totalQuestions)
-      : 0;
-  const showGradeDetail = hasQuestionBreakdown && result.maxScore > 0 && result.maxScore !== totalQuestions;
+  const percentage =
+    result.maxScore > 0
+      ? percent(result.score, result.maxScore)
+      : hasQuestionBreakdown
+        ? percent(correctQuestions, totalQuestions)
+        : 0;
+  const showGradeDetail =
+    hasQuestionBreakdown && result.maxScore > 0 && result.maxScore !== totalQuestions;
 
   return {
     percentage,
     correctQuestions,
     totalQuestions,
     hasQuestionBreakdown,
-    showGradeDetail,
+    showGradeDetail
   };
 }

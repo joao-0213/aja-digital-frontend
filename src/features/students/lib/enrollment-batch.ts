@@ -89,7 +89,10 @@ export interface BatchSummary {
 
 /** Splits raw user input (single email or pasted list) into cleaned, deduplicated, validated entries. */
 export function parseBatchEmails(raw: string): ParsedEmailBatch {
-  const tokens = raw.split(/[\s,;]+/).map(part => part.trim()).filter(Boolean);
+  const tokens = raw
+    .split(/[\s,;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
   const seen = new Set<string>();
   const entries: ParsedEmailEntry[] = [];
   const valid: string[] = [];
@@ -103,11 +106,12 @@ export function parseBatchEmails(raw: string): ParsedEmailBatch {
       continue;
     }
     seen.add(email);
-    const reason = email.length > MAX_EMAIL_LENGTH
-      ? 'O e-mail excede o limite de 254 caracteres.'
-      : !validEmail(email)
-        ? 'Formato de e-mail inválido.'
-        : undefined;
+    const reason =
+      email.length > MAX_EMAIL_LENGTH
+        ? 'O e-mail excede o limite de 254 caracteres.'
+        : !validEmail(email)
+          ? 'Formato de e-mail inválido.'
+          : undefined;
     const entry: ParsedEmailEntry = reason
       ? { raw: token, email, valid: false, reason }
       : { raw: token, email, valid: true };
@@ -128,14 +132,14 @@ export function keepOnlyValidEmails(raw: string): string {
 export function createBatchItems(
   parsed: ParsedEmailBatch,
   existingKeys?: ReadonlyMap<string, string>,
-  createKey: () => string = () => globalThis.crypto.randomUUID(),
+  createKey: () => string = () => globalThis.crypto.randomUUID()
 ): BatchEnrollmentItem[] {
-  return parsed.entries.map(entry => ({
+  return parsed.entries.map((entry) => ({
     email: entry.email,
     idempotencyKey: existingKeys?.get(entry.email) ?? createKey(),
     status: entry.valid ? 'queued' : 'invalid',
     selected: false,
-    error: entry.valid ? undefined : entry.reason,
+    error: entry.valid ? undefined : entry.reason
   }));
 }
 
@@ -144,7 +148,7 @@ export function describePreviewOutcome(preview: EnrollmentPreview): BatchPreview
     return {
       badge: 'Impedido',
       tone: 'red',
-      detail: preview.message || 'Não é possível incluir este e-mail nesta turma.',
+      detail: preview.message || 'Não é possível incluir este e-mail nesta turma.'
     };
   }
   if (preview.existingEnrollment?.status === 'active') {
@@ -153,7 +157,7 @@ export function describePreviewOutcome(preview: EnrollmentPreview): BatchPreview
       tone: 'blue',
       detail: preview.account
         ? `${preview.account.name} · Vínculo ativo já registrado nesta turma.`
-        : 'Vínculo ativo já registrado nesta turma.',
+        : 'Vínculo ativo já registrado nesta turma.'
     };
   }
   if (preview.existingEnrollment?.status === 'pending') {
@@ -161,7 +165,7 @@ export function describePreviewOutcome(preview: EnrollmentPreview): BatchPreview
       return {
         badge: 'Será ativado',
         tone: 'green',
-        detail: `${preview.account.name} · Matrícula pendente será ativada imediatamente.`,
+        detail: `${preview.account.name} · Matrícula pendente será ativada imediatamente.`
       };
     }
     return {
@@ -169,7 +173,7 @@ export function describePreviewOutcome(preview: EnrollmentPreview): BatchPreview
       tone: 'purple',
       detail: preview.account
         ? `${preview.account.name} · Pendência já registrada; aguarda confirmação do e-mail.`
-        : 'Matrícula pendente já registrada; aguarda cadastro e confirmação.',
+        : 'Matrícula pendente já registrada; aguarda cadastro e confirmação.'
     };
   }
   if (preview.account) {
@@ -177,19 +181,19 @@ export function describePreviewOutcome(preview: EnrollmentPreview): BatchPreview
       return {
         badge: 'Vínculo imediato',
         tone: 'green',
-        detail: `${preview.account.name} · Conta existente com e-mail confirmado.`,
+        detail: `${preview.account.name} · Conta existente com e-mail confirmado.`
       };
     }
     return {
       badge: 'Ficará pendente',
       tone: 'amber',
-      detail: `${preview.account.name} · Conta existente; aguarda confirmação do e-mail.`,
+      detail: `${preview.account.name} · Conta existente; aguarda confirmação do e-mail.`
     };
   }
   return {
     badge: 'Ficará pendente',
     tone: 'purple',
-    detail: 'Sem conta cadastrada · Aguardará cadastro e confirmação do e-mail.',
+    detail: 'Sem conta cadastrada · Aguardará cadastro e confirmação do e-mail.'
   };
 }
 
@@ -204,7 +208,7 @@ function errorMessage(error: unknown, fallback: string): string {
 function replaceItem(
   items: BatchEnrollmentItem[],
   index: number,
-  patch: Partial<BatchEnrollmentItem>,
+  patch: Partial<BatchEnrollmentItem>
 ): BatchEnrollmentItem[] {
   const next = items.slice();
   next[index] = { ...next[index], ...patch };
@@ -223,14 +227,14 @@ export async function runBatchPreview(
     onlyStatuses?: BatchItemStatus[];
     isAborted?: () => boolean;
     onUpdate?: (items: BatchEnrollmentItem[], progress: BatchProgress) => void;
-  } = {},
+  } = {}
 ): Promise<BatchPreviewRunResult> {
   const onlyStatuses = options.onlyStatuses ?? ['queued', 'preview-error'];
   const concurrency = Math.max(1, Math.floor(options.concurrency ?? DEFAULT_PREVIEW_CONCURRENCY));
-  let items = initialItems.map(item => ({ ...item }));
+  let items = initialItems.map((item) => ({ ...item }));
   const targetIndices = items
     .map((item, index) => (onlyStatuses.includes(item.status) ? index : -1))
-    .filter(index => index >= 0);
+    .filter((index) => index >= 0);
 
   const total = targetIndices.length;
   let completed = 0;
@@ -260,21 +264,29 @@ export async function runBatchPreview(
       try {
         const preview = await checkEmail(target.email);
         completed++;
-        updateAt(index, {
-          status: preview.canEnroll ? 'ready' : 'blocked',
-          selected: preview.canEnroll,
-          preview,
-          error: preview.canEnroll ? undefined : (preview.message || 'Inclusão não permitida.'),
-        }, target.email);
+        updateAt(
+          index,
+          {
+            status: preview.canEnroll ? 'ready' : 'blocked',
+            selected: preview.canEnroll,
+            preview,
+            error: preview.canEnroll ? undefined : preview.message || 'Inclusão não permitida.'
+          },
+          target.email
+        );
       } catch (error: unknown) {
         completed++;
         if (isSessionError(error)) sessionExpired = true;
-        updateAt(index, {
-          status: 'preview-error',
-          selected: false,
-          preview: undefined,
-          error: errorMessage(error, 'Não foi possível conferir a inclusão.'),
-        }, target.email);
+        updateAt(
+          index,
+          {
+            status: 'preview-error',
+            selected: false,
+            preview: undefined,
+            error: errorMessage(error, 'Não foi possível conferir a inclusão.')
+          },
+          target.email
+        );
       }
     }
   };
@@ -296,16 +308,16 @@ export async function runBatchConfirm(
     mode?: 'selected' | 'retry-failed';
     isAborted?: () => boolean;
     onUpdate?: (items: BatchEnrollmentItem[], progress: BatchProgress) => void;
-  } = {},
+  } = {}
 ): Promise<BatchConfirmRunResult> {
   const mode = options.mode ?? 'selected';
-  let items = initialItems.map(item => ({ ...item }));
+  let items = initialItems.map((item) => ({ ...item }));
   const targetIndices = items
     .map((item, index) => {
       if (mode === 'retry-failed') return item.status === 'error' ? index : -1;
       return item.status === 'ready' && item.selected ? index : -1;
     })
-    .filter(index => index >= 0);
+    .filter((index) => index >= 0);
 
   const total = targetIndices.length;
   let completed = 0;
@@ -335,10 +347,14 @@ export async function runBatchConfirm(
       completed++;
       failed++;
       const expired = isSessionError(error);
-      updateAt(index, {
-        status: 'error',
-        error: errorMessage(error, 'Não foi possível concluir a inclusão.'),
-      }, target.email);
+      updateAt(
+        index,
+        {
+          status: 'error',
+          error: errorMessage(error, 'Não foi possível concluir a inclusão.')
+        },
+        target.email
+      );
       if (expired) {
         sessionExpired = true;
         break;
@@ -400,6 +416,6 @@ export function summarizeBatch(items: BatchEnrollmentItem[]): BatchSummary {
     activeCount,
     pendingCount,
     errorCount,
-    problemEmails,
+    problemEmails
   };
 }

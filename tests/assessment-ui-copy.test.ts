@@ -12,6 +12,10 @@ const files = [
 test('assessment attempt screens keep Portuguese UI strings valid UTF-8 instead of Latin-1 mojibake', () => {
   for (const relativePath of files) {
     const source = fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8');
-    assert.equal(/\u00c3[\u0080-\u00bf]|\u00c2[\u0080-\u00bf]/u.test(source), false, `${relativePath} contains mojibake`);
+    assert.equal(
+      /\u00c3[\u0080-\u00bf]|\u00c2[\u0080-\u00bf]/u.test(source),
+      false,
+      `${relativePath} contains mojibake`
+    );
   }
 });

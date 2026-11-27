@@ -30,17 +30,26 @@ export function AttemptImage({ image }: { image: { src: string; alt: string } })
     let objectUrl: string | undefined;
     const current = () => {
       const session = client.getSnapshot();
-      return active && !controller.signal.aborted && session.status === 'authenticated' && session.sessionKey === sessionKey;
+      return (
+        active &&
+        !controller.signal.aborted &&
+        session.status === 'authenticated' &&
+        session.sessionKey === sessionKey
+      );
     };
     setSource(null);
     setError('');
-    void files.download(decodeURIComponent(fileId), 'inline', controller.signal).then(blob => {
-      if (!current()) return;
-      objectUrl = URL.createObjectURL(blob);
-      setSource(objectUrl);
-    }).catch(cause => {
-      if (current() && !isCancelledError(cause)) setError(toErrorMessage(cause, 'Não foi possível carregar a imagem.'));
-    });
+    void files
+      .download(decodeURIComponent(fileId), 'inline', controller.signal)
+      .then((blob) => {
+        if (!current()) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSource(objectUrl);
+      })
+      .catch((cause) => {
+        if (current() && !isCancelledError(cause))
+          setError(toErrorMessage(cause, 'Não foi possível carregar a imagem.'));
+      });
     return () => {
       active = false;
       controller.abort();
@@ -48,10 +57,26 @@ export function AttemptImage({ image }: { image: { src: string; alt: string } })
     };
   }, [client, fileId, files, image.src, resourceEpoch, retry, sessionKey, status]);
 
-  if (error) return <div role="status" className="my-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-    <p>{error}</p>
-    {fileId && <button type="button" className="mt-2 min-h-11 font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900" onClick={() => setRetry(value => value + 1)}>Tentar carregar imagem novamente</button>}
-  </div>;
-  if (!source) return <p role="status" className="my-4 text-sm text-slate-500">Carregando imagem…</p>;
+  if (error)
+    return (
+      <div role="status" className="my-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <p>{error}</p>
+        {fileId && (
+          <button
+            type="button"
+            className="mt-2 min-h-11 font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900"
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            Tentar carregar imagem novamente
+          </button>
+        )}
+      </div>
+    );
+  if (!source)
+    return (
+      <p role="status" className="my-4 text-sm text-slate-500">
+        Carregando imagem…
+      </p>
+    );
   return <img src={source} alt={image.alt} className="my-4 max-h-80 max-w-full" />;
 }

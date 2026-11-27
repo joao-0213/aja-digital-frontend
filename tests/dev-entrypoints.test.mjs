@@ -6,7 +6,9 @@ import { readConfig } from '../server/config.mjs';
 
 import { discoverTestFiles } from '../scripts/run-tests.mjs';
 
-const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const packageJson = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+);
 
 test('default development commands use the configured API and keep JSON Server opt-in', () => {
   assert.match(packageJson.scripts.dev, /next dev/);
@@ -29,7 +31,10 @@ test('mock development launcher overrides an inherited gateway URL for Next', ()
   const source = launcher
     .replace(/^import \{ spawn \} from 'node:child_process';\r?\n/m, '')
     .replace(/^import \{ fileURLToPath \} from 'node:url';\r?\n/m, '')
-    .replace("const root = fileURLToPath(new URL('../', import.meta.url));", "const root = 'C:/frontend';");
+    .replace(
+      "const root = fileURLToPath(new URL('../', import.meta.url));",
+      "const root = 'C:/frontend';"
+    );
 
   vm.runInNewContext(source, {
     process: processStub,

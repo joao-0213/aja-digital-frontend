@@ -9,12 +9,16 @@ export function compareTimestamps(left: string, right: string): number {
   return a - b;
 }
 
-export function lastAccessedMaterial<T extends { id: string }>(userId: string, materials: readonly T[], progress: readonly {
-  userId: string;
-  materialId: string;
-  lastAccess: string;
-}[]): T | undefined {
-  const available = new Map(materials.map(material => [material.id, material]));
+export function lastAccessedMaterial<T extends { id: string }>(
+  userId: string,
+  materials: readonly T[],
+  progress: readonly {
+    userId: string;
+    materialId: string;
+    lastAccess: string;
+  }[]
+): T | undefined {
+  const available = new Map(materials.map((material) => [material.id, material]));
   let latest: T | undefined;
   let latestTime = -Infinity;
   for (const visit of progress) {

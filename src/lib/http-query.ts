@@ -36,17 +36,28 @@ export function createHttpQuery<T>() {
       const data = await load(active.signal);
       if (version === generation && !active.signal.aborted) publish({ status: 'success', data });
     } catch (error: unknown) {
-      if (version === generation && !active.signal.aborted) publish({ status: 'error', error: error instanceof Error ? error : new Error('Falha ao carregar.') });
+      if (version === generation && !active.signal.aborted)
+        publish({
+          status: 'error',
+          error: error instanceof Error ? error : new Error('Falha ao carregar.')
+        });
     }
   }
 
-  const retry = async () => { if (current) await run(current.identity, current.load); };
+  const retry = async () => {
+    if (current) await run(current.identity, current.load);
+  };
   return {
     run,
     retry,
     invalidate: retry,
     getSnapshot: () => state,
-    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
     cancel: () => {
       generation++;
       controller?.abort();

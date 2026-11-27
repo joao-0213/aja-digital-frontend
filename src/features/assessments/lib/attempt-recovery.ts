@@ -33,7 +33,11 @@ export interface AttemptRecoveryQuestion {
 }
 
 /** The quiz screen uses this to disable answer controls from click through receipt. */
-export function shouldLockAttemptInputs(state: { authenticated: boolean; submitBusy: boolean; hasFrozenIntent: boolean }) {
+export function shouldLockAttemptInputs(state: {
+  authenticated: boolean;
+  submitBusy: boolean;
+  hasFrozenIntent: boolean;
+}) {
   return !state.authenticated || state.submitBusy || state.hasFrozenIntent;
 }
 
@@ -48,7 +52,12 @@ export function attemptRecoveryOwnerFor(
   identity: Pick<AttemptRecoveryIdentity, 'userId' | 'sessionId'>,
   openedRevision = attempt.revision
 ): AttemptRecoveryOwner {
-  return { ...identity, attemptId: attempt.id, openedRevision, questionsUpdatedAt: attempt.questionsUpdatedAt };
+  return {
+    ...identity,
+    attemptId: attempt.id,
+    openedRevision,
+    questionsUpdatedAt: attempt.questionsUpdatedAt
+  };
 }
 
 /** SessionStorage survives reload in one verified browser session and never crosses account or attempt owners. */
@@ -67,29 +76,43 @@ export function resolveAttemptRecovery(
   if (!stored) return { owner: currentOwner, answers: serverAnswers, status: 'fresh' };
   try {
     const value: unknown = JSON.parse(stored);
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
     const record = value as Record<string, unknown>;
     const rawOwner = record.owner;
-    if (!rawOwner || typeof rawOwner !== 'object' || Array.isArray(rawOwner)) return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
+    if (!rawOwner || typeof rawOwner !== 'object' || Array.isArray(rawOwner))
+      return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
     const savedOwner = rawOwner as Record<string, unknown>;
-    if (savedOwner.userId !== identity.userId || savedOwner.sessionId !== identity.sessionId || savedOwner.attemptId !== attempt.id) {
+    if (
+      savedOwner.userId !== identity.userId ||
+      savedOwner.sessionId !== identity.sessionId ||
+      savedOwner.attemptId !== attempt.id
+    ) {
       return { owner: currentOwner, answers: serverAnswers, status: 'fresh' };
     }
     const openedRevision = savedOwner.openedRevision;
     const savedQuestionsUpdatedAt = savedOwner.questionsUpdatedAt ?? null;
     const validRevision = Number.isSafeInteger(openedRevision) && (openedRevision as number) > 0;
     const savedOrder = record.questionOrder;
-    const sameSnapshot = savedQuestionsUpdatedAt === attempt.questionsUpdatedAt
-      && Array.isArray(savedOrder)
-      && savedOrder.length === attempt.questionOrder.length
-      && savedOrder.every((id, index) => id === attempt.questionOrder[index]);
+    const sameSnapshot =
+      savedQuestionsUpdatedAt === attempt.questionsUpdatedAt &&
+      Array.isArray(savedOrder) &&
+      savedOrder.length === attempt.questionOrder.length &&
+      savedOrder.every((id, index) => id === attempt.questionOrder[index]);
     const owner = validRevision
-      ? { userId: identity.userId, sessionId: identity.sessionId, attemptId: attempt.id, openedRevision: openedRevision as number, questionsUpdatedAt: attempt.questionsUpdatedAt }
+      ? {
+          userId: identity.userId,
+          sessionId: identity.sessionId,
+          attemptId: attempt.id,
+          openedRevision: openedRevision as number,
+          questionsUpdatedAt: attempt.questionsUpdatedAt
+        }
       : currentOwner;
     if (!validRevision || !sameSnapshot || !Number.isSafeInteger(record.serverRevision)) {
       return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
     }
-    if (record.serverRevision !== attempt.revision) return { owner: currentOwner, answers: serverAnswers, status: 'stale' };
+    if (record.serverRevision !== attempt.revision)
+      return { owner: currentOwner, answers: serverAnswers, status: 'stale' };
     const answers = readAttemptRecovery(stored, owner, attempt.questionOrder, attempt.questions);
     if (!answers) return { owner: currentOwner, answers: serverAnswers, status: 'incompatible' };
     return { owner, answers: { ...serverAnswers, ...answers }, status: 'restored' };
@@ -112,18 +135,34 @@ export function readAttemptRecovery(
     const record = value as Record<string, unknown>;
     const savedOwner = record.owner;
     if (!savedOwner || typeof savedOwner !== 'object' || Array.isArray(savedOwner)) return null;
-    const sameOwner = Object.keys(owner).every(key => (savedOwner as Record<string, unknown>)[key] === owner[key as keyof AttemptRecoveryOwner]);
-    if (!sameOwner || !Array.isArray(record.questionOrder) || record.questionOrder.length !== questionOrder.length
-      || record.questionOrder.some((id, index) => id !== questionOrder[index])) return null;
+    const sameOwner = Object.keys(owner).every(
+      (key) =>
+        (savedOwner as Record<string, unknown>)[key] === owner[key as keyof AttemptRecoveryOwner]
+    );
+    if (
+      !sameOwner ||
+      !Array.isArray(record.questionOrder) ||
+      record.questionOrder.length !== questionOrder.length ||
+      record.questionOrder.some((id, index) => id !== questionOrder[index])
+    )
+      return null;
     const rawAnswers = record.answers;
     if (!rawAnswers || typeof rawAnswers !== 'object' || Array.isArray(rawAnswers)) return null;
-    const questionById = new Map(questions.map(question => [question.id, question]));
+    const questionById = new Map(questions.map((question) => [question.id, question]));
     const answers: Record<string, number | null> = {};
     for (const [id, value] of Object.entries(rawAnswers)) {
       const question = questionById.get(id);
       if (!question || !questionOrder.includes(id)) continue;
-      if (value === null) { answers[id] = null; continue; }
-      if (Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) < question.options.length) answers[id] = value as number;
+      if (value === null) {
+        answers[id] = null;
+        continue;
+      }
+      if (
+        Number.isSafeInteger(value) &&
+        (value as number) >= 0 &&
+        (value as number) < question.options.length
+      )
+        answers[id] = value as number;
     }
     return answers;
   } catch {

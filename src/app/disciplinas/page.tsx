@@ -3,7 +3,9 @@ import { Skeleton } from '@/components/ui';
 import { SubjectsPage } from '@/features/subjects';
 
 export default function Page() {
-  return <Suspense fallback={<Skeleton />}>
-    <SubjectsPage />
-  </Suspense>;
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <SubjectsPage />
+    </Suspense>
+  );
 }

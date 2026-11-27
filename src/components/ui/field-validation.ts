@@ -1,5 +1,5 @@
 export function friendlyValidationMessage(
-  element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+  element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 ): string {
   const { validity } = element;
   if (validity.valid) return '';
@@ -36,7 +36,8 @@ export function friendlyValidationMessage(
   if (validity.rangeUnderflow && 'min' in element && element.min) {
     if (inputType === 'date') return 'A data não pode ser anterior ao mínimo permitido.';
     if (inputType === 'time') return 'O horário não pode ser anterior ao mínimo permitido.';
-    if (inputType === 'datetime-local') return 'A data e o horário não podem ser anteriores ao mínimo permitido.';
+    if (inputType === 'datetime-local')
+      return 'A data e o horário não podem ser anteriores ao mínimo permitido.';
     return `Informe um valor a partir de ${element.min}.`;
   }
 
@@ -58,7 +59,9 @@ export function friendlyValidationMessage(
   return element.validationMessage || 'Confira este campo.';
 }
 
-export function isFirstInvalidInForm(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): boolean {
+export function isFirstInvalidInForm(
+  element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+): boolean {
   const form = element.form;
   if (!form) return true;
   return form.querySelector(':invalid') === element;

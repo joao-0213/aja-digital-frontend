@@ -1,4 +1,6 @@
-export function aggregateAttendanceByStudent(lessons: readonly { records: Record<string, boolean> }[]) {
+export function aggregateAttendanceByStudent(
+  lessons: readonly { records: Record<string, boolean> }[]
+) {
   const totals = new Map<string, { present: number; total: number }>();
   for (const lesson of lessons) {
     for (const [studentId, present] of Object.entries(lesson.records)) {

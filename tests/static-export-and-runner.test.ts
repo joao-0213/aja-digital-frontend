@@ -53,7 +53,7 @@ test('route-matrix.md defines the exact 22 product routes', () => {
   ]);
 });
 
-test('checkStaticExport validates all 22 routes in a fixture and fails deterministically when any route is missing', async t => {
+test('checkStaticExport validates all 22 routes in a fixture and fails deterministically when any route is missing', async (t) => {
   const tempOut = await mkdtemp(path.join(os.tmpdir(), 'aja-out-fixture-'));
   t.after(async () => {
     await rm(tempOut, { recursive: true, force: true });
@@ -61,9 +61,10 @@ test('checkStaticExport validates all 22 routes in a fixture and fails determini
 
   const routes = extractRoutesFromMatrix(fs.readFileSync(matrixPath, 'utf8'));
   for (const route of routes) {
-    const file = route === '/'
-      ? path.join(tempOut, 'index.html')
-      : path.join(tempOut, `${route.replace(/^\/+/, '')}.html`);
+    const file =
+      route === '/'
+        ? path.join(tempOut, 'index.html')
+        : path.join(tempOut, `${route.replace(/^\/+/, '')}.html`);
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, '<!doctype html><html><body>ok</body></html>', 'utf8');
   }

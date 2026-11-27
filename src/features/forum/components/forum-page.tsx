@@ -9,19 +9,42 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
-import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } from '../lib/forum-draft';
+import {
+  forumComposeDraftKeys,
+  readForumComposeDraft,
+  saveForumComposeDraft
+} from '../lib/forum-draft';
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
-import { createForumApi, type ForumAttachmentDto, type ForumFilter, type ForumTopicFields } from '../api';
+import {
+  createForumApi,
+  type ForumAttachmentDto,
+  type ForumFilter,
+  type ForumTopicFields
+} from '../api';
 import { toErrorMessage } from '@/lib/errors';
 
 type LegacyForumAttachment = { id: string; name: string; mime: string; size: number };
-type ComposeDraft = { title: string; body: string; tags: string; reference: string; targetSubject?: string; subjectId?: string; attachment?: ForumAttachmentDto | LegacyForumAttachment; legacyAttachment?: LegacyForumAttachment; pendingCreate?: { key: string; fields: ForumTopicFields } };
+type ComposeDraft = {
+  title: string;
+  body: string;
+  tags: string;
+  reference: string;
+  targetSubject?: string;
+  subjectId?: string;
+  attachment?: ForumAttachmentDto | LegacyForumAttachment;
+  legacyAttachment?: LegacyForumAttachment;
+  pendingCreate?: { key: string; fields: ForumTopicFields };
+};
 
 export function ForumPage() {
   const { user } = useSession();
   const params = useSearchParams();
-  const context = params.get('material') ? `material:${params.get('material')}` : params.get('questao') ? `question:${params.get('questao')}` : 'new';
+  const context = params.get('material')
+    ? `material:${params.get('material')}`
+    : params.get('questao')
+      ? `question:${params.get('questao')}`
+      : 'new';
   return <ForumPageContent key={`${user?.id ?? ''}:${context}`} />;
 }
 
@@ -29,7 +52,11 @@ function ForumPageContent() {
   const { client, sessionKey, user } = useSession();
   const params = useSearchParams();
   const api = useMemo(() => createForumApi(client), [client]);
-  const options = useHttpQuery({ sessionKey, key: 'forum-options' }, useCallback(signal => api.options(signal), [api]), !!user);
+  const options = useHttpQuery(
+    { sessionKey, key: 'forum-options' },
+    useCallback((signal) => api.options(signal), [api]),
+    !!user
+  );
   const [search, setSearch] = useState('');
   const [subjectId, setSubjectId] = useState(params.get('disciplina') ?? 'all');
   const [classId, setClassId] = useState('all');
@@ -38,7 +65,13 @@ function ForumPageContent() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tags, setTags] = useState('');
-  const [reference, setReference] = useState(params.get('material') ? `material:${params.get('material')}` : params.get('questao') ? `question:${params.get('questao')}` : '');
+  const [reference, setReference] = useState(
+    params.get('material')
+      ? `material:${params.get('material')}`
+      : params.get('questao')
+        ? `question:${params.get('questao')}`
+        : ''
+  );
   const [targetSubject, setTargetSubject] = useState(params.get('disciplina') ?? '');
   const [attachment, setAttachment] = useState<ForumAttachmentDto>();
   const [legacyAttachment, setLegacyAttachment] = useState<LegacyForumAttachment>();
@@ -50,16 +83,51 @@ function ForumPageContent() {
   const [fileInputVersion, setFileInputVersion] = useState(0);
   const materialId = params.get('material');
   const questionId = params.get('questao');
-  const context = materialId ? `material:${materialId}` : questionId ? `question:${questionId}` : 'new';
+  const context = materialId
+    ? `material:${materialId}`
+    : questionId
+      ? `question:${questionId}`
+      : 'new';
   const composeKeys = user ? forumComposeDraftKeys(user.id, materialId, questionId) : undefined;
   const composeKey = composeKeys?.current ?? '';
-  const filters = useMemo<ForumFilter>(() => ({ ...(classId !== 'all' ? { classId } : {}), ...(subjectId !== 'all' ? { subjectId } : {}), ...(search.trim() ? { q: search.trim() } : {}), ...(filter === 'unread' ? { unread: true } : {}), ...(filter === 'solved' ? { solved: true } : {}), sort: '-createdAt' }), [classId, subjectId, search, filter]);
-  const topics = useHttpQuery({ sessionKey, key: `forum:${JSON.stringify(filters)}` }, useCallback(signal => api.all(filters, signal), [api, filters]), !!user);
-  const activeSubjects = useMemo(() => (options.data?.subjects ?? []).filter(item => options.data?.classes.some(row => row.id === item.classId && row.active)), [options.data]);
+  const filters = useMemo<ForumFilter>(
+    () => ({
+      ...(classId !== 'all' ? { classId } : {}),
+      ...(subjectId !== 'all' ? { subjectId } : {}),
+      ...(search.trim() ? { q: search.trim() } : {}),
+      ...(filter === 'unread' ? { unread: true } : {}),
+      ...(filter === 'solved' ? { solved: true } : {}),
+      sort: '-createdAt'
+    }),
+    [classId, subjectId, search, filter]
+  );
+  const topics = useHttpQuery(
+    { sessionKey, key: `forum:${JSON.stringify(filters)}` },
+    useCallback((signal) => api.all(filters, signal), [api, filters]),
+    !!user
+  );
+  const activeSubjects = useMemo(
+    () =>
+      (options.data?.subjects ?? []).filter((item) =>
+        options.data?.classes.some((row) => row.id === item.classId && row.active)
+      ),
+    [options.data]
+  );
   const activeClasses = options.data?.classes ?? [];
   const visibleSubjects = options.data?.subjects ?? [];
-  const canPublish = !!user && activeSubjects.some(item => classId === 'all' || item.classId === classId);
-  const composition = useCallback(() => ({ title, body, tags, reference, targetSubject, ...(attachment ? { attachment } : legacyAttachment ? { attachment: legacyAttachment } : {}) }), [title, body, tags, reference, targetSubject, attachment, legacyAttachment]);
+  const canPublish =
+    !!user && activeSubjects.some((item) => classId === 'all' || item.classId === classId);
+  const composition = useCallback(
+    () => ({
+      title,
+      body,
+      tags,
+      reference,
+      targetSubject,
+      ...(attachment ? { attachment } : legacyAttachment ? { attachment: legacyAttachment } : {})
+    }),
+    [title, body, tags, reference, targetSubject, attachment, legacyAttachment]
+  );
 
   useEffect(() => {
     if (!targetSubject && activeSubjects[0]) setTargetSubject(activeSubjects[0].id);
@@ -70,123 +138,336 @@ function ForumPageContent() {
     if (!composeKey || draftKey === composeKey || typeof window === 'undefined') return;
     const storage = { getItem: (key: string) => window.sessionStorage.getItem(key) };
     const restored = readForumComposeDraft(storage, composeKey);
-    if (restored.error) { setDraftError(restored.error); return; }
+    if (restored.error) {
+      setDraftError(restored.error);
+      return;
+    }
     const saved = restored.value as ComposeDraft | null;
     if (saved) {
-      setTitle(saved.title ?? ''); setBody(saved.body ?? ''); setTags(saved.tags ?? ''); setReference(saved.reference ?? ''); setTargetSubject(saved.targetSubject ?? saved.subjectId ?? targetSubject); setPendingCreate(saved.pendingCreate);
+      setTitle(saved.title ?? '');
+      setBody(saved.body ?? '');
+      setTags(saved.tags ?? '');
+      setReference(saved.reference ?? '');
+      setTargetSubject(saved.targetSubject ?? saved.subjectId ?? targetSubject);
+      setPendingCreate(saved.pendingCreate);
       const previousAttachment = saved.attachment ?? saved.legacyAttachment;
       if (previousAttachment) {
-        const legacy = { id: previousAttachment.id, name: previousAttachment.name, mime: previousAttachment.mime, size: previousAttachment.size };
+        const legacy = {
+          id: previousAttachment.id,
+          name: previousAttachment.name,
+          mime: previousAttachment.mime,
+          size: previousAttachment.size
+        };
         setLegacyAttachment(legacy);
-        if ('downloadUrl' in previousAttachment) void api.readFile(previousAttachment.id).then(item => { setAttachment(item); setLegacyAttachment(undefined); }).catch(() => {});
+        if ('downloadUrl' in previousAttachment)
+          void api
+            .readFile(previousAttachment.id)
+            .then((item) => {
+              setAttachment(item);
+              setLegacyAttachment(undefined);
+            })
+            .catch(() => {});
       }
     }
     setDraftKey(composeKey);
   }, [api, composeKey, draftKey, targetSubject]);
   useEffect(() => {
     if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
-    const failure = saveForumComposeDraft({ setItem: (key, value) => window.sessionStorage.setItem(key, value) }, composeKey, { ...composition(), pendingCreate });
+    const failure = saveForumComposeDraft(
+      { setItem: (key, value) => window.sessionStorage.setItem(key, value) },
+      composeKey,
+      { ...composition(), pendingCreate }
+    );
     setDraftError(failure ?? '');
   }, [composeKey, draftKey, composition, pendingCreate]);
 
   const chooseFile = async (file?: File) => {
     if (!file || !targetSubject) return;
-    setBusy(true); setError('');
+    setBusy(true);
+    setError('');
     try {
-      if (file.size < 1 || file.size > 5 * 1024 * 1024 || !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('Escolha um PDF, PNG, JPEG ou WebP de até 5 MB.');
-      setAttachment(await api.upload(targetSubject, file, crypto.randomUUID())); setLegacyAttachment(undefined);
-    } catch (cause) { setError(toErrorMessage(cause, 'Não foi possível enviar o anexo.')); }
-    finally { setBusy(false); }
+      if (
+        file.size < 1 ||
+        file.size > 5 * 1024 * 1024 ||
+        !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)
+      )
+        throw new Error('Escolha um PDF, PNG, JPEG ou WebP de até 5 MB.');
+      setAttachment(await api.upload(targetSubject, file, crypto.randomUUID()));
+      setLegacyAttachment(undefined);
+    } catch (cause) {
+      setError(toErrorMessage(cause, 'Não foi possível enviar o anexo.'));
+    } finally {
+      setBusy(false);
+    }
   };
   const removeFile = async () => {
     if (!attachment || busy) return;
     setBusy(true);
-    try { await api.discardFile(attachment.id); setAttachment(undefined); setFileInputVersion(current => current + 1); }
-    catch (cause) { setError(toErrorMessage(cause, 'Não foi possível remover o anexo.')); }
-    finally { setBusy(false); }
+    try {
+      await api.discardFile(attachment.id);
+      setAttachment(undefined);
+      setFileInputVersion((current) => current + 1);
+    } catch (cause) {
+      setError(toErrorMessage(cause, 'Não foi possível remover o anexo.'));
+    } finally {
+      setBusy(false);
+    }
   };
   const publish = async (event: FormEvent) => {
-    event.preventDefault(); setError('');
-    const subject = activeSubjects.find(item => item.id === targetSubject && (classId === 'all' || item.classId === classId));
-    if (!subject) { setError('Selecione uma disciplina ativa.'); return; }
-    const target = reference ? { type: reference.startsWith('material:') ? 'material' as const : 'question' as const, id: reference.slice(reference.indexOf(':') + 1) } : null;
-    if (target && !target.id.trim()) { setError('Confira a referência escolhida.'); return; }
-    const fields: ForumTopicFields = pendingCreate?.fields ?? { classId: subject.classId, subjectId: subject.id, title: title.trim(), body: body.trim(), tags: [...new Set(tags.split(',').map(tag => tag.trim()).filter(Boolean))].slice(0, 5), target, attachmentId: attachment?.id ?? null };
+    event.preventDefault();
+    setError('');
+    const subject = activeSubjects.find(
+      (item) => item.id === targetSubject && (classId === 'all' || item.classId === classId)
+    );
+    if (!subject) {
+      setError('Selecione uma disciplina ativa.');
+      return;
+    }
+    const target = reference
+      ? {
+          type: reference.startsWith('material:') ? ('material' as const) : ('question' as const),
+          id: reference.slice(reference.indexOf(':') + 1)
+        }
+      : null;
+    if (target && !target.id.trim()) {
+      setError('Confira a referência escolhida.');
+      return;
+    }
+    const fields: ForumTopicFields = pendingCreate?.fields ?? {
+      classId: subject.classId,
+      subjectId: subject.id,
+      title: title.trim(),
+      body: body.trim(),
+      tags: [
+        ...new Set(
+          tags
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        )
+      ].slice(0, 5),
+      target,
+      attachmentId: attachment?.id ?? null
+    };
     const intent = pendingCreate ?? { key: crypto.randomUUID(), fields };
     setPendingCreate(intent);
-    if (composeKey) saveForumComposeDraft({ setItem: (key, value) => window.sessionStorage.setItem(key, value) }, composeKey, { ...composition(), pendingCreate: intent });
+    if (composeKey)
+      saveForumComposeDraft(
+        { setItem: (key, value) => window.sessionStorage.setItem(key, value) },
+        composeKey,
+        { ...composition(), pendingCreate: intent }
+      );
     setBusy(true);
     try {
       await api.create(fields, intent.key);
       if (composeKey) window.sessionStorage.removeItem(composeKey);
-      setOpen(false); setTitle(''); setBody(''); setTags(''); setReference(''); setAttachment(undefined); setLegacyAttachment(undefined); setPendingCreate(undefined); setDraftKey(''); topics.invalidate();
+      setOpen(false);
+      setTitle('');
+      setBody('');
+      setTags('');
+      setReference('');
+      setAttachment(undefined);
+      setLegacyAttachment(undefined);
+      setPendingCreate(undefined);
+      setDraftKey('');
+      topics.invalidate();
     } catch (cause) {
-      if (cause instanceof HttpError && ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)) setPendingCreate(undefined);
-      setError(toErrorMessage(cause, 'Não foi possível publicar a pergunta. Tente novamente para conferir o resultado.'));
+      if (
+        cause instanceof HttpError &&
+        ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)
+      )
+        setPendingCreate(undefined);
+      setError(
+        toErrorMessage(
+          cause,
+          'Não foi possível publicar a pergunta. Tente novamente para conferir o resultado.'
+        )
+      );
+    } finally {
+      setBusy(false);
     }
-    finally { setBusy(false); }
   };
 
   const requestedSubject = params.get('disciplina');
-  const backHref = materialId ? `/materiais?id=${encodeURIComponent(materialId)}` : requestedSubject ? `/disciplinas/detalhes?id=${encodeURIComponent(requestedSubject)}` : '/';
-  const backLabel = materialId ? 'Voltar ao material' : requestedSubject ? 'Voltar à disciplina' : 'Voltar ao painel';
-  return <>
-    <LinkButton secondary href={backHref} className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />{backLabel}</LinkButton>
-    <PageHeading title="Fórum de dúvidas" action={<Button onClick={() => { setOpen(true); setError(''); }} disabled={!canPublish}><Plus aria-hidden="true" className="size-4" />Nova pergunta</Button>} />
-    {options.error && <p role="alert" className="mb-4 text-sm text-rose-700">{options.error.message} <button type="button" onClick={options.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
-    <ForumFilters
-      search={search}
-      onSearchChange={setSearch}
-      classId={classId}
-      onClassChange={setClassId}
-      subjectId={subjectId}
-      onSubjectChange={setSubjectId}
-      filter={filter}
-      onFilterChange={setFilter}
-      classes={activeClasses}
-      subjects={visibleSubjects}
-    />
-    <div className="space-y-3">
-      {topics.loading && <p role="status" className="text-sm text-slate-500">Carregando perguntas…</p>}
-      {topics.error && <p role="alert" className="text-sm text-rose-700">{topics.error.message} <button type="button" onClick={topics.retry} className="font-bold underline underline-offset-4">Tentar novamente</button></p>}
-      {(topics.data ?? []).filter(topic => filter !== 'unanswered' || topic.replies.length === 0).map(topic => {
-        const solved = topic.replies.some(reply => reply.accepted);
-        return <Link key={topic.id} href={`/forum/topico?id=${encodeURIComponent(topic.id)}`} className="block min-w-0 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2"><Badge>{activeSubjects.find(item => item.id === topic.subjectId)?.name ?? topic.subjectId}</Badge><span className="text-xs text-slate-400">{dateLabel(topic.createdAt)}</span>{solved && <Badge tone="green"><CheckCircle2 aria-hidden="true" className="size-3" />Resolvida</Badge>}{!topic.read && <Badge tone="purple">Nova</Badge>}</div>
-          <h2 className="text-lg font-semibold text-slate-800 [overflow-wrap:anywhere]">{topic.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{topic.body}</p>
-          {topic.target && <p className="mt-3 text-xs text-brand-700">Referência: {topic.target.type === 'material' ? 'Material da disciplina' : 'Questão do banco'}</p>}
-          <div className="mt-4 flex flex-wrap items-center gap-2"><Avatar name={topic.author.name} size="sm" /><span className="text-xs text-slate-500 [overflow-wrap:anywhere]">{topic.author.name}</span><span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400"><MessageSquare aria-hidden="true" className="size-4" />{countLabel(topic.replies.length, 'resposta', 'respostas')}</span></div>
-        </Link>;
-      })}
-    </div>
-    {!topics.loading && !topics.error && !(topics.data ?? []).some(topic => filter !== 'unanswered' || topic.replies.length === 0) && <Empty title="Sem perguntas nesta seleção" description="As dúvidas publicadas aparecerão aqui." />}
-    {draftError && !open && <p role="alert" className="mt-4 text-sm text-rose-700">{draftError}</p>}
-    <ForumComposerDialog
-      open={open}
-      onClose={() => { if (!busy) setOpen(false); }}
-      subjects={activeSubjects.filter(item => classId === 'all' || item.classId === classId).map(item => ({ id: item.id, name: item.name, classId: item.classId, className: activeClasses.find(row => row.id === item.classId)?.name }))}
-      targetSubject={targetSubject}
-      onChangeSubject={next => { setTargetSubject(next); if (attachment) void removeFile(); }}
-      title={title}
-      onChangeTitle={setTitle}
-      body={body}
-      onChangeBody={setBody}
-      tags={tags}
-      onChangeTags={setTags}
-      reference={reference}
-      onClearReference={() => setReference('')}
-      attachment={attachment}
-      legacyAttachment={legacyAttachment}
-      onClearLegacyAttachment={() => setLegacyAttachment(undefined)}
-      fileInputVersion={fileInputVersion}
-      onChooseFile={file => void chooseFile(file)}
-      onRemoveFile={() => void removeFile()}
-      readFileContent={(id, inline) => api.readFileContent(id, inline)}
-      draftError={draftError}
-      error={error}
-      busy={busy}
-      hasPendingCreate={!!pendingCreate}
-      onSubmit={event => void publish(event)}
-    />
-  </>;
+  const backHref = materialId
+    ? `/materiais?id=${encodeURIComponent(materialId)}`
+    : requestedSubject
+      ? `/disciplinas/detalhes?id=${encodeURIComponent(requestedSubject)}`
+      : '/';
+  const backLabel = materialId
+    ? 'Voltar ao material'
+    : requestedSubject
+      ? 'Voltar à disciplina'
+      : 'Voltar ao painel';
+  return (
+    <>
+      <LinkButton secondary href={backHref} className="mb-5">
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        {backLabel}
+      </LinkButton>
+      <PageHeading
+        title="Fórum de dúvidas"
+        action={
+          <Button
+            onClick={() => {
+              setOpen(true);
+              setError('');
+            }}
+            disabled={!canPublish}
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            Nova pergunta
+          </Button>
+        }
+      />
+      {options.error && (
+        <p role="alert" className="mb-4 text-sm text-rose-700">
+          {options.error.message}{' '}
+          <button
+            type="button"
+            onClick={options.retry}
+            className="font-bold underline underline-offset-4"
+          >
+            Tentar novamente
+          </button>
+        </p>
+      )}
+      <ForumFilters
+        search={search}
+        onSearchChange={setSearch}
+        classId={classId}
+        onClassChange={setClassId}
+        subjectId={subjectId}
+        onSubjectChange={setSubjectId}
+        filter={filter}
+        onFilterChange={setFilter}
+        classes={activeClasses}
+        subjects={visibleSubjects}
+      />
+      <div className="space-y-3">
+        {topics.loading && (
+          <p role="status" className="text-sm text-slate-500">
+            Carregando perguntas…
+          </p>
+        )}
+        {topics.error && (
+          <p role="alert" className="text-sm text-rose-700">
+            {topics.error.message}{' '}
+            <button
+              type="button"
+              onClick={topics.retry}
+              className="font-bold underline underline-offset-4"
+            >
+              Tentar novamente
+            </button>
+          </p>
+        )}
+        {(topics.data ?? [])
+          .filter((topic) => filter !== 'unanswered' || topic.replies.length === 0)
+          .map((topic) => {
+            const solved = topic.replies.some((reply) => reply.accepted);
+            return (
+              <Link
+                key={topic.id}
+                href={`/forum/topico?id=${encodeURIComponent(topic.id)}`}
+                className="block min-w-0 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-200 sm:p-6"
+              >
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge>
+                    {activeSubjects.find((item) => item.id === topic.subjectId)?.name ??
+                      topic.subjectId}
+                  </Badge>
+                  <span className="text-xs text-slate-400">{dateLabel(topic.createdAt)}</span>
+                  {solved && (
+                    <Badge tone="green">
+                      <CheckCircle2 aria-hidden="true" className="size-3" />
+                      Resolvida
+                    </Badge>
+                  )}
+                  {!topic.read && <Badge tone="purple">Nova</Badge>}
+                </div>
+                <h2 className="text-lg font-semibold text-slate-800 [overflow-wrap:anywhere]">
+                  {topic.title}
+                </h2>
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
+                  {topic.body}
+                </p>
+                {topic.target && (
+                  <p className="mt-3 text-xs text-brand-700">
+                    Referência:{' '}
+                    {topic.target.type === 'material'
+                      ? 'Material da disciplina'
+                      : 'Questão do banco'}
+                  </p>
+                )}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Avatar name={topic.author.name} size="sm" />
+                  <span className="text-xs text-slate-500 [overflow-wrap:anywhere]">
+                    {topic.author.name}
+                  </span>
+                  <span className="ml-auto inline-flex items-center gap-2 text-xs text-slate-400">
+                    <MessageSquare aria-hidden="true" className="size-4" />
+                    {countLabel(topic.replies.length, 'resposta', 'respostas')}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+      </div>
+      {!topics.loading &&
+        !topics.error &&
+        !(topics.data ?? []).some(
+          (topic) => filter !== 'unanswered' || topic.replies.length === 0
+        ) && (
+          <Empty
+            title="Sem perguntas nesta seleção"
+            description="As dúvidas publicadas aparecerão aqui."
+          />
+        )}
+      {draftError && !open && (
+        <p role="alert" className="mt-4 text-sm text-rose-700">
+          {draftError}
+        </p>
+      )}
+      <ForumComposerDialog
+        open={open}
+        onClose={() => {
+          if (!busy) setOpen(false);
+        }}
+        subjects={activeSubjects
+          .filter((item) => classId === 'all' || item.classId === classId)
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            classId: item.classId,
+            className: activeClasses.find((row) => row.id === item.classId)?.name
+          }))}
+        targetSubject={targetSubject}
+        onChangeSubject={(next) => {
+          setTargetSubject(next);
+          if (attachment) void removeFile();
+        }}
+        title={title}
+        onChangeTitle={setTitle}
+        body={body}
+        onChangeBody={setBody}
+        tags={tags}
+        onChangeTags={setTags}
+        reference={reference}
+        onClearReference={() => setReference('')}
+        attachment={attachment}
+        legacyAttachment={legacyAttachment}
+        onClearLegacyAttachment={() => setLegacyAttachment(undefined)}
+        fileInputVersion={fileInputVersion}
+        onChooseFile={(file) => void chooseFile(file)}
+        onRemoveFile={() => void removeFile()}
+        readFileContent={(id, inline) => api.readFileContent(id, inline)}
+        draftError={draftError}
+        error={error}
+        busy={busy}
+        hasPendingCreate={!!pendingCreate}
+        onSubmit={(event) => void publish(event)}
+      />
+    </>
+  );
 }

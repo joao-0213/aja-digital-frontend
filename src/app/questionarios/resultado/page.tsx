@@ -3,7 +3,9 @@ import { Skeleton } from '@/components/ui';
 import { AssessmentResult } from '@/features/assessments';
 
 export default function Page() {
-  return <Suspense fallback={<Skeleton />}>
-    <AssessmentResult />
-  </Suspense>;
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <AssessmentResult />
+    </Suspense>
+  );
 }

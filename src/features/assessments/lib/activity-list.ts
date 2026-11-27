@@ -28,7 +28,7 @@ export function classifyStudentActivity(
   activity: AssessmentRead,
   userId: string,
   attempts: readonly AttemptRead[],
-  submissions: readonly SubmissionRead[],
+  submissions: readonly SubmissionRead[]
 ): StudentActivityStatus {
   const assigned = 'assigned' in activity ? activity.assigned : true;
   if (!assigned) {
@@ -38,13 +38,15 @@ export function classifyStudentActivity(
       tone: 'neutral',
       actionKind: 'none',
       actionLabel: '',
-      actionHref: '',
+      actionHref: ''
     };
   }
 
   if (activity.kind === 'quiz') {
-    const related = attempts.filter(attempt => attempt.assessmentId === activity.id && attempt.userId === userId);
-    const submitted = related.find(attempt => attempt.submittedAt);
+    const related = attempts.filter(
+      (attempt) => attempt.assessmentId === activity.id && attempt.userId === userId
+    );
+    const submitted = related.find((attempt) => attempt.submittedAt);
     if (submitted) {
       return {
         group: 'completed',
@@ -52,10 +54,10 @@ export function classifyStudentActivity(
         tone: 'green',
         actionKind: 'secondary',
         actionLabel: 'Ver resultado',
-        actionHref: `/questionarios/resultado?id=${encodeURIComponent(submitted.id)}`,
+        actionHref: `/questionarios/resultado?id=${encodeURIComponent(submitted.id)}`
       };
     }
-    const active = related.find(attempt => !attempt.submittedAt);
+    const active = related.find((attempt) => !attempt.submittedAt);
     if (active) {
       return {
         group: 'pending',
@@ -63,7 +65,7 @@ export function classifyStudentActivity(
         tone: 'blue',
         actionKind: 'primary',
         actionLabel: 'Retomar',
-        actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`,
+        actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`
       };
     }
     return {
@@ -72,24 +74,27 @@ export function classifyStudentActivity(
       tone: 'purple',
       actionKind: 'primary',
       actionLabel: 'Iniciar',
-      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`,
+      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`
     };
   }
 
-  const ownSubmission = submissions.find(submission => submission.assessmentId === activity.id && submission.userId === userId);
+  const ownSubmission = submissions.find(
+    (submission) => submission.assessmentId === activity.id && submission.userId === userId
+  );
   if (ownSubmission?.submittedAt) {
     const feedback = ownSubmission.feedbackPublished;
     if (feedback) {
-      const gradeLabel = feedback.grade !== null && feedback.grade !== undefined
-        ? `Avaliada · ${formatScore(feedback.grade)}`
-        : 'Avaliada';
+      const gradeLabel =
+        feedback.grade !== null && feedback.grade !== undefined
+          ? `Avaliada · ${formatScore(feedback.grade)}`
+          : 'Avaliada';
       return {
         group: 'completed',
         label: gradeLabel,
         tone: 'green',
         actionKind: 'secondary',
         actionLabel: 'Ver feedback',
-        actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(ownSubmission.id)}`,
+        actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(ownSubmission.id)}`
       };
     }
     return {
@@ -98,7 +103,7 @@ export function classifyStudentActivity(
       tone: 'amber',
       actionKind: 'secondary',
       actionLabel: 'Comprovante',
-      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(ownSubmission.id)}`,
+      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}&entrega=${encodeURIComponent(ownSubmission.id)}`
     };
   }
 
@@ -109,7 +114,7 @@ export function classifyStudentActivity(
       tone: 'blue',
       actionKind: 'primary',
       actionLabel: 'Retomar rascunho',
-      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`,
+      actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`
     };
   }
 
@@ -119,7 +124,7 @@ export function classifyStudentActivity(
     tone: 'purple',
     actionKind: 'primary',
     actionLabel: 'Preparar entrega',
-    actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`,
+    actionHref: `/questionarios/responder?id=${encodeURIComponent(activity.id)}`
   };
 }
 
@@ -127,14 +132,14 @@ const groupOrder: readonly { key: StudentActivityGroupKey; title: string }[] = [
   { key: 'pending', title: 'Pendentes' },
   { key: 'awaiting_feedback', title: 'Aguardando correção' },
   { key: 'completed', title: 'Concluídas' },
-  { key: 'readonly', title: 'Somente consulta' },
+  { key: 'readonly', title: 'Somente consulta' }
 ];
 
 export function groupStudentActivities(
   activities: readonly AssessmentRead[],
   userId: string,
   attempts: readonly AttemptRead[],
-  submissions: readonly SubmissionRead[],
+  submissions: readonly SubmissionRead[]
 ): StudentActivityGroup[] {
   const sorted = sortByDeadlineAsc(activities);
   const buckets = new Map<StudentActivityGroupKey, StudentActivityEntry[]>();
@@ -145,8 +150,8 @@ export function groupStudentActivities(
     else buckets.set(status.group, [{ activity, status }]);
   }
   return groupOrder
-    .map(group => ({ ...group, entries: buckets.get(group.key) ?? [] }))
-    .filter(group => group.entries.length > 0);
+    .map((group) => ({ ...group, entries: buckets.get(group.key) ?? [] }))
+    .filter((group) => group.entries.length > 0);
 }
 
 export function deadlineParts(value: string | null): { date: string; time: string } | null {
@@ -156,12 +161,14 @@ export function deadlineParts(value: string | null): { date: string; time: strin
   const date = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     day: '2-digit',
-    month: 'short',
-  }).format(parsed).replace(/\.$/, '');
+    month: 'short'
+  })
+    .format(parsed)
+    .replace(/\.$/, '');
   const time = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   }).format(parsed);
   return { date, time };
 }

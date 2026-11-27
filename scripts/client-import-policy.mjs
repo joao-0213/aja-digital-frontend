@@ -32,7 +32,12 @@ export function isForbiddenClientImport(root, importerFile, specifier) {
   const { outsideSource, withoutExtension } = classifySourceTarget(root, target);
   if (outsideSource) return true;
   const segments = withoutExtension.split('/');
-  if (segments.some(segment => ['mocks', 'server', 'tests', 'test', 'fixtures', '__fixtures__'].includes(segment))) return true;
+  if (
+    segments.some((segment) =>
+      ['mocks', 'server', 'tests', 'test', 'fixtures', '__fixtures__'].includes(segment)
+    )
+  )
+    return true;
   return legacySourcePaths.has(withoutExtension);
 }
 
@@ -40,13 +45,16 @@ function isErasedModelDatabaseReference(root, reference) {
   if (!reference.typeOnly || !reference.candidateTarget) return false;
   // The legacy rule modules and model barrel still share these types for server/tests; type-only edges are erased by TS.
   const { outsideSource, withoutExtension } = classifySourceTarget(root, reference.candidateTarget);
-  return !outsideSource && (withoutExtension === 'models/database' || withoutExtension === 'models/legacy');
+  return (
+    !outsideSource &&
+    (withoutExtension === 'models/database' || withoutExtension === 'models/legacy')
+  );
 }
 
 export function sourceModuleSpecifiers(root, file, source) {
   return collectLocalReferences(root, file, source)
-    .filter(reference => !isErasedModelDatabaseReference(root, reference))
-    .map(reference => reference.specifier);
+    .filter((reference) => !isErasedModelDatabaseReference(root, reference))
+    .map((reference) => reference.specifier);
 }
 
 export function findClientImportViolations(root, sourceFiles) {

@@ -4,7 +4,11 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { createHttpQuery, type HttpQueryIdentity, type HttpQueryLoader } from '@/lib/http-query';
 
 /** Keep load stable with useCallback; include all result inputs in identity.key. */
-export function useHttpQuery<T>(identity: HttpQueryIdentity, load: HttpQueryLoader<T>, enabled = true) {
+export function useHttpQuery<T>(
+  identity: HttpQueryIdentity,
+  load: HttpQueryLoader<T>,
+  enabled = true
+) {
   const { sessionKey, key } = identity;
   // A new controller hides the previous account/filter snapshot in this render,
   // before effect cleanup can abort the old request.

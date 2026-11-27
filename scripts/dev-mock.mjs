@@ -8,11 +8,15 @@ const children = [
     stdio: 'inherit',
     env: { ...process.env, API_PORT: '3102' }
   }),
-  spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3000'], {
-    cwd: root,
-    stdio: 'inherit',
-    env: { ...process.env, NEXT_PUBLIC_API_URL: 'http://127.0.0.1:3102/api/v1' }
-  })
+  spawn(
+    process.execPath,
+    ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3000'],
+    {
+      cwd: root,
+      stdio: 'inherit',
+      env: { ...process.env, NEXT_PUBLIC_API_URL: 'http://127.0.0.1:3102/api/v1' }
+    }
+  )
 ];
 let stopping = false;
 function stop(code = 0) {
@@ -23,7 +27,9 @@ function stop(code = 0) {
 }
 for (const child of children) {
   child.on('error', () => stop(1));
-  child.on('exit', code => { if (!stopping) stop(code ?? 1); });
+  child.on('exit', (code) => {
+    if (!stopping) stop(code ?? 1);
+  });
 }
 process.on('SIGINT', () => stop());
 process.on('SIGTERM', () => stop());

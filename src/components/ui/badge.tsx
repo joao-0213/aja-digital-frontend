@@ -16,7 +16,14 @@ export function Badge({
     red: 'bg-rose-50 text-rose-700',
     blue: 'bg-blue-50 text-blue-700'
   };
-  return <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold', colors[tone])}>
-    {children}
-  </span>;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold',
+        colors[tone]
+      )}
+    >
+      {children}
+    </span>
+  );
 }

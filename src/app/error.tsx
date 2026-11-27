@@ -9,5 +9,10 @@ export default function Error({
   };
   reset: () => void;
 }) {
-  return <ErrorState message="Ocorreu um problema ao mostrar este conteúdo. Suas alterações locais foram preservadas." retry={reset} />;
+  return (
+    <ErrorState
+      message="Ocorreu um problema ao mostrar este conteúdo. Suas alterações locais foram preservadas."
+      retry={reset}
+    />
+  );
 }
