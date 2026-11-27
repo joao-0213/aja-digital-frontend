@@ -2,8 +2,9 @@
 
 import { useEffect } from 'react';
 import type { SessionClient } from '@/providers/session-client';
-import { createMaterialsApi, createStudyTools, type StudyTool } from '@/features/materials';
 import { HttpError } from '@/lib/http-client';
+import { createMaterialsApi } from '../api';
+import { createStudyTools, type StudyTool } from '../lib/study-tools';
 
 type ModelDocument = Document & { modelContext?: { registerTool(tool: StudyTool, options?: { signal: AbortSignal }): void | Promise<void> } };
 

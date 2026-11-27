@@ -15,12 +15,13 @@ Inicie o Compose integrado no repositório backend e use `npm run dev` para abri
 | Notificações e composições genéricas | `src/components/shared/` |
 | Navegação e shell autenticado | `src/components/layout/` |
 | Providers e sessão HTTP em memória | `src/components/providers.tsx`, `src/providers/` |
-| Features de domínio e APIs de cliente | `src/features/<domínio>/` |
+| Hooks compartilhados sem regra de feature | `src/hooks/` |
+| Features de domínio, hooks e APIs de cliente | `src/features/<domínio>/` |
 | Cliente HTTP, consulta cancelável e DTOs compartilhados | `src/lib/`, `src/models/` |
 | Regras autoritativas, persistência, seed e arquivos privados | `server/` |
 | Regressões e contratos | `tests/` |
 
-Rotas importam entradas públicas de features. Dentro de uma feature, imports são internos; entre features, use `@/features/<domínio>`. UI genérica não importa features, providers, rotas ou mocks. `npm run check:architecture` verifica as fronteiras estruturais e ciclos.
+Rotas importam entradas públicas de features. Dentro de uma feature, imports são internos; entre features, use `@/features/<domínio>`. Hooks em `src/hooks/` reutilizam apenas `src/lib/`, `src/models/` e `src/providers/`, sem importar `src/features/` ou `src/app/` (hooks específicos vivem em `src/features/<domínio>/hooks/`). UI genérica não importa features, providers, rotas ou mocks. `npm run check:architecture` verifica as fronteiras estruturais (incluindo `import()` literal) e ciclos estáticos.
 
 ## Sessão e estado do cliente
 

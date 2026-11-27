@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { AppContext, SessionContext } from '@/providers/app-context';
 import { createSessionClient } from '@/providers/session-client';
 import { createHttpClient } from '@/lib/http-client';
-import { useStudyTools } from '@/hooks/use-study-tools';
+import { useStudyTools } from '@/features/materials';
 import { ToastRegion } from '@/components/shared/toast-region';
 import { useToasts } from '@/components/shared/use-toasts';
 
