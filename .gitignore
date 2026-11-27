@@ -30,11 +30,14 @@ tmp/
 
 # Artefatos locais do Graphify
 /graphify-out/
+/server/runtime/
 
 # Documentação interna e experimentos locais
 AGENTS.md
 /VALIDACAO.md
-/docs/
+/docs/*
+!/docs/http/
+!/docs/backend/
 /tools/
 /public/brand/README.md
 

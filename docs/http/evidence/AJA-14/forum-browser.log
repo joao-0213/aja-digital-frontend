@@ -1,0 +1,387 @@
+Browser scenario exit codes: student=0; staff=0.
+Student scenario:
+### Ran Playwright code
+```js
+await (async (page) => {
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+await page.goto('http://127.0.0.1:3000/login/');
+await page.getByRole('textbox', { name: 'E-mail' }).fill('student@aja.local.test');
+await page.getByRole('textbox', { name: 'Senha' }).fill('[demo password redacted]');
+await page.getByRole('button', { name: 'Entrar' }).click();
+await page.getByRole('heading', { name: 'Dados cadastrais' }).waitFor();
+
+await page.goto('http://127.0.0.1:3000/forum/');
+await page.getByRole('heading', { name: 'Como comparar dois grupos?' }).waitFor();
+assert(await page.getByText('1 respostas').count() === 1, 'Lista mostra o t�pico carregado pela API.');
+await page.reload();
+await page.getByRole('heading', { name: 'Como comparar dois grupos?' }).waitFor();
+
+await page.evaluate(() => sessionStorage.removeItem('aja-forum-reply:student:topic1'));
+await page.goto('http://127.0.0.1:3000/forum/topico/?id=topic1');
+await page.getByRole('heading', { name: 'Como comparar dois grupos?' }).waitFor();
+assert(await page.getByRole('link', { name: 'O que � propor��o?' }).count() === 1, 'Refer�ncia do material � resolvida pelo servidor.');
+await page.getByRole('button', { name: 'Pr�via de grupos.png' }).click();
+await page.getByRole('dialog', { name: 'grupos.png' }).waitFor();
+await page.keyboard.press('Escape');
+
+const reply = page.getByRole('textbox', { name: 'Sua resposta' });
+await reply.fill('Rascunho de resposta preservado ap�s a recarga.');
+await page.reload();
+await page.getByRole('textbox', { name: 'Sua resposta' }).waitFor();
+assert(await page.getByRole('textbox', { name: 'Sua resposta' }).inputValue() === 'Rascunho de resposta preservado ap�s a recarga.', 'Rascunho sobrevive � recarga no mesmo contexto.');
+
+await page.context().setOffline(true);
+await page.getByRole('button', { name: 'Votar positivamente' }).click();
+await page.getByRole('alert').filter({ hasText: 'Servi�o indispon�vel' }).waitFor();
+await page.context().setOffline(false);
+await page.reload();
+await page.getByRole('button', { name: 'Votar positivamente' }).waitFor();
+assert(await page.getByRole('button', { name: 'Votar positivamente' }).getAttribute('aria-pressed') === 'true', 'Falha de conex�o n�o alterou o voto salvo.');
+
+await page.evaluate(() => sessionStorage.removeItem('aja-forum-reply:student:topic1'));
+const api = await page.evaluate(async () => {
+  const response = await fetch('http://127.0.0.1:3002/api/v1/topics/topic1', { credentials: 'include' });
+  const body = await response.json();
+  return { status: response.status, id: body.id, replies: body.replies.length, read: body.read };
+});
+assert(api.status === 200 && api.id === 'topic1' && api.replies === 1 && api.read, 'HTTP detail confirms saved replies and read marker.');
+console.log(JSON.stringify({ list: 'DOM assertion passed', reload: 'DOM assertion passed', reference: 'DOM assertion passed', attachmentPreview: 'HTTP-backed preview opened', draft: 'DOM assertion passed', offline: 'request failed without changing vote', api }));
+}
+)(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3000/forum/topico/?id=topic1
+- Page Title: AJA Digital � Portal acad�mico
+### Events
+- New console entries: .playwright-cli\console-2026-11-03T02-42-59-063Z.log#L291-L303
+Staff archived-class scenario:
+### Ran Playwright code
+```js
+await (async (page) => {
+  await page.goto('http://127.0.0.1:3000/perfil/');
+  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.getByRole('textbox', { name: 'E-mail' }).waitFor();
+  await page.getByRole('textbox', { name: 'E-mail' }).fill('teacher-a@aja.local.test');
+  await page.getByRole('textbox', { name: 'Senha' }).fill('[demo password redacted]');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('heading', { name: 'Dados cadastrais' }).waitFor();
+
+  await page.goto('http://127.0.0.1:3000/forum/');
+  const archived = page.getByRole('link', { name: /Registro da turma anterior/ });
+  await archived.waitFor();
+  await archived.click();
+  await page.getByRole('heading', { name: 'Registro da turma anterior' }).waitFor();
+  await page.getByText('Esta turma est� inativa. O hist�rico permanece dispon�vel para consulta da equipe autorizada.').waitFor();
+  if (await page.getByRole('textbox', { name: 'Sua resposta' }).count() !== 0) throw new Error('Equipe recebeu formul�rio de publica��o em turma encerrada.');
+
+  const outcomes = await page.evaluate(async () => {
+    const detail = await fetch('http://127.0.0.1:3002/api/v1/topics/topic-closed', { credentials: 'include' });
+    const row = await detail.json();
+    const publish = await fetch('http://127.0.0.1:3002/api/v1/topics/topic-closed/replies', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: 'Resposta bloqueada no hist�rico.' }) });
+    return { readStatus: detail.status, readMarker: row.read, publishStatus: publish.status };
+  });
+  if (outcomes.readStatus !== 200 || outcomes.readMarker !== true || outcomes.publishStatus !== 403) throw new Error(`Acesso da equipe em turma encerrada divergente: ${JSON.stringify(outcomes)}`);
+  console.log(JSON.stringify({ archivedTopicVisible: true, readingAllowedAndMarked: true, replyFormHidden: true, publishStatus: outcomes.publishStatus }));
+}
+)(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3000/forum/topico/?id=topic-closed
+- Page Title: AJA Digital � Portal acad�mico
+- Console: 1 errors, 0 warnings
+### Events
+- New console entries: .playwright-cli\console-2026-11-03T02-42-59-063Z.log#L304-L308
+Observed API requests:
+27. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+30. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+32. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+35. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+94. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+97. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+124. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+127. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+152. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+155. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+158. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+184. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+187. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+190. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+215. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+218. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+221. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+279. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+282. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+309. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+312. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+337. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+340. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+343. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+369. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+372. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+375. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+400. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+403. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+406. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+469. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+472. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+474. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+477. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+481. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+482. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+539. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+542. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+569. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+572. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+597. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+600. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+603. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+629. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+632. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+635. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+660. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+663. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+666. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+729. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+732. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+734. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+737. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+741. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+742. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+801. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+804. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+831. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+834. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+859. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+862. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+865. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+891. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+894. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+897. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+922. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+925. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+928. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+991. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+994. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+996. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+999. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+1003. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+1004. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+1060. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1063. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1094. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+1119. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+1122. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+1125. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies => [FAILED] net::ERR_INTERNET_DISCONNECTED
+1156. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+1180. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+1183. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+1214. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+1238. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+1241. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+1244. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies => [FAILED] net::ERR_INTERNET_DISCONNECTED
+1246. [GET] http://127.0.0.1:3002/api/v1/topics/topic-d4f64c3a-55ef-42f7-8ce4-e2e56cd1cd89 => [200] OK
+1300. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1303. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1304. [POST] http://127.0.0.1:3002/api/v1/files => [201] Created
+1359. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1360. [GET] http://127.0.0.1:3002/api/v1/files/file-ee7d520b-0ab6-4da3-a406-482d8c1eb645 => [200] OK
+1363. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1364. [GET] http://127.0.0.1:3002/api/v1/files/file-ee7d520b-0ab6-4da3-a406-482d8c1eb645 => [200] OK
+1365. [POST] http://127.0.0.1:3002/api/v1/files => [201] Created
+1420. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1421. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1424. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1425. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1455. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+1479. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+1482. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+1485. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies => [FAILED] net::ERR_INTERNET_DISCONNECTED
+1487. [GET] http://127.0.0.1:3002/api/v1/topics/topic-6dbb7b80-6dfe-4e34-a260-bb04ea7606b5 => [200] OK
+1542. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1545. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1546. [POST] http://127.0.0.1:3002/api/v1/files => [201] Created
+1550. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1551. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1554. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1555. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1559. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1560. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1563. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1564. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1567. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1568. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1571. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1572. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1576. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1579. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1580. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1583. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1584. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1591. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1592. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1595. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1596. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1599. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1600. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1603. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1604. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1660. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1661. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1664. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1665. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1669. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1670. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1673. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1674. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1730. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1731. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1734. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1735. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1739. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1740. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1743. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1744. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1801. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1802. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1805. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1806. [GET] http://127.0.0.1:3002/api/v1/files/file-41e9ef70-10ec-4ad4-8920-be9f0f8c1cc8 => [200] OK
+1810. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1811. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1814. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1815. [GET] http://127.0.0.1:3002/api/v1/files/file-5b3157a1-7b41-4f48-8f44-43cbd48999c6 => [200] OK
+1872. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1875. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1879. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1882. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1938. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1941. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+1945. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+1948. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2004. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2007. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2011. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2014. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2070. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2073. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2077. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2080. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2111. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+2136. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+2139. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2142. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies => [FAILED] net::ERR_INTERNET_DISCONNECTED
+2144. [GET] http://127.0.0.1:3002/api/v1/topics/topic-e24f936d-8953-4627-8280-1a4da734a45d => [FAILED] net::ERR_ABORTED
+2147. [GET] http://127.0.0.1:3002/api/v1/topics/topic-e24f936d-8953-4627-8280-1a4da734a45d => [200] OK
+2206. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2209. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2210. [POST] http://127.0.0.1:3002/api/v1/files => [201] Created
+2211. [POST] http://127.0.0.1:3002/api/v1/files/file-aa34c224-7e95-4be3-b080-cf20d8b2db75/discard => [204] No Content
+2212. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+2213. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2269. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2272. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2273. [POST] http://127.0.0.1:3002/api/v1/files => [201] Created
+2274. [POST] http://127.0.0.1:3002/api/v1/files/file-817640fa-538e-4469-88e2-3d34f80f59e5/discard => [204] No Content
+2275. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+2276. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2332. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2335. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2362. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2365. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2390. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+2393. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2396. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+2460. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2463. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2465. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+2468. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+2472. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+2473. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+2530. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2533. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2560. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2563. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2588. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+2591. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2594. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+2620. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+2623. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2626. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+2651. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+2654. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2657. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+2720. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2723. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2725. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+2728. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+2732. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+2733. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+2791. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2794. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2917. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2920. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+2978. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+2981. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3038. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3041. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3068. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3071. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3075. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3135. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3138. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3196. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3199. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3200. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+3201. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3257. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3260. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3287. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3290. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3291. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+3292. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3349. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3352. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3409. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3412. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3470. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3473. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3500. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3503. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3561. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3564. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3591. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3594. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3595. [POST] http://127.0.0.1:3002/api/v1/topics => [201] Created
+3596. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3653. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3656. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3683. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3686. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3742. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3745. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3749. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3752. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3809. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3812. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3839. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+3842. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+3867. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+3870. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+3873. [GET] http://127.0.0.1:3002/api/v1/files/file-forum/content?disposition=inline => [200] OK
+3899. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+3902. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+3905. [POST] http://127.0.0.1:3002/api/v1/topics/topic1/replies/reply1/vote => [FAILED] net::ERR_INTERNET_DISCONNECTED
+3930. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [FAILED] net::ERR_ABORTED
+3933. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+3936. [GET] http://127.0.0.1:3002/api/v1/topics/topic1 => [200] OK
+3999. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [FAILED] net::ERR_ABORTED
+4002. [GET] http://127.0.0.1:3002/api/v1/topics?page=1&pageSize=100&sort=-createdAt => [200] OK
+4004. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [FAILED] net::ERR_ABORTED
+4007. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+4011. [GET] http://127.0.0.1:3002/api/v1/topics/topic-closed => [200] OK
+4012. [POST] http://127.0.0.1:3002/api/v1/topics/topic-closed/replies => [403] Forbidden
+Console errors (the 403 is expected from the blocked publication request):
+### Result
+Total messages: 3 (Errors: 1, Warnings: 0)
+Returning 1 messages for level "error"
+
+[ERROR] Failed to load resource: the server responded with a status of 403 (Forbidden) @ http://127.0.0.1:3002/api/v1/topics/topic-closed/replies:0

@@ -1,8 +1,8 @@
 # AJA Digital
 
-Frontend de uma plataforma de apoio a um cursinho pré-vestibular presencial. Reúne materiais, avisos, atividades com prazo, questões para praticar e ferramentas de gestão para a equipe docente.
+Plataforma de apoio a um cursinho pré-vestibular presencial. Reúne materiais, avisos, atividades, questões para praticar e ferramentas de gestão para a equipe docente.
 
-Construído com Next.js 16, React 19, TypeScript e Tailwind CSS 4.
+Construída com Next.js 16 App Router, React 19, TypeScript e Tailwind CSS 4. O frontend é exportado como site estático e usa o cliente HTTP/OpenAPI em `docs/http/` para acessar a API.
 
 ## Desenvolvimento
 
@@ -13,75 +13,42 @@ npm ci
 npm run dev
 ```
 
-Acesse `http://127.0.0.1:3000`.
+Antes, inicie o ambiente integrado do backend (`docker compose --env-file env.integrated.example -f compose.integrated.yaml -p aja-integrated up --build --wait` no repositório `aja-digital-backend`). `npm run dev` abre o frontend em `http://127.0.0.1:3000` e usa por padrão o gateway em `http://127.0.0.1:3002/api/v1`. O comando `npm run dev:full` continua disponível como alias para `npm run dev`.
 
-No PowerShell, use `npm.cmd` se a política de execução bloquear `npm`.
+Para trabalhar isoladamente com o JSON Server local, use `npm run dev:mock`; essa API inicia na porta `3102` e não ocupa a porta do gateway. A URL da API mock é configurada apenas nesse comando. No PowerShell, use `npm.cmd` se a política de execução bloquear `npm`.
 
-## Build e prévia
+## Build e prévia estática
 
 ```sh
 npm run build
 npm run preview
 ```
 
-O build gera os arquivos estáticos em `out/`. A prévia abre em `http://127.0.0.1:3001`; mantenha o terminal aberto enquanto estiver usando o site.
+O build gera `out/`; a prévia serve o site em `http://127.0.0.1:3001`. A API deve estar ativa para entrar e consultar dados. Configure `NEXT_PUBLIC_API_URL` antes do build quando a API publicada usar outro endereço. Consulte [docs/http/operator.md](docs/http/operator.md) para configuração de origens, cookies, massa local e operação da API.
 
-Para compartilhar a prévia, execute em outro terminal:
+Se o build Turbopack falhar ao processar CSS ou iniciar processo, tente `npm run build -- --webpack` e registre os resultados separadamente.
 
-```sh
-ngrok http 3001
-```
-
-Gere o build novamente após alterar o código.
-
-Se o Turbopack falhar ao iniciar o processo de compilação do CSS, execute `npm run build -- --webpack` para gerar a exportação estática com Webpack.
-
-## Verificação
+## Verificações
 
 ```sh
 npm test
 npm run typecheck
 npm run check:architecture
 npm run build
+npm run check:export
 ```
 
-Os testes usam `node:test`. A checagem de tipos gera os tipos do Next.js antes de executar o TypeScript.
+Os testes usam `node:test`. `typecheck` gera os tipos de rota do Next antes do TypeScript.
 
 ## Estrutura
 
-- `src/app/`: rotas, layouts e estilos globais.
-- `src/features/`: módulos por domínio, com componentes, hooks locais e entradas públicas.
-- `src/components/`: elementos de UI, composições genéricas e navegação.
-- `src/providers/`: contrato do estado compartilhado e persistência da demonstração no navegador.
-- `src/models/`, `src/hooks/`, `src/lib/` e `src/mocks/`: tipos, hooks, regras e dados de demonstração.
-- `public/`: assets estáticos e identidade visual.
-- `tests/`: testes de regras e transporte simulado.
-- `scripts/preview.mjs`: servidor da versão compilada.
+- `src/app/`: entradas de rota, metadados, layout e estados de carregamento/erro.
+- `src/features/`: módulos por domínio com entradas públicas explícitas.
+- `src/components/`: controles reutilizáveis, composições genéricas e shell.
+- `src/providers/`: sessão HTTP em memória e contexto de notificações/interface.
+- `src/models/`, `src/hooks/` e `src/lib/`: DTOs, hooks, regras e transporte HTTP do cliente.
+- `server/`: API separada, regras autoritativas, seed, arquivos de execução e fixtures locais.
+- `tests/`: testes de domínio, contrato HTTP e fronteira de imports do frontend.
+- `public/`: assets estáticos.
 
-Consulte [ARQUITETURA.md](ARQUITETURA.md) para localizar cada domínio, entender as fronteiras entre módulos e validar mudanças estruturais.
-
-O PP01 reduz o perfil a nome/e-mail e dados operacionais, mantém painéis fixos, materiais com acesso direto e questionários com ordem fixa e envio único. O resultado individual permanece disponível. Bancos locais antigos são migrados na mesma chave, preservando respostas e histórico compatível. As histórias e os diagramas revisados estão no complemento local `docs/ESCOPO-PP01.md` e foram incorporados ao DOCX acadêmico indicado pelo usuário. A entrega de redação como arquivo permanece pendente do PP06.
-
-O PP02 acrescenta cadastro, edição, inativação e exclusão lógica de docentes pela administração, além de vários professores por disciplina, com permissões iguais. Turmas, disciplinas, vínculos e atribuições são gerenciados pelo administrador. Consultas, destinos de formulários, URLs e mutações usam regras comuns para limitar o professor às disciplinas atribuídas e o aluno aos próprios registros privados. Os formulários de edição preservam o preenchimento diante de conflito e exigem conferir a versão atual antes de salvar novamente. Histórias, matriz de acesso e diagramas estão em [docs/ESCOPO-PP02.md](docs/ESCOPO-PP02.md) e foram incorporados ao DOCX acadêmico, renderizado e conferido com cópia anterior preservada.
-
-## Demonstração
-
-O PP03 completa a matrícula por e-mail: a administração confere conta e destino, cria vínculo ou pendência; o cadastro posterior exige confirmação simulada. Sem matrícula, o aluno recebe orientação para aguardar inclusão. Cancelamento, saída e encerramento da turma preservam histórico e retiram acesso; não há restauração pela interface. Atividades vencidas antes da entrada ficam só para consulta e aulas anteriores não geram falta. O aviso de privacidade é acessível antes e depois do cadastro. Documentação local em `docs/ESCOPO-PP03.md` e `output/reviews/VALIDACAO-PP03.md`.
-
-Os exemplos novos têm uma turma ativa por aluno. Bancos antigos com múltiplos vínculos ativos são preservados, com orientação para regularização explícita pela administração; o acesso acadêmico ambíguo permanece bloqueado até encerrar o vínculo incorreto. A migração não escolhe turma nem transfere alunos automaticamente.
-
-A aplicação usa dados fictícios e armazenamento no navegador. Autenticação, permissões e envio de notificações são simulados. Materiais enviados ficam disponíveis apenas no navegador em que foram publicados.
-
-O botão **Demonstração**, na parte inferior do menu, permite alternar entre aluno, professor e administrador.
-
-Para testar colaboração, entre como administrador, cadastre outro docente em **Usuários e docentes** e atribua ambos à mesma disciplina. Use o login com o e-mail fictício cadastrado para acessar o segundo professor; a conta selecionada permanece na sessão após recarregar. Inativar ou excluir a conta encerra o acesso sem entrar automaticamente como outro usuário. A autoria das publicações anteriores é preservada.
-
-As alterações entre abas do mesmo navegador são coordenadas com Web Locks e conferência da versão persistida. Use um navegador com suporte a essa API em `localhost` ou HTTPS; quando a coordenação não está disponível, a aplicação explica a limitação e bloqueia a gravação persistida. Isso não oferece colaboração entre dispositivos nem substitui permissões no futuro serviço de dados. Os resultados efetivamente executados ficam em [VALIDACAO.md](VALIDACAO.md) e nos relatórios por pacote em `output/reviews/`.
-
-| Perfil | E-mail de exemplo |
-| --- | --- |
-| Aluno | fernando@exemplo.com |
-| Professora | mariana@exemplo.com |
-| Administrador | rafael@exemplo.com |
-
-Senha de teste: `Aja@2026`. Use somente dados fictícios.
+Consulte [ARQUITETURA.md](ARQUITETURA.md) para fronteiras de dependência, armazenamento e manutenção.

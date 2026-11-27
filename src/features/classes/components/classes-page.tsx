@@ -1,158 +1,84 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Users, GraduationCap, Pencil, Archive } from 'lucide-react';
-import { useApp } from '@/providers/app-context';
-import { Badge, Button, Card, Check, Dialog, Empty, Input, LinkButton, PageHeading, Select } from '@/components/ui';
-import { textMatch, uid } from '@/lib/utils';
-import { validateClassCode } from '@/lib/domain';
-import { type SchoolClass } from '@/models';
+import { useCallback, useMemo, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { useSession, useApp } from '@/providers/app-context';
+import { Badge, Button, Card, Check, Dialog, Empty, Input, LinkButton, PageHeading, Select, Skeleton, ErrorState } from '@/components/ui';
+import { ConfirmAlert } from '@/components/shared/confirm-alert';
+import { RecordConflict } from '@/components/shared/record-conflict';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useHttpEditor } from '@/hooks/use-http-editor';
+import { countLabel } from '@/lib/utils';
+import type { SchoolClass } from '@/models';
+import { createClassesApi, type ClassFields } from '../api';
 
-export function ClassesPage() {
-  const {
-    db,
-    mutate,
-    busy,
-    role,
-    user
-  } = useApp();
-  const [search, setSearch] = useState('');
-  const [inactive, setInactive] = useState(false);
-  const [editing, setEditing] = useState<SchoolClass | null>(null);
-  const [open, setOpen] = useState(false);
-  const [archive, setArchive] = useState<SchoolClass | null>(null);
-  const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [shift, setShift] = useState<SchoolClass['shift']>('Noite');
-  const [year, setYear] = useState(2026);
-  const [error, setError] = useState('');
-  const [expectedRevision, setExpectedRevision] = useState(0);
-  const [compared, setCompared] = useState(false);
-  const [initial, setInitial] = useState('');
-  const dirty = open && initial !== JSON.stringify({ name, code, shift, year });
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
-  if (role !== 'admin' || user.active === false || user.deletedAt) return <Empty title="Área de gestão" description="Use o perfil de administrador na demonstração para gerenciar turmas." />;
-  const current = db.classes.find(item => item.id === editing?.id);
-  const conflict = !!editing && (!current || !!current.deletedAt || (current.revision ?? 0) !== expectedRevision);
-  const currentArchive = db.classes.find(item => item.id === archive?.id);
-  const archiveConflict = !!archive && (!currentArchive || !!currentArchive.deletedAt || (currentArchive.revision ?? 0) !== (archive.revision ?? 0));
-  const close = () => { if (!busy && (!dirty || window.confirm('Descartar as alterações não salvas desta turma?'))) setOpen(false); };
-  const edit = (item: SchoolClass | null) => {
-    setEditing(item);
-    setName(item?.name ?? '');
-    setCode(item?.code ?? '');
-    setShift(item?.shift ?? 'Noite');
-    setYear(item?.year ?? 2026);
-    setError('');
-    setExpectedRevision(item?.revision ?? 0);
-    setInitial(JSON.stringify({ name: item?.name ?? '', code: item?.code ?? '', shift: item?.shift ?? 'Noite', year: item?.year ?? 2026 }));
-    setCompared(false);
-    setOpen(true);
+type Selection = { record?: SchoolClass; action: 'edit' | 'close' | 'reopen'; intent: string };
+
+function ClassDialog({ selection, close, saved }: { selection: Selection; close: () => void; saved: () => void }) {
+  const { client } = useSession();
+  const { notify } = useApp();
+  const api = useMemo(() => createClassesApi(client), [client]);
+  const { record, action, intent } = selection;
+  const initial: ClassFields = { name: record?.name ?? '', code: record?.code ?? '', year: record?.year ?? new Date().getFullYear(), shift: record?.shift ?? 'Noite' };
+  const state = useHttpEditor<ClassFields, SchoolClass>(initial, record?.revision ?? 0, 'classes-fields');
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [yearInput, setYearInput] = useState(() => String(state.fields.year));
+  const closeEditor = () => {
+    if (state.busy) return;
+    if (confirmingClose) { setConfirmingClose(false); return; }
+    if (action !== 'edit' || !state.dirty) { state.clear(); close(); return; }
+    setConfirmingClose(true);
   };
   const save = async () => {
-    if (conflict) return;
-    const validation = validateClassCode(code, db.classes, editing?.id);
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    const ok = await mutate(d => {
-      const latestValidation = validateClassCode(code, d.classes, editing?.id);
-      if (latestValidation) throw new Error(latestValidation);
-      if (editing) {
-        Object.assign(d.classes.find(c => c.id === editing.id)!, {
-          name: name.trim(),
-          code: code.trim().toUpperCase(),
-          shift,
-          year
-        });
-      } else d.classes.push({
-        id: uid('class'),
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
-        shift,
-        year,
-        active: true,
-        studentIds: []
-      });
-    }, 'Turma salva.', editing ? { expected: [{ collection: 'classes', id: editing.id, revision: expectedRevision }] } : undefined);
-    if (ok) setOpen(false);
+    const ok = await state.editor.submit((fields, revision) => action === 'edit' ? api.save({ ...fields, name: fields.name.trim(), code: fields.code.trim().toUpperCase() }, revision, record?.id, intent) : api.command(record!.id, action, revision, intent), record ? () => api.read(record.id) : undefined);
+    if (ok) { state.clear(); notify(action === 'edit' ? 'Turma salva.' : 'Situação da turma atualizada. Histórico preservado.'); saved(); }
   };
-  const items = db.classes.filter(c => !c.deletedAt && (inactive || c.active) && textMatch(c.name + ' ' + c.code, search));
+  return <Dialog open onClose={closeEditor} title={action === 'edit' ? record ? 'Editar turma' : 'Criar nova turma' : action === 'close' ? 'Inativar turma?' : 'Reativar turma?'}>{confirmingClose ? <ConfirmAlert
+    message="Fechar esta edição sem salvar as alterações da turma?"
+    cancelLabel="Continuar editando"
+    confirmLabel="Descartar alterações"
+    onCancel={() => setConfirmingClose(false)}
+    onConfirm={() => { state.clear(); close(); }}
+  /> : <form className="space-y-4" onSubmit={event => { event.preventDefault(); void save(); }}>
+    {action === 'edit' ? <fieldset disabled={state.busy} className="space-y-4"><Input label="Nome da turma" value={state.fields.name} onChange={event => state.editor.change({ ...state.fields, name: event.target.value })} required maxLength={100} /><Input label="Código único" value={state.fields.code} onChange={event => state.editor.change({ ...state.fields, code: event.target.value })} required pattern="[A-Za-z0-9-]+" maxLength={20} /><div className="grid grid-cols-2 gap-4"><Input label="Ano" type="number" value={yearInput} onChange={event => { const raw = event.target.value; setYearInput(raw); if (raw !== '') state.editor.change({ ...state.fields, year: Number(raw) }); }} min={2020} max={2100} required /><Select label="Turno" value={state.fields.shift} onChange={event => state.editor.change({ ...state.fields, shift: event.target.value as SchoolClass['shift'] })}><option>Manhã</option><option>Tarde</option><option>Noite</option></Select></div></fieldset> : <p className="text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">O histórico de {record?.name} será preservado. Inativar encerra vínculos e cancela matrículas pendentes; alunos perdem acesso. Reativar não restaura vínculos encerrados.</p>}
+    {state.conflicted && <RecordConflict author="Equipe administrativa" updatedAt={state.latest?.updatedAt} onReviewed={state.editor.acknowledge}><p>A turma mudou. Seu preenchimento foi mantido.</p>{state.latest ? <p>{state.latest.name} · {state.latest.code} · {state.latest.year} · {state.latest.shift} · {state.latest.active ? 'Ativa' : 'Inativa'}</p> : <Button variant="secondary" onClick={() => void state.editor.review(() => api.read(record!.id))}>Consultar versão atual</Button>}</RecordConflict>}
+    {state.error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.error}</p>}
+    {state.blocked && <p className="text-sm text-slate-600">Feche esta janela e atualize a lista para conferir o que foi registrado antes de iniciar outra operação.</p>}
+    <div className="flex justify-end gap-2"><Button variant="secondary" disabled={state.busy} onClick={closeEditor}>Cancelar</Button><Button type="submit" variant={action === 'close' ? 'danger' : 'primary'} loading={state.busy} disabled={state.conflicted || state.blocked}>{action === 'edit' ? 'Salvar turma' : 'Confirmar'}</Button></div>
+  </form>}</Dialog>;
+}
+
+export function ClassesPage() {
+  const { client, sessionKey, user, resourceEpoch } = useSession();
+  const api = useMemo(() => createClassesApi(client), [client]);
+  const [search, setSearch] = useState('');
+  const [inactive, setInactive] = useState(false);
+  const [page, setPage] = useState(1);
+  const [selection, setSelection] = useState<Selection | null>(() => client.readDraft<Selection>('classes-open') ?? null);
+  const query = useHttpQuery({ sessionKey, key: JSON.stringify(['classes', search, inactive, page, resourceEpoch]) }, useCallback(signal => api.list(search, inactive, page, signal), [api, search, inactive, page]), user?.role === 'admin');
+  if (user?.role !== 'admin') return <Empty title="Área de gestão" description="Seu perfil não permite gerenciar turmas." action={<LinkButton secondary href="/">Voltar ao painel</LinkButton>} />;
+  const open = (action: Selection['action'], record?: SchoolClass) => { const next = { action, record, intent: crypto.randomUUID() }; client.clearDraft('classes-fields', sessionKey); client.saveDraft('classes-open', next, sessionKey); setSelection(next); };
+  const close = () => { client.clearDraft('classes-open', sessionKey); setSelection(null); };
   return <>
-    <PageHeading eyebrow="Gestão acadêmica" title="Turmas" description="Cadastre e gerencie as turmas." action={role === 'admin' && <Button onClick={() => edit(null)}><Plus className="size-4" />Nova turma</Button>} />
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div className="w-full sm:w-80">
-        <Input aria-label="Buscar turmas" placeholder="Buscar por nome ou código…" value={search} onChange={e => setSearch(e.target.value)} />
+    <LinkButton secondary href="/" className="mb-5"><ArrowLeft aria-hidden="true" className="size-4" />Voltar ao painel</LinkButton>
+    <PageHeading title="Turmas" action={<Button onClick={() => open('edit')}>Nova turma</Button>} />
+    <div className="mb-6 flex flex-wrap items-center gap-4"><div className="w-full sm:w-80"><Input aria-label="Buscar turmas" placeholder="Buscar por nome ou código…" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></div><Check label="Mostrar turmas inativas" checked={inactive} onChange={value => { setInactive(value); setPage(1); }} /></div>
+    {query.loading ? <Skeleton /> : query.error ? <ErrorState message={query.error.message} retry={() => void query.retry()} /> : !query.data?.items.length ? <Empty title="Nenhuma turma encontrada" description="Tente outro nome ou inclua as turmas inativas." /> : <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">{query.data.items.map(item => <article key={item.id} className="flex flex-col gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70 lg:flex-row lg:items-center lg:gap-6">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2 className="text-base font-semibold text-slate-900 [overflow-wrap:anywhere]">{item.name}</h2>
+          <Badge tone={item.active ? 'green' : 'neutral'}>{item.active ? 'Ativa' : 'Inativa'}</Badge>
+        </div>
+        <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">{item.code} · {item.year} · {item.shift} · {countLabel(item.studentIds.length, 'aluno matriculado', 'alunos matriculados')}</p>
       </div>
-      <Check label="Mostrar turmas inativas" checked={inactive} onChange={setInactive} />
-    </div>
-    {items.length ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {items.map(c => <Card key={c.id}>
-        <div className="mb-6 flex items-center justify-between">
-          <span className="rounded-xl bg-brand-50 p-3 text-brand-600">
-            <GraduationCap className="size-6" />
-          </span>
-          <Badge tone={c.active ? 'green' : 'neutral'}>
-            {c.active ? 'Ativa' : 'Inativa'}
-          </Badge>
-        </div>
-        <h2 className="text-lg font-semibold">
-          {c.name}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">{c.code} · {c.year} · {c.shift}</p>
-        <div className="my-5 flex items-center gap-2 text-sm text-slate-500"><Users className="size-4" />{c.studentIds.length} alunos matriculados</div>
-        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-          <LinkButton secondary href={`/disciplinas?turma=${c.id}`}>Ver disciplinas</LinkButton>
-          <LinkButton secondary href={`/alunos?turma=${c.id}`}>Ver matrículas</LinkButton>
-          {role === 'admin' && <>
-            <Button variant="ghost" aria-label={`Editar ${c.name}`} onClick={() => edit(c)}>
-              <Pencil className="size-4" />
-            </Button>
-            <Button variant="ghost" aria-label={c.active ? `Inativar ${c.name}` : `Reativar ${c.name}`} onClick={() => setArchive(c)}>
-              <Archive className="size-4" />
-            </Button>
-          </>}
-        </div>
-      </Card>)}
-    </div> : <Empty title="Nenhuma turma encontrada" description="Tente outro nome ou inclua as turmas inativas." />}
-    <Dialog open={open} onClose={close} title={editing ? 'Editar turma' : 'Criar nova turma'}>
-      <form onSubmit={e => {
-        e.preventDefault();
-        void save();
-      }} className="space-y-4">
-        <Input label="Nome da turma" value={name} onChange={e => setName(e.target.value)} required maxLength={100} />
-        <Input label="Código único" value={code} onChange={e => setCode(e.target.value)} required pattern="[A-Za-z0-9-]+" maxLength={20} error={error} />
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Ano" type="number" value={year} onChange={e => setYear(Number(e.target.value))} min={2020} max={2100} required />
-          <Select label="Turno" value={shift} onChange={e => setShift(e.target.value as SchoolClass['shift'])}>
-            <option>Manhã</option>
-            <option>Tarde</option>
-            <option>Noite</option>
-          </Select>
-        </div>
-        <div className="flex justify-end gap-2 pt-3">
-          <Button variant="secondary" disabled={busy} onClick={close}>Cancelar</Button>
-          <Button type="submit" loading={busy} disabled={conflict}>Salvar turma</Button>
-        </div>
-        {conflict && <div role="alert" className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6"><p>A turma mudou desde a abertura. Seu preenchimento foi mantido.</p>{current && !current.deletedAt ? <><p>Última alteração: {db.users.find(item => item.id === current.updatedBy)?.name ?? 'Equipe administrativa'} · {current.updatedAt ? new Date(current.updatedAt).toLocaleString('pt-BR') : 'data não registrada'}.</p><Button variant="secondary" onClick={() => setCompared(true)}>Conferir versão atual</Button>{compared && <><p>{current.name} · {current.code}<br />{current.year} · {current.shift} · {current.active ? 'Ativa' : 'Inativa'}</p><Button variant="secondary" onClick={() => { setExpectedRevision(current.revision ?? 0); setCompared(false); }}>Conferi a versão atual; manter meu preenchimento</Button></>}</> : <p>A turma não está mais disponível. Feche esta edição.</p>}</div>}
-      </form>
-    </Dialog>
-    <Dialog open={!!archive} onClose={() => setArchive(null)} title={archive?.active ? 'Inativar turma?' : 'Reativar turma?'}>
-      <p className="mb-6 text-sm leading-6 text-slate-500">O histórico de {archive?.name} será preservado. Inativar encerra os vínculos e cancela as matrículas pendentes; alunos perdem acesso à turma. Reativar a turma não restaura vínculos ou pendências encerrados.</p>
-      {archiveConflict && <div role="alert" className="mb-4 space-y-3 rounded-lg bg-amber-50 p-4 text-sm leading-6"><p>A turma mudou. {currentArchive?.name} está {currentArchive?.active ? 'ativa' : 'inativa'}. Última alteração: {db.users.find(item => item.id === currentArchive?.updatedBy)?.name ?? 'Equipe administrativa'} · {currentArchive?.updatedAt ? new Date(currentArchive.updatedAt).toLocaleString('pt-BR') : 'data não registrada'}.</p>{currentArchive && !currentArchive.deletedAt && <Button variant="secondary" onClick={() => setArchive(currentArchive)}>Conferi a versão atual</Button>}</div>}
-      <Button loading={busy} disabled={archiveConflict} onClick={async () => {
-        if (!archive || archiveConflict) return;
-        if (await mutate(d => {
-          const item = d.classes.find(c => c.id === archive?.id);
-          if (item) item.active = !item.active;
-        }, 'Situação da turma atualizada.', { expected: [{ collection: 'classes', id: archive.id, revision: archive.revision ?? 0 }] })) setArchive(null);
-      }}>Confirmar</Button>
-    </Dialog>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <LinkButton secondary href={`/disciplinas?turma=${encodeURIComponent(item.id)}`}>Disciplinas</LinkButton>
+        <LinkButton secondary href={`/alunos?turma=${encodeURIComponent(item.id)}`}>Matrículas</LinkButton>
+        <Button variant="ghost" aria-label={`Editar ${item.name}`} onClick={() => open('edit', item)}>Editar</Button>
+        <Button variant="ghost" className={item.active ? '!text-rose-700 hover:!bg-rose-50' : undefined} aria-label={`${item.active ? 'Inativar' : 'Reativar'} ${item.name}`} onClick={() => open(item.active ? 'close' : 'reopen', item)}>{item.active ? 'Inativar' : 'Reativar'}</Button>
+      </div>
+    </article>)}</div>}
+    {query.data && query.data.total > query.data.pageSize && <div className="mt-5 flex items-center justify-between gap-3"><Button variant="secondary" disabled={page === 1 || query.loading} onClick={() => setPage(value => value - 1)}>Anterior</Button><span className="text-sm text-slate-600">Página {page} · {countLabel(query.data.total, 'turma', 'turmas')}</span><Button variant="secondary" disabled={page * query.data.pageSize >= query.data.total || query.loading} onClick={() => setPage(value => value + 1)}>Próxima</Button></div>}
+    {selection && <ClassDialog key={selection.intent} selection={selection} close={close} saved={() => { close(); void query.invalidate(); }} />}
   </>;
 }

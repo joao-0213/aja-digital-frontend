@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { draftKey, readDraft, writeDraft, clearDrafts } from '../src/lib/announcement-draft.ts';
+import { brasiliaMinTimeForDate, brasiliaTodayDate, isOccurrenceInPast } from '../src/features/announcements/announcement-form.ts';
 
 function storage() {
   const values = new Map<string, string>();
@@ -37,4 +38,16 @@ test('discard and reset clear only notice drafts; malformed and unavailable stor
   assert.equal(readDraft(local, key), undefined);
   assert.equal(local.getItem('unrelated'), 'keep');
   assert.throws(() => writeDraft({ ...local, setItem: () => { throw new Error('Quota'); } }, key, fields), /Quota/);
+});
+
+test('announcement calendar occurrence validation rejects past dates and past times today in Brasília', () => {
+  const nowMs = Date.parse('2026-11-25T14:20:15-03:00');
+  assert.equal(brasiliaTodayDate(nowMs), '2026-11-25');
+  assert.equal(brasiliaMinTimeForDate('2026-11-25', nowMs), '14:21');
+  assert.equal(brasiliaMinTimeForDate('2026-11-26', nowMs), undefined);
+  assert.equal(isOccurrenceInPast({ date: '2026-11-24', allDay: true }, nowMs), true);
+  assert.equal(isOccurrenceInPast({ date: '2026-11-25', allDay: true }, nowMs), false);
+  assert.equal(isOccurrenceInPast({ date: '2026-11-25', time: '14:20', allDay: false }, nowMs), true);
+  assert.equal(isOccurrenceInPast({ date: '2026-11-25', time: '14:21', allDay: false }, nowMs), false);
+  assert.equal(isOccurrenceInPast({ date: '2026-11-26', time: '08:00', allDay: false }, nowMs), false);
 });

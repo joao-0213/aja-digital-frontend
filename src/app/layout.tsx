@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     default: 'AJA Digital · Portal acadêmico',
     template: '%s · AJA Digital'
   },
-  description: 'Demonstração frontend do Cursinho Solidário AJA. Disciplinas, trilhas, avaliações e comunidade.',
+  description: 'Plataforma de apoio ao Cursinho Solidário AJA. Acesse disciplinas, materiais, atividades e comunidade.',
   icons: {
     icon: '/favicon.svg'
   }

@@ -1,0 +1,29 @@
+async (page) => {
+  await page.context().setOffline(false);
+  await page.goto('http://127.0.0.1:3000/login/');
+  await page.getByRole('textbox', { name: 'E-mail' }).fill('student@aja.local.test');
+  await page.getByRole('textbox', { name: 'Senha' }).fill('AjaLocal-student-2031!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('heading', { name: 'Dados cadastrais' }).waitFor();
+  const second = await page.evaluate(async () => {
+    const response = await fetch('http://127.0.0.1:3002/api/v1/topics', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ classId: 'c1', subjectId: 's1', title: 'Segundo tópico ativo', body: 'Tópico ativo para alternar a composição.', tags: [], target: null, attachmentId: null }) });
+    return { status: response.status, topic: await response.json() };
+  });
+  if (second.status !== 201) throw new Error(`Setup topic create returned ${second.status}`);
+  await page.evaluate(() => sessionStorage.removeItem('aja-forum-reply:student:topic1'));
+  await page.goto('http://127.0.0.1:3000/forum/topico/?id=topic1');
+  await page.getByRole('heading', { name: 'Como comparar dois grupos?' }).waitFor();
+  const answer = page.getByRole('textbox', { name: 'Sua resposta' });
+  await answer.fill('Resposta pendente exclusiva do tópico inicial.');
+  await page.context().setOffline(true);
+  await page.getByRole('button', { name: 'Publicar resposta' }).click();
+  await page.getByText('Serviço indisponível. Tente novamente.').waitFor();
+  await page.context().setOffline(false);
+  await page.evaluate(id => window.history.pushState({}, '', `/forum/topico?id=${id}`), second.topic.id);
+  await page.waitForURL(`**/forum/topico?id=${second.topic.id}`);
+  await page.getByRole('heading', { name: 'Segundo tópico ativo' }).waitFor();
+  const newAnswer = page.getByRole('textbox', { name: 'Sua resposta' });
+  if (await newAnswer.inputValue() !== '') throw new Error(`Pending reply crossed topic context: ${await newAnswer.inputValue()}`);
+  if (await newAnswer.isDisabled()) throw new Error('Pending reply intent disabled the new topic composer.');
+  console.log('PASS: body is empty and new active topic composer enabled.');
+}

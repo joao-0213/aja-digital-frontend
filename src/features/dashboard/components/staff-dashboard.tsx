@@ -1,86 +1,102 @@
 'use client';
 
+import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronRight, MessageSquare, ClipboardCheck, ListChecks, Upload } from 'lucide-react';
-import { useApp } from '@/providers/app-context';
-import { Card, LinkButton } from '@/components/ui';
-import { dateLabel } from '@/lib/utils';
-import { DEMO_DATE } from '@/mocks/database';
+import { BookOpen, ChevronRight, MessageSquare, ClipboardCheck, GraduationCap, ListChecks, Upload, UserCog, UserPlus, Users } from 'lucide-react';
+import { Card, Skeleton } from '@/components/ui';
+import { countLabel, dateLabel, sortByDeadlineAsc } from '@/lib/utils';
+import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
 import { SubjectCard } from '@/features/subjects';
-import { calendarEntries } from '@/lib/announcement-calendar';
+import { useHttpQuery } from '@/hooks/use-http-query';
+import { useSession } from '@/providers/app-context';
+import { createDashboardApi, type StaffDashboardDto } from '../api';
+import { upcomingMeetings } from '@/lib/announcement-calendar';
 
 export function StaffDashboard() {
-  const { db, user, role } = useApp();
-  const classes = db.classes;
-  const subjects = db.subjects.filter(s => classes.some(c => c.id === s.classId));
-  const modules = db.modules.filter(m => subjects.some(s => s.id === m.subjectId));
-  const assessments = db.assessments.filter(a => a.status === 'published' && modules.some(m => m.id === a.moduleId));
-  const pending = assessments
-    .sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const events = calendarEntries(db, user).filter(e => e.announcementId && e.date >= DEMO_DATE)
-    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)).slice(0, 3);
-  const topics = db.topics.filter(t => classes.some(c => c.id === t.classId)).slice(0, 2);
-  const announcement = db.announcements.filter(a => classes.some(c => c.id === a.classId))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const api = useMemo(() => createDashboardApi(client), [client]);
+  const dashboard = useHttpQuery({ sessionKey, key: `dashboard:${resourceEpoch}:${user?.role ?? 'staff'}` }, useCallback(signal => api.read(signal), [api]), user?.role !== 'student');
+  const data = dashboard.data && dashboard.data.role !== 'student' ? dashboard.data as StaffDashboardDto : undefined;
+  const events = upcomingMeetings(data?.upcoming ?? []);
+  const activeClassIds = new Set((data?.classes ?? []).filter(item => item.active).map(item => item.id));
+  const activeSubjects = (data?.subjects ?? []).filter(subject => activeClassIds.has(subject.classId));
+  const visibleSubjects = activeSubjects.length ? activeSubjects : (data?.subjects ?? []);
+  const isAdmin = user?.role === 'admin';
+  const quickActions = isAdmin
+    ? [
+      { href: '/turmas', label: 'Gerenciar turmas', icon: GraduationCap },
+      { href: '/usuarios', label: 'Usuários e docentes', icon: UserCog },
+      { href: '/alunos', label: 'Matrículas e alunos', icon: Users },
+    ]
+    : [
+      { href: '/disciplinas', label: 'Publicar materiais', icon: Upload },
+      { href: '/questionarios/criar', label: 'Preparar atividade', icon: ClipboardCheck },
+      { href: '/frequencia', label: 'Registrar frequência', icon: ListChecks },
+    ];
 
   return <>
     <header className="mb-7 flex flex-wrap items-start justify-between gap-3">
-      <div><p className="mb-1 text-sm text-slate-500">Olá, {user.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight text-slate-900">{role === 'admin' ? 'Painel da administração' : 'Sala dos professores'}</h1><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Gerencie os materiais, as atividades e a frequência das turmas.</p></div>
+      <div><p className="mb-1 text-sm text-slate-500">Olá, {user?.name.split(' ')[0]}!</p><h1 className="text-3xl font-semibold tracking-tight text-slate-900">{user?.role === 'admin' ? 'Painel da administração' : 'Sala dos professores'}</h1></div>
     </header>
-    <nav aria-label="Acessos rápidos" className="mb-8 grid gap-3 sm:grid-cols-3">
-      {[{ href: '/disciplinas', label: 'Publicar materiais', detail: 'Escolha a disciplina e o módulo', icon: Upload }, { href: '/questionarios/criar', label: 'Preparar atividade', detail: 'Escolha a modalidade e as condições', icon: ClipboardCheck }, { href: '/frequencia', label: 'Registrar frequência', detail: 'Faça a chamada da aula', icon: ListChecks }].map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{item.label}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
-    </nav>
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 space-y-8">
-        <Card>
-          <h2 className="text-lg font-semibold">Publicação de materiais</h2>
-          <p className="mb-5 mt-2 text-sm leading-6 text-slate-600">Abra uma disciplina e selecione Enviar materiais no módulo desejado. Você pode publicar vários PDFs de uma vez.</p>
-          <LinkButton href="/disciplinas">Abrir minhas disciplinas<ArrowRight aria-hidden="true" className="size-4" /></LinkButton>
-        </Card>
-
-        <section aria-labelledby="subjects-title">
-          <div className="mb-3 flex items-center justify-between gap-3"><h2 id="subjects-title" className="text-lg font-semibold">Disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ver todas</Link></div>
-          {subjects.length ? <div className="grid gap-4 sm:grid-cols-2">
-            {subjects.slice(0, 4).map(s => <SubjectCard key={s.id} subject={s} className={db.classes.find(c => c.id === s.classId)?.name} />)}
-          </div> : <p className="text-sm text-slate-600">Nenhuma disciplina disponível.</p>}
-        </section>
-
-        {<section aria-labelledby="forum-title">
-          <div className="mb-2 flex items-center justify-between gap-3"><h2 id="forum-title" className="text-lg font-semibold">Dúvidas da turma</h2><Link href="/forum" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Abrir fórum</Link></div>
-          <div className="divide-y divide-slate-200">
-            {topics.map(t => <Link key={t.id} href={`/forum/topico?id=${t.id}`} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
-              <MessageSquare aria-hidden="true" className="mt-1 size-4 shrink-0 text-slate-500" /><div><h3 className="text-sm font-medium leading-6">{t.title}</h3><p className="mt-1 text-xs text-slate-500">{db.subjects.find(s => s.id === t.subjectId)?.name} · {t.replies.length} respostas</p></div>
-            </Link>)}
-            {!topics.length && <p className="py-4 text-sm text-slate-600">Nenhuma dúvida publicada.</p>}
+    {dashboard.loading && <Skeleton />}
+    {dashboard.error && <p role="alert" className="mb-6 text-sm text-red-700">{dashboard.error.message} <button type="button" className="font-bold underline underline-offset-4" onClick={() => void dashboard.retry()}>Tentar novamente</button></p>}
+    {data && <>
+      <section aria-label="Indicadores" className="mb-6 grid grid-cols-3 gap-2 sm:mb-7 sm:gap-3">
+        <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+          <div>
+            <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+              <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">{isAdmin ? 'Alunos ativos' : 'Meus alunos'}</p>
+              <Users aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+            </div>
+            <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.studentCount}</p>
           </div>
-        </section>}
+        </Card>
+        <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+          <div>
+            <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+              <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Devolutivas pendentes</p>
+              <ClipboardCheck aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+            </div>
+            <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.pendingFeedbackCount}</p>
+          </div>
+          <Link href="/questionarios" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Atividades<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+        </Card>
+        {isAdmin
+          ? <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <div>
+                <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+                  <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Matrículas pendentes</p>
+                  <UserPlus aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+                </div>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{data.pendingEnrollmentCount}</p>
+              </div>
+              <Link href="/alunos" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Matrículas<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+            </Card>
+          : <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <div>
+                <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
+                  <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">Disciplinas ativas</p>
+                  <BookOpen aria-hidden="true" className="size-3.5 shrink-0 text-brand-600 sm:size-5" />
+                </div>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums sm:mt-1 sm:text-2xl">{activeSubjects.length}</p>
+              </div>
+              <Link href="/disciplinas" className="mt-1.5 inline-flex min-h-7 items-center text-[11px] font-bold leading-tight text-brand-700 underline underline-offset-4 hover:text-brand-900 sm:mt-2 sm:min-h-9 sm:text-sm">Disciplinas<ChevronRight aria-hidden="true" className="size-3 shrink-0 sm:size-4" /></Link>
+            </Card>}
+      </section>
+      <nav aria-label="Acessos rápidos" className="mb-8 grid gap-3 sm:grid-cols-3">
+        {quickActions.map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-200 hover:bg-brand-50/50"><item.icon aria-hidden="true" className="size-5 shrink-0 text-brand-600" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-slate-400" /></Link>)}
+      </nav>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-8">
+          <section aria-labelledby="subjects-title"><div className="mb-3 flex items-center justify-between gap-3"><h2 id="subjects-title" className="text-lg font-semibold">Disciplinas</h2><Link href="/disciplinas" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver todas</Link></div>{visibleSubjects.length ? <div className="grid gap-4 sm:grid-cols-2">{visibleSubjects.slice(0, 4).map(subject => <SubjectCard key={subject.id} subject={subject} archived={!activeClassIds.has(subject.classId)} />)}</div> : <p className="text-sm text-slate-600">{isAdmin ? 'Nenhuma disciplina cadastrada ainda.' : 'Nenhuma disciplina disponível para sua conta.'}</p>}</section>
+          <section aria-labelledby="forum-title"><div className="mb-2 flex items-center justify-between gap-3"><h2 id="forum-title" className="text-lg font-semibold">Dúvidas da turma</h2><Link href="/forum" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Abrir fórum</Link></div><div className="divide-y divide-slate-200">{data.topics.map(topic => <Link key={topic.id} href={topic.href} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100"><MessageSquare aria-hidden="true" className="mt-1 size-4 shrink-0 text-slate-500" /><div className="min-w-0"><h3 className="text-sm font-medium leading-6 [overflow-wrap:anywhere]">{topic.title}</h3><p className="mt-1 text-xs text-slate-500">{topic.subjectName} · {countLabel(topic.replyCount, 'resposta', 'respostas')}</p></div></Link>)}{!data.topics.length && <p className="py-4 text-sm text-slate-600">Nenhuma dúvida publicada.</p>}</div></section>
+        </div>
+        <aside aria-label="Próximos encontros, prazos e avisos" className="min-w-0 space-y-6">
+          <Card><h2 className="text-base font-semibold">Prazos das atividades</h2><div className="mt-2 divide-y divide-slate-200">{sortByDeadlineAsc(data.assessments).slice(0, 3).map(item => <Link key={item.id} href="/questionarios" className="block rounded-lg py-4 hover:bg-slate-50"><p className="mb-2 text-xs font-medium text-brand-700">{item.deadline ? `Até ${dashboardDeadlineLabel(item.deadline)}` : 'Sem prazo'}</p><h3 className="text-sm font-semibold leading-6 [overflow-wrap:anywhere]">{item.title}</h3><p className="mt-1 text-xs text-slate-500">{[item.subjectName, item.kind === 'work' ? 'Entrega de trabalho' : countLabel(item.questionCount, 'questão', 'questões')].filter(Boolean).join(' · ')}</p></Link>)}{!data.assessments.length && <p className="py-4 text-sm leading-6 text-slate-600">Nenhuma atividade publicada.</p>}</div><Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ver atividades<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link></Card>
+          <section className="px-1" aria-labelledby="events-title"><h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros e prazos</h2><div className="divide-y divide-slate-200">{events.map(item => <Link href={item.href} key={item.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100"><div className="w-11 shrink-0 text-center"><span className="block text-xl font-semibold tabular-nums">{item.date.slice(-2)}</span><span className="text-xs text-slate-500">{dateLabel(item.date, { month: 'short' })}</span></div><div className="min-w-0"><h3 className="text-sm font-medium leading-6 [overflow-wrap:anywhere]">{item.title}</h3><p className="mt-1 text-xs text-slate-500">{item.time ?? 'Dia inteiro'} · {item.source === 'announcement' ? 'Acontecimento' : 'Prazo de atividade'}</p></div></Link>)}{!events.length && <p className="py-4 text-sm text-slate-600">Nenhum encontro ou prazo futuro.</p>}</div></section>
+          {data.announcements[0] && <section className="border-t border-slate-200 px-1 pt-5" aria-labelledby="notice-title"><h2 id="notice-title" className="mb-3 text-base font-semibold">Último aviso</h2><h3 className="text-sm font-medium leading-6 [overflow-wrap:anywhere]">{data.announcements[0].title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{data.announcements[0].body}</p><Link href={`/avisos#aviso-${data.announcements[0].id}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900">Ler aviso<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link></section>}
+        </aside>
       </div>
-
-      <aside aria-label="Agenda e avisos" className="min-w-0 space-y-6">
-        <Card>
-          <h2 className="text-base font-semibold">Prazos das atividades</h2>
-          <div className="mt-2 divide-y divide-slate-200">
-            {pending.slice(0, 3).map(a => <Link key={a.id} href="/questionarios" className="block rounded-lg py-4 hover:bg-slate-50">
-              <p className="mb-2 text-xs font-medium text-brand-700">Até {dateLabel(a.deadline)} · {a.deadline.slice(11, 16).replace(':', 'h')}</p><h3 className="text-sm font-semibold leading-6">{a.title}</h3><p className="mt-1 text-xs text-slate-500">{a.kind === 'work' ? 'Entrega de trabalho' : a.questionIds.length + ' questões'}</p>
-            </Link>)}
-            {!pending.length && <p className="py-4 text-sm leading-6 text-slate-600">Nenhuma entrega pendente.</p>}
-          </div>
-          <Link href="/questionarios" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ver atividades<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link>
-        </Card>
-        {<section className="px-1" aria-labelledby="events-title">
-          <h2 id="events-title" className="mb-2 text-base font-semibold">Próximos encontros</h2>
-          <div className="divide-y divide-slate-200">
-            {events.map(e => <Link href={`/avisos#aviso-${e.announcementId}`} key={e.id} className="flex items-start gap-3 rounded-lg py-4 hover:bg-slate-100">
-              <div className="w-11 shrink-0 text-center"><span className="block text-xl font-semibold tabular-nums">{e.date.slice(-2)}</span><span className="text-xs text-slate-500">{dateLabel(e.date, { month: 'short' })}</span></div>
-              <div><h3 className="text-sm font-medium leading-6">{e.title}</h3><p className="mt-1 text-xs text-slate-500">{e.time} · {e.kind === 'exam' ? 'Simulado' : e.kind === 'class' ? 'Aula' : 'Evento'}</p></div>
-            </Link>)}
-            {!events.length && <p className="py-4 text-sm text-slate-600">Nenhum encontro agendado.</p>}
-          </div>
-        </section>}
-        {announcement && <section className="border-t border-slate-200 px-1 pt-5" aria-labelledby="notice-title">
-          <h2 id="notice-title" className="mb-3 text-base font-semibold">Último aviso</h2><h3 className="text-sm font-medium leading-6">{announcement.title}</h3><p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{announcement.body}</p><Link href="/avisos" className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">Ler aviso<ChevronRight aria-hidden="true" className="ml-1 size-4" /></Link>
-        </section>}
-      </aside>
-    </div>
+    </>}
   </>;
 }

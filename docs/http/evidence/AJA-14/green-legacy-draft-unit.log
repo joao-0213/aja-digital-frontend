@@ -1,0 +1,13 @@
+✔ saving forum compositions reports failures and preserves the previous stored draft (0.8662ms)
+✔ reading an unavailable draft distinguishes failed recovery from an empty composition (0.8135ms)
+✔ forum composition recovers old raw contextual keys and keeps user/context drafts isolated (0.3021ms)
+✔ general legacy forum composition restores targetSubject as its publication audience (0.1755ms)
+✔ removing legacy attachment metadata persists as absent on the next read (0.1722ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 139.1056

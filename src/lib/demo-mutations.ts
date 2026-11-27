@@ -133,7 +133,7 @@ export function applyDemoMutation(current: MockDatabase, actorId: string, recipe
       if (before?.deletedAt) throw new Error('Registro excluído indisponível. Não há restauração pela interface.');
       if (before && ['revision', 'updatedAt', 'updatedBy'].some(field => !equal(before[field], row[field]))) return denied();
       if (!options.enrollment && collection === 'enrollments') return denied();
-      if (!options.enrollment && collection === 'users' && before && !equal(before.emailConfirmedAt, row.emailConfirmedAt)) throw new Error('Use a confirmação simulada na própria conta.');
+      if (!options.enrollment && collection === 'users' && before && !equal(before.emailConfirmedAt, row.emailConfirmedAt)) throw new Error('Use o fluxo de confirmação na própria conta.');
       if (options.enrollment) { /* typed commands validate their own complete, atomic effect */ }
       else if (collection === 'users' && !before && row.role === 'student' && Object.keys(row).every(field => ['id', 'name', 'email', 'role'].includes(field))) {
         // Public, local demo self-registration never grants a role or class membership.

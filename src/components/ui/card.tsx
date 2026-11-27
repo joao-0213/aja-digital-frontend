@@ -8,7 +8,7 @@ export function Card({
   children: ReactNode;
   className?: string;
 }) {
-  return <section className={cn('rounded-xl border border-slate-200 bg-white p-5 sm:p-6', className)}>
+  return <section className={cn('min-w-0 rounded-xl border border-slate-200 bg-white p-5 sm:p-6', className)}>
     {children}
   </section>;
 }

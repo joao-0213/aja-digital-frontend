@@ -1,0 +1,3 @@
+interface:
+  display_name: "Refatorar projeto"
+  short_description: "Auditoria estrutural e consolidação segura de tipos"
