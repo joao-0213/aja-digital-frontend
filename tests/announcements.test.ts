@@ -16,9 +16,9 @@ const seed: MockDatabase = {
   events: [{ id: 'e1', subjectId: 's1', title: 'Plant?o', description: 'Sala 2', kind: 'class', date: '2026-10-07', time: '18:30' }],
   questions: [], materials: [], attempts: [], topics: [], attendance: [], progress: []
 };
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
-import { calendarEntries } from '../src/lib/announcement-calendar.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
+import { calendarEntries } from './support/legacy/announcement-calendar.ts';
 
 test('legacy events migrate once to scoped announcements, preserving dates and history', () => {
   const db = migrateDatabase(seed);

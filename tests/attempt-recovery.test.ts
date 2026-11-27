@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attemptRecoveryStorageKey, readAttemptRecovery } from '../src/lib/assessment-attempts.ts';
-import * as attemptsLib from '../src/lib/assessment-attempts.ts';
+import { attemptRecoveryStorageKey, readAttemptRecovery } from '../src/features/assessments/lib/attempt-recovery.ts';
+import * as attemptsLib from '../src/features/assessments/lib/attempt-recovery.ts';
 
 const owner = { userId: 'student-two', sessionId: 'server-session-7', attemptId: 'attempt:1', openedRevision: 4 };
 const questionOrder = ['q1', 'q2'];

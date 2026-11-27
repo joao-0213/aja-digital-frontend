@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
 import { scopeDatabase } from '../src/lib/access.ts';
 import { forumMatches, forumReplies, forumTarget, validateForumAttachment } from '../src/lib/forum.ts';
 

@@ -9,7 +9,7 @@ import { cn, countLabel, dateLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { HttpError } from '@/lib/http-client';
-import { compareAttendanceRecords } from '@/lib/attendance';
+import { compareAttendanceRecords } from '../lib/attendance-comparison';
 import { createAttendanceApi, type AttendanceLesson, type AttendanceRoster } from '../api';
 
 function todayInBrasilia() {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { User } from '../src/models/user.ts';
 import type { MockDatabase } from '../src/models/database.ts';
 import { teachingTeamOptions } from '../src/features/subjects/lib/teaching-team.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
 
 function teachers(): User[] {
   return [

@@ -1,5 +1,5 @@
 import type { MockDatabase, Role } from '@/models';
-import { assessmentQuestions, attemptQuestions } from './question-composition.ts';
+import { assessmentQuestions, attemptQuestions } from '@/lib/question-composition';
 
 // Preserve the persisted demo contract across internal reorganizations.
 export const DEMO_DATABASE_KEY = 'aja-digital-demo-v1';

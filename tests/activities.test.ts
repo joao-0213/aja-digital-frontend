@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
 import { scopeDatabase } from '../src/lib/access.ts';
 import { activityClosed, isLate, saveWork, saveFeedback, validateAttachments } from '../src/lib/activities.ts';
-import { beginAttempt, saveAttemptAnswers, submitAttempt } from '../src/lib/assessment-attempts.ts';
+import { beginAttempt, saveAttemptAnswers, submitAttempt } from './support/legacy/assessment-attempts.ts';
 
 const now = '2026-11-02T15:00:00.000Z';
 function fixture(): MockDatabase {

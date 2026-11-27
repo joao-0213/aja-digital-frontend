@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
 import { canAccessSubject, canManageSubject, scopeDatabase } from '../src/lib/access.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
-import { saveAttemptAnswers, submitAttempt } from '../src/lib/assessment-attempts.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
+import { saveAttemptAnswers, submitAttempt } from './support/legacy/assessment-attempts.ts';
 
 function fixture(): MockDatabase {
   return {

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
-import { isDatabase, migrateDatabase, readDemoState } from '../src/lib/demo-storage.ts';
-import { compareTimestamps, lastAccessedMaterial } from '../src/lib/study-order.ts';
-import { beginAttempt, submitAttempt } from '../src/lib/assessment-attempts.ts';
+import { isDatabase, migrateDatabase, readDemoState } from './support/legacy/demo-storage.ts';
+import { compareTimestamps, lastAccessedMaterial } from './support/legacy/study-order.ts';
+import { beginAttempt, submitAttempt } from './support/legacy/assessment-attempts.ts';
 
 function legacy() {
   return {

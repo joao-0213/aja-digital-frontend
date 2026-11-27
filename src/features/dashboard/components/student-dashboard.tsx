@@ -4,8 +4,9 @@ import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { BookOpenCheck, ChevronRight, ClipboardList, TrendingUp } from 'lucide-react';
 import { Badge, Card, Empty, Skeleton } from '@/components/ui';
-import { countLabel, dateLabel, percent, sortByDeadlineAsc } from '@/lib/utils';
-import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
+import { countLabel, dateLabel, percent } from '@/lib/utils';
+import { sortByDeadlineAsc } from '@/lib/academic-format';
+import { dashboardDeadlineLabel } from '../lib/dashboard-time';
 import { createAssessmentsApi } from '@/features/assessments';
 import { createMaterialsApi } from '@/features/materials';
 import { SubjectCard } from '@/features/subjects';
@@ -13,7 +14,7 @@ import { EnrollmentStatus } from '@/features/students';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { createDashboardApi, type StudentDashboardDto } from '../api';
-import { upcomingMeetings } from '@/lib/announcement-calendar';
+import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StudentDashboard() {
   const { client, user, sessionKey, resourceEpoch } = useSession();

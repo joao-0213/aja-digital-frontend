@@ -4,13 +4,14 @@ import { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { BookOpen, ChevronRight, MessageSquare, ClipboardCheck, GraduationCap, ListChecks, Upload, UserCog, UserPlus, Users } from 'lucide-react';
 import { Card, Skeleton } from '@/components/ui';
-import { countLabel, dateLabel, sortByDeadlineAsc } from '@/lib/utils';
-import { dashboardDeadlineLabel } from '@/lib/dashboard-time';
+import { countLabel, dateLabel } from '@/lib/utils';
+import { sortByDeadlineAsc } from '@/lib/academic-format';
+import { dashboardDeadlineLabel } from '../lib/dashboard-time';
 import { SubjectCard } from '@/features/subjects';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { createDashboardApi, type StaffDashboardDto } from '../api';
-import { upcomingMeetings } from '@/lib/announcement-calendar';
+import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StaffDashboard() {
   const { client, user, sessionKey, resourceEpoch } = useSession();

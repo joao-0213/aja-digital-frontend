@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Badge, Button, Card, Dialog, Empty, LinkButton, PageHeading, ProgressBar } from '@/components/ui';
 import { cn, countLabel, percent } from '@/lib/utils';
-import { attemptRecoveryOwnerFor, attemptRecoveryPointerKey, attemptRecoveryStorageKey, resolveAttemptRecovery, shouldLockAttemptInputs, type AttemptRecoveryIdentity, type AttemptRecoveryOwner } from '@/lib/assessment-attempts';
+import { attemptRecoveryOwnerFor, attemptRecoveryPointerKey, attemptRecoveryStorageKey, resolveAttemptRecovery, shouldLockAttemptInputs, type AttemptRecoveryIdentity, type AttemptRecoveryOwner } from '../lib/attempt-recovery';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, createAttemptSubmitCommand, type AttemptStudent } from '../api';

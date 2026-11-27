@@ -4,7 +4,7 @@ import type { MockDatabase } from '../src/models/database.ts';
 import type { Assessment } from '../src/models/assessments.ts';
 import type { Question } from '../src/models/questions.ts';
 import { fromBrazilDateTimeLocal, isDeadlineInPast, minBrazilDateTimeLocal, needsAssessmentStructureRecovery, restoreAssessmentStructure } from '../src/features/assessments/lib/assessment-editor.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
 
 const assessment: Assessment = { id: 'activity', title: 'Publicado', description: 'Orientações publicadas', deadline: '2026-12-10T19:00', moduleId: 'm1', questionIds: ['q1', 'q2'], status: 'published', authorId: 'teacher', revision: 3 };
 const original: Question = { id: 'local', statement: 'Questão local', options: ['A', 'B'], correct: 0, explanation: 'Explicação', subject: 'Matemática', topic: 'Tema', difficulty: 'easy', institution: 'AJA', year: 2026 };

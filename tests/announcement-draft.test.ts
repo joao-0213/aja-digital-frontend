@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { draftKey, readDraft, writeDraft, clearDrafts } from '../src/lib/announcement-draft.ts';
-import { brasiliaMinTimeForDate, brasiliaTodayDate, isOccurrenceInPast } from '../src/features/announcements/announcement-form.ts';
+import { draftKey, readDraft, writeDraft, clearDrafts } from './support/legacy/announcement-draft.ts';
+import { brasiliaMinTimeForDate, brasiliaTodayDate, isOccurrenceInPast } from '../src/features/announcements/lib/announcement-form.ts';
 
 function storage() {
   const values = new Map<string, string>();

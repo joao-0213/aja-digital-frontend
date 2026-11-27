@@ -1,14 +1,8 @@
 import type { Announcement, CalendarEvent, MockDatabase, User } from '@/models';
-import { scopeDatabase } from './access.ts';
-import { isAssessmentAssigned } from './enrollment.ts';
+import { scopeDatabase } from '@/lib/access';
+import { isAssessmentAssigned } from '@/lib/enrollment';
 
 export type CalendarEntry = CalendarEvent & { classId: string; announcementId?: string; assessmentId?: string };
-export type UpcomingCalendarEntry = Omit<Pick<CalendarEntry, 'id' | 'title' | 'date' | 'time'>, 'time'> & { time: string | null; source: 'announcement' | 'assessment'; sourceId: string; href: string };
-
-export function upcomingMeetings(entries: readonly UpcomingCalendarEntry[], today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())): UpcomingCalendarEntry[] {
-  return entries.filter(entry => entry.date >= today)
-    .sort((a, b) => `${a.date}${a.time ?? ''}${a.id}`.localeCompare(`${b.date}${b.time ?? ''}${b.id}`)).slice(0, 3);
-}
 
 export function validateAnnouncement(a: Announcement, db: MockDatabase) {
   if (!db.classes.some(c => c.id === a.classId && c.active && !c.deletedAt)) throw new Error('Selecione uma turma ativa.');

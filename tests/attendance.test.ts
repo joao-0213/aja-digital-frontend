@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
-import { compareAttendanceRecords, recordAttendance } from '../src/lib/attendance.ts';
+import { compareAttendanceRecords } from '../src/features/attendance/lib/attendance-comparison.ts';
+import { recordAttendance } from './support/legacy/attendance.ts';
 
 const lesson = { id: 'first', subjectId: 'subject', date: '2026-11-01', time: '19:00', records: { student: true } };
 const fixture = (): MockDatabase => ({ version: 1, audit: [], enrollments: [], users: [], classes: [], subjects: [], modules: [], materials: [], questions: [], assessments: [], attempts: [], topics: [], announcements: [], events: [], attendance: [], progress: [] });

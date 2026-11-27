@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyDemoMutation, type MutationOptions } from '../src/lib/demo-mutations.ts';
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
+import { applyDemoMutation, type MutationOptions } from './support/legacy/demo-mutations.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
 import { canAccessSubject, scopeDatabase } from '../src/lib/access.ts';
 import type { MockDatabase } from '../src/models/database.ts';
 import { enrolledForLesson, isAssessmentAssigned } from '../src/lib/enrollment.ts';

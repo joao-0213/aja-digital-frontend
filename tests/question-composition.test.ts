@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { MockDatabase } from '../src/models/database.ts';
-import { applyDemoMutation } from '../src/lib/demo-mutations.ts';
-import { migrateDatabase } from '../src/lib/demo-storage.ts';
-import { beginAttempt, submitAttempt } from '../src/lib/assessment-attempts.ts';
+import { applyDemoMutation } from './support/legacy/demo-mutations.ts';
+import { migrateDatabase } from './support/legacy/demo-storage.ts';
+import { beginAttempt, submitAttempt } from './support/legacy/assessment-attempts.ts';
 import { assessmentQuestions } from '../src/lib/question-composition.ts';
 function fixture(): MockDatabase {
   return {
