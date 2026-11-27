@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { readConfig } from '../server/config.mjs';
 
+import { discoverTestFiles } from '../scripts/run-tests.mjs';
+
 const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 test('default development commands use the configured API and keep JSON Server opt-in', () => {
@@ -11,7 +13,8 @@ test('default development commands use the configured API and keep JSON Server o
   assert.doesNotMatch(packageJson.scripts.dev, /server\/index\.mjs/);
   assert.doesNotMatch(packageJson.scripts['dev:full'], /dev-full\.mjs|server\/index\.mjs/);
   assert.equal(packageJson.scripts['dev:mock'], 'node scripts/dev-mock.mjs');
-  assert.match(packageJson.scripts.test, /tests\/dev-entrypoints\.test\.mjs/);
+  assert.equal(packageJson.scripts.test, 'node scripts/run-tests.mjs');
+  assert.ok(discoverTestFiles().includes('tests/dev-entrypoints.test.mjs'));
 });
 
 test('mock development launcher overrides an inherited gateway URL for Next', () => {

@@ -65,7 +65,7 @@ A interface descreve o serviço como produto educacional e não como demonstraç
 2. Use o servidor para leituras e comandos institucionais. Não use dados de `server/` no cliente nem grave cópias locais em paralelo.
 3. Mantenha `useApp()` restrito a interface. Para identidade e requisições autenticadas, use `useSession()` e as APIs da feature.
 4. Preserve rotas estáticas, query strings, Suspense, recuperação temporária de formulários e dados legados no perfil do navegador.
-5. Acrescente regressões de contrato/regra, execute testes, tipos, arquitetura e build; exercite a rota alterada com a API e uma falha real de rede. Registre limitações em `docs/http/validation-AJA-<número>.md`.
+5. Acrescente regressões de contrato/regra e execute `npm run verify` (que encadeia `typecheck`, `check:architecture`, `test` com descoberta automática de `tests/**/*.test.{ts,mjs}` e suporte a `@/` no Node, `build` e `check:export` das 22 rotas); exercite a rota alterada com a API e uma falha real de rede. Registre limitações em `docs/http/validation-AJA-<número>.md`.
 6. Depois de código, execute `graphify update .`; não versione `graphify-out/`, builds ou dados de execução.
 
 O roteiro vigente está em [VALIDACAO.md](VALIDACAO.md); a política detalhada de corte e stores está em [docs/http/storage-inventory.md](docs/http/storage-inventory.md).
