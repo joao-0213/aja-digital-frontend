@@ -1,7 +1,9 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import type { Question } from '@/models/questions';
 import type { Subject, TrailModule } from '@/models/academic';
 import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export interface AssessmentSnapshot extends Omit<Question, 'image'> {
   origin: 'bank' | 'author';
@@ -36,12 +38,7 @@ export interface AssessmentStudent extends Omit<AssessmentBase, 'status' | 'publ
   assigned: boolean;
 }
 export type AssessmentRead = AssessmentStaff | AssessmentStudent;
-export interface AssessmentPage {
-  items: AssessmentRead[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type AssessmentPage = PaginatedResponse<AssessmentRead>;
 export type AttemptQuestionPrompt = Omit<AssessmentSnapshot, 'correct' | 'explanation' | 'origin'>;
 export type AttemptQuestionResult = Omit<AssessmentSnapshot, 'origin'>;
 export interface AttemptStudent {
@@ -65,12 +62,7 @@ export interface AttemptStaff extends Omit<AttemptStudent, 'questions'> {
   questions: AttemptQuestionPrompt[];
 }
 export type AttemptRead = AttemptStudent | AttemptStaff;
-export interface AttemptPage {
-  items: AttemptRead[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type AttemptPage = PaginatedResponse<AttemptRead>;
 export interface AttemptResult {
   attempt: AttemptStudent;
   receipt: { id: string; resourceId: string; submittedAt: string };
@@ -113,12 +105,7 @@ export interface SubmissionStaff extends SubmissionBase {
   feedbackHistory: WorkFeedback[];
 }
 export type SubmissionRead = SubmissionStudent | SubmissionStaff;
-export interface SubmissionPage {
-  items: SubmissionRead[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type SubmissionPage = PaginatedResponse<SubmissionRead>;
 export interface WorkFileMetadata {
   id: string;
   name: string;
@@ -421,56 +408,44 @@ export function createAssessmentsApi(client: AssessmentClient) {
       Object.entries(fields).filter(([key]) => key !== 'confirmResetDrafts')
     ) as AssessmentCreate;
 
-  async function all(
-    filters: Filters = {},
-    signal?: AbortSignal,
-    sessionKey = currentSessionKey()
-  ) {
-    const guard = sessionFence(sessionKey, signal),
-      items: AssessmentRead[] = [];
-    for (let page = 1; ; page++) {
-      guard();
-      const result = await list(filters, page, signal);
-      guard();
-      items.push(...result.items);
-      if (items.length >= result.total || !result.items.length) return items;
-    }
+  function all(filters: Filters = {}, signal?: AbortSignal, sessionKey = currentSessionKey()) {
+    return collectAllPages((page, pageSignal) => list(filters, page, pageSignal), {
+      signal,
+      assertCurrent: sessionFence(sessionKey, signal)
+    });
   }
 
-  async function allAttempts(
+  function allAttempts(
     filters: AttemptFilters = {},
     signal?: AbortSignal,
     sessionKey = currentSessionKey()
   ) {
-    const guard = sessionFence(sessionKey, signal),
-      items: AttemptRead[] = [];
-    for (let page = 1; ; page++) {
-      guard();
-      const result = await attemptPage(filters, page, sessionKey, signal);
-      guard();
-      items.push(...result.items);
-      if (items.length >= result.total || !result.items.length) return items;
-    }
+    return collectAllPages(
+      (page, pageSignal) => attemptPage(filters, page, sessionKey, pageSignal),
+      {
+        signal,
+        assertCurrent: sessionFence(sessionKey, signal)
+      }
+    );
   }
 
-  async function allSubmissions(
+  function allSubmissions(
     filters: SubmissionFilters = {},
     signal?: AbortSignal,
     sessionKey = currentSessionKey()
   ) {
-    const guard = sessionFence(sessionKey, signal),
-      items: SubmissionRead[] = [];
-    for (let page = 1; ; page++) {
-      guard();
-      const result = await requestForSession<SubmissionPage>(
-        `/submissions?${submissionPageParams(page, filters)}`,
-        { signal },
-        sessionKey
-      );
-      guard();
-      items.push(...result.items);
-      if (items.length >= result.total || !result.items.length) return items;
-    }
+    return collectAllPages(
+      (page, pageSignal) =>
+        requestForSession<SubmissionPage>(
+          `/submissions?${submissionPageParams(page, filters)}`,
+          { signal: pageSignal },
+          sessionKey
+        ),
+      {
+        signal,
+        assertCurrent: sessionFence(sessionKey, signal)
+      }
+    );
   }
 
   const readSubmission = (id: string, sessionKey = currentSessionKey(), signal?: AbortSignal) =>
@@ -593,34 +568,32 @@ export function createAssessmentsApi(client: AssessmentClient) {
       sessionKey
     );
 
-  async function allModules(signal?: AbortSignal, sessionKey = currentSessionKey()) {
-    const guard = sessionFence(sessionKey, signal),
-      items: TrailModule[] = [];
-    for (let page = 1; ; page++) {
-      guard();
-      const result = await client.request<{ items: TrailModule[]; total: number }>(
-        `/modules?page=${page}&pageSize=100&sort=order`,
-        { signal }
-      );
-      guard();
-      items.push(...result.items);
-      if (items.length >= result.total || !result.items.length) return items;
-    }
+  function allModules(signal?: AbortSignal, sessionKey = currentSessionKey()) {
+    return collectAllPages(
+      (page, pageSignal) =>
+        client.request<{ items: TrailModule[]; total: number }>(
+          `/modules?page=${page}&pageSize=100&sort=order`,
+          { signal: pageSignal }
+        ),
+      {
+        signal,
+        assertCurrent: sessionFence(sessionKey, signal)
+      }
+    );
   }
 
-  async function allSubjects(signal?: AbortSignal, sessionKey = currentSessionKey()) {
-    const guard = sessionFence(sessionKey, signal),
-      items: AssessmentSubject[] = [];
-    for (let page = 1; ; page++) {
-      guard();
-      const result = await client.request<{ items: AssessmentSubject[]; total: number }>(
-        `/subjects?page=${page}&pageSize=100`,
-        { signal }
-      );
-      guard();
-      items.push(...result.items);
-      if (items.length >= result.total || !result.items.length) return items;
-    }
+  function allSubjects(signal?: AbortSignal, sessionKey = currentSessionKey()) {
+    return collectAllPages(
+      (page, pageSignal) =>
+        client.request<{ items: AssessmentSubject[]; total: number }>(
+          `/subjects?page=${page}&pageSize=100`,
+          { signal: pageSignal }
+        ),
+      {
+        signal,
+        assertCurrent: sessionFence(sessionKey, signal)
+      }
+    );
   }
 
   async function context(

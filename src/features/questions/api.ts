@@ -1,4 +1,5 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import type { Difficulty } from '@/models/questions';
 import type { QuestionFilterValue } from './lib/question-filters';
 
@@ -13,12 +14,7 @@ export interface BankQuestion {
   options: string[];
   image?: { src: string; alt: string };
 }
-export interface QuestionPage {
-  items: BankQuestion[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type QuestionPage = PaginatedResponse<BankQuestion>;
 export interface PracticeResult {
   questionId: string;
   choice: number;

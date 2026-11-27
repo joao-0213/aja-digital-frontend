@@ -19,6 +19,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
 import { createSubjectsApi } from '@/features/subjects';
 import { toErrorMessage } from '@/lib/errors';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export function ProfilePage() {
   const { user, client, sessionKey, resourceEpoch } = useSession();
@@ -37,14 +38,10 @@ export function ProfilePage() {
   const assignedSubjects = useHttpQuery(
     { sessionKey, key: `profile-subjects:${resourceEpoch}` },
     useCallback(
-      async (signal) => {
-        const items = [];
-        for (let page = 1; ; page++) {
-          const result = await subjectsApi.list('', 'all', page, signal);
-          items.push(...result.items);
-          if (items.length >= result.total || !result.items.length) return items;
-        }
-      },
+      (signal) =>
+        collectAllPages((page, pageSignal) => subjectsApi.list('', 'all', page, pageSignal), {
+          signal
+        }),
       [subjectsApi]
     ),
     user?.role === 'teacher'

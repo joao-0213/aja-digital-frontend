@@ -1,4 +1,5 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import type { Enrollment } from '@/models/enrollment';
 import type { User } from '@/models/user';
 
@@ -36,18 +37,8 @@ export interface EnrollmentPreview {
   existingEnrollment: EnrollmentDto | null;
   otherClass: { id: string; name: string } | null;
 }
-export interface StudentsPageDto {
-  items: StudentDto[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
-export interface EnrollmentsPageDto {
-  items: EnrollmentDto[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type StudentsPageDto = PaginatedResponse<StudentDto>;
+export type EnrollmentsPageDto = PaginatedResponse<EnrollmentDto>;
 
 export function createStudentsApi(client: Pick<SessionClient, 'request'>) {
   return {

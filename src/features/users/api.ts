@@ -1,12 +1,8 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import type { User, Role } from '@/models/user';
 
-export interface UsersPageDto {
-  items: User[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type UsersPageDto = PaginatedResponse<User>;
 export type UserFields = { name: string; email: string };
 
 export function createUsersApi(client: Pick<SessionClient, 'request'>) {

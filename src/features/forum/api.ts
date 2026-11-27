@@ -1,4 +1,6 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export interface ForumAuthor {
   id: string;
@@ -52,12 +54,7 @@ export interface ForumTopicDto {
   legacyAttachmentName: string | null;
   reference?: ForumReferenceDto | null;
 }
-export interface ForumPageDto {
-  items: ForumTopicDto[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type ForumPageDto = PaginatedResponse<ForumTopicDto>;
 export interface ForumOptions {
   classes: { id: string; name: string; active: boolean }[];
   subjects: { id: string; classId: string; name: string; canManageContent: boolean }[];
@@ -83,17 +80,14 @@ export interface ForumTopicFields {
 export function createForumApi(client: Pick<SessionClient, 'request'>) {
   return {
     options: async (signal?: AbortSignal): Promise<ForumOptions> => {
-      const load = async <T>(path: string) => {
-        const items: T[] = [];
-        for (let page = 1; ; page++) {
-          const result = await client.request<{ items: T[]; total: number }>(
-            `${path}?page=${page}&pageSize=100`,
-            { signal }
-          );
-          items.push(...result.items);
-          if (items.length >= result.total || !result.items.length) return items;
-        }
-      };
+      const load = <T>(path: string) =>
+        collectAllPages<T>(
+          (page, pageSignal) =>
+            client.request<{ items: T[]; total: number }>(`${path}?page=${page}&pageSize=100`, {
+              signal: pageSignal
+            }),
+          { signal }
+        );
       const [classes, subjects] = await Promise.all([
         load<ForumOptions['classes'][number]>('/classes'),
         load<ForumOptions['subjects'][number]>('/subjects')
@@ -112,17 +106,15 @@ export function createForumApi(client: Pick<SessionClient, 'request'>) {
       }
       return client.request<ForumPageDto>(`/topics?${params}`, { signal });
     },
-    all: async (filters: ForumFilter, signal?: AbortSignal) => {
-      const items: ForumTopicDto[] = [];
-      for (let page = 1; ; page++) {
-        const result = await client.request<ForumPageDto>(
-          `/topics?${new URLSearchParams({ page: String(page), pageSize: '100', sort: filters.sort ?? '-createdAt', ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')) })}`,
-          { signal }
-        );
-        items.push(...result.items);
-        if (items.length >= result.total || !result.items.length) return items;
-      }
-    },
+    all: (filters: ForumFilter, signal?: AbortSignal) =>
+      collectAllPages(
+        (page, pageSignal) =>
+          client.request<ForumPageDto>(
+            `/topics?${new URLSearchParams({ page: String(page), pageSize: '100', sort: filters.sort ?? '-createdAt', ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined && value !== '')) })}`,
+            { signal: pageSignal }
+          ),
+        { signal }
+      ),
     read: (id: string, signal?: AbortSignal) =>
       client.request<ForumTopicDto>(`/topics/${encodeURIComponent(id)}`, { signal }),
     create: (fields: ForumTopicFields, key: string) =>

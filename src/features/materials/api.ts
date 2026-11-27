@@ -1,9 +1,11 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import { createFilesApi, type HttpFile } from '@/lib/http-files';
 import type { SubjectSummary, SubjectDetail } from '@/features/subjects';
 import type { TrailModule } from '@/models/academic';
 import type { MaterialKind } from '@/models/materials';
 import { HttpError } from '@/lib/http-client';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export interface MaterialDto {
   id: string;
@@ -28,12 +30,7 @@ export interface MaterialDetail {
   subject: SubjectSummary;
   canManageContent: boolean;
 }
-export interface MaterialPage {
-  items: MaterialDto[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type MaterialPage = PaginatedResponse<MaterialDto>;
 export interface ProgressDto {
   id: string;
   revision: number;
@@ -102,33 +99,22 @@ export function createMaterialsApi(
     files,
     list,
     progressPage,
-    all: async (filters: { subjectId?: string; moduleId?: string }, signal?: AbortSignal) => {
-      const items: MaterialDto[] = [];
-      const guard = fence(signal);
-      for (let page = 1; ; page++) {
-        guard();
-        const result = await list(filters, page, signal);
-        guard();
-        items.push(...result.items);
-        if (items.length >= result.total || !result.items.length) return items;
-      }
-    },
+    all: (filters: { subjectId?: string; moduleId?: string }, signal?: AbortSignal) =>
+      collectAllPages((page, pageSignal) => list(filters, page, pageSignal), {
+        signal,
+        assertCurrent: fence(signal)
+      }),
     read: (id: string, signal?: AbortSignal) =>
       client.request<MaterialDetail>(`/materials/${encodeURIComponent(id)}`, { signal }),
-    subjects: async (signal?: AbortSignal) => {
-      const items: SubjectSummary[] = [];
-      const guard = fence(signal);
-      for (let page = 1; ; page++) {
-        guard();
-        const result = await client.request<{ items: SubjectSummary[]; total: number }>(
-          `/subjects?page=${page}&pageSize=100`,
-          { signal }
-        );
-        guard();
-        items.push(...result.items);
-        if (items.length >= result.total || !result.items.length) return items;
-      }
-    },
+    subjects: (signal?: AbortSignal) =>
+      collectAllPages(
+        (page, pageSignal) =>
+          client.request<{ items: SubjectSummary[]; total: number }>(
+            `/subjects?page=${page}&pageSize=100`,
+            { signal: pageSignal }
+          ),
+        { signal, assertCurrent: fence(signal) }
+      ),
     outline: (subjectId: string, signal?: AbortSignal) =>
       client.request<SubjectDetail>(`/subjects/${encodeURIComponent(subjectId)}`, { signal }),
     context: async (moduleId: string, signal?: AbortSignal) => {

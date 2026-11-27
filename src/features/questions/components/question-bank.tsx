@@ -24,6 +24,7 @@ import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-
 import { countActiveQuestionFilters, QuestionFilters } from './question-filters';
 import { QuestionPicker } from './question-picker';
 import { toErrorMessage } from '@/lib/errors';
+import { collectAllPages } from '@/lib/http-pagination';
 
 const fields = {
   search: 'busca',
@@ -90,18 +91,14 @@ export function QuestionBank() {
   const options = useHttpQuery(
     { sessionKey, key: `question-options:${resourceEpoch}` },
     useCallback(
-      async (signal) => {
-        const all: BankQuestion[] = [];
-        for (let number = 1; ; number++) {
-          if (signal.aborted || client.getSnapshot().sessionKey !== sessionKey)
-            throw new Error('Consulta cancelada.');
-          const result = await api.list(emptyQuestionFilters, number, signal, 100);
-          if (signal.aborted || client.getSnapshot().sessionKey !== sessionKey)
-            throw new Error('Consulta cancelada.');
-          all.push(...result.items);
-          if (all.length >= result.total || !result.items.length) return all;
-        }
-      },
+      (signal) =>
+        collectAllPages(
+          (number, pageSignal) => api.list(emptyQuestionFilters, number, pageSignal, 100),
+          {
+            signal,
+            isCurrent: () => client.getSnapshot().sessionKey === sessionKey
+          }
+        ),
       [api, client, sessionKey]
     )
   );

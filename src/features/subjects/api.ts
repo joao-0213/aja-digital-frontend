@@ -1,6 +1,8 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
 import type { Subject, TrailModule } from '@/models/academic';
 import type { User } from '@/models/user';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export interface SubjectSummary extends Subject {
   className: string;
@@ -18,12 +20,7 @@ export interface SubjectDetail {
     announcements: { count: number };
   };
 }
-export interface SubjectPage {
-  items: SubjectSummary[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type SubjectPage = PaginatedResponse<SubjectSummary>;
 export interface VisitDto {
   subjectId: string;
   seenAt: string | null;
@@ -64,17 +61,15 @@ export function createSubjectsApi(client: Pick<SessionClient, 'request'>) {
         json: id ? { ...fields, expectedRevision: revision } : fields,
         headers: id ? undefined : { 'Idempotency-Key': intent }
       }),
-    teachers: async (signal?: AbortSignal) => {
-      const items: User[] = [];
-      for (let page = 1; ; page++) {
-        const result = await client.request<{ items: User[]; total: number }>(
-          `/users?role=teacher&active=true&page=${page}&pageSize=100`,
-          { signal }
-        );
-        items.push(...result.items);
-        if (items.length >= result.total || !result.items.length) return items;
-      }
-    },
+    teachers: (signal?: AbortSignal) =>
+      collectAllPages(
+        (page, pageSignal) =>
+          client.request<{ items: User[]; total: number }>(
+            `/users?role=teacher&active=true&page=${page}&pageSize=100`,
+            { signal: pageSignal }
+          ),
+        { signal }
+      ),
     readModule: (id: string) => client.request<TrailModule>(`/modules/${encodeURIComponent(id)}`),
     saveModule: (
       fields: ModuleFields,

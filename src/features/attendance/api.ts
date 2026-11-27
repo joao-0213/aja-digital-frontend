@@ -1,4 +1,6 @@
 import type { SessionClient } from '@/providers/session-client';
+import type { PaginatedResponse } from '@/models';
+import { collectAllPages } from '@/lib/http-pagination';
 
 export interface AttendanceSubject {
   id: string;
@@ -27,12 +29,7 @@ export interface AttendanceLesson {
   time: string;
   records: Record<string, boolean>;
 }
-interface AttendancePage<T> {
-  items: T[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+type AttendancePage<T> = PaginatedResponse<T>;
 export interface AttendanceRoster {
   items: AttendanceStudent[];
 }
@@ -48,12 +45,7 @@ export interface AttendanceHistoryEntry {
   time: string;
   present: boolean;
 }
-export interface AttendanceHistoryPage {
-  items: AttendanceHistoryEntry[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
+export type AttendanceHistoryPage = PaginatedResponse<AttendanceHistoryEntry>;
 type AttendanceStaffHistoryRead =
   | AttendanceLesson
   | (Omit<AttendanceHistoryEntry, 'subjectName'> & { subjectName?: string });
@@ -64,58 +56,43 @@ export interface AttendanceFields {
   records: Record<string, boolean>;
 }
 
-async function allPages<T>(request: (page: number) => Promise<AttendancePage<T>>) {
-  const items: T[] = [];
-  let page = 1;
-  let total = 0;
-  do {
-    const result = await request(page);
-    items.push(...result.items);
-    total = result.total;
-    if (!result.items.length) break;
-    page += 1;
-  } while (items.length < total);
-  return items;
-}
-
 export function createAttendanceApi(client: Pick<SessionClient, 'request'>) {
   return {
-    subjects: async (signal?: AbortSignal) => {
-      const items: AttendanceSubject[] = [];
-      for (let page = 1; ; page++) {
-        const result = await client.request<{ items: AttendanceSubject[]; total: number }>(
-          `/subjects?page=${page}&pageSize=100`,
-          { signal }
-        );
-        items.push(...result.items);
-        if (items.length >= result.total || !result.items.length) return items;
-      }
-    },
+    subjects: (signal?: AbortSignal) =>
+      collectAllPages(
+        (page, pageSignal) =>
+          client.request<{ items: AttendanceSubject[]; total: number }>(
+            `/subjects?page=${page}&pageSize=100`,
+            { signal: pageSignal }
+          ),
+        { signal }
+      ),
     eligible: (subjectId: string, date: string, time: string, signal?: AbortSignal) =>
-      allPages<AttendanceEligibleStudent>((page) =>
-        client.request<{
-          items: AttendanceEligibleStudent[];
-          page: number;
-          pageSize: number;
-          total: number;
-        }>(
-          `/attendance/eligible?${new URLSearchParams({ subjectId, date, time, page: String(page), pageSize: '100' })}`,
-          { signal }
-        )
+      collectAllPages<AttendanceEligibleStudent>(
+        (page, pageSignal) =>
+          client.request<AttendancePage<AttendanceEligibleStudent>>(
+            `/attendance/eligible?${new URLSearchParams({ subjectId, date, time, page: String(page), pageSize: '100' })}`,
+            { signal: pageSignal }
+          ),
+        { signal }
       ),
     lesson: (subjectId: string, date: string, _time: string, signal?: AbortSignal) =>
-      allPages<AttendanceLesson>((page) =>
-        client.request<AttendancePage<AttendanceLesson>>(
-          `/attendance?${new URLSearchParams({ subjectId, from: date, to: date, page: String(page), pageSize: '100', sort: 'date' })}`,
-          { signal }
-        )
+      collectAllPages<AttendanceLesson>(
+        (page, pageSignal) =>
+          client.request<AttendancePage<AttendanceLesson>>(
+            `/attendance?${new URLSearchParams({ subjectId, from: date, to: date, page: String(page), pageSize: '100', sort: 'date' })}`,
+            { signal: pageSignal }
+          ),
+        { signal }
       ),
     subjectLessons: (subjectId: string, signal?: AbortSignal) =>
-      allPages<AttendanceLesson>((page) =>
-        client.request<AttendancePage<AttendanceLesson>>(
-          `/attendance?${new URLSearchParams({ subjectId, page: String(page), pageSize: '100', sort: 'date' })}`,
-          { signal }
-        )
+      collectAllPages<AttendanceLesson>(
+        (page, pageSignal) =>
+          client.request<AttendancePage<AttendanceLesson>>(
+            `/attendance?${new URLSearchParams({ subjectId, page: String(page), pageSize: '100', sort: 'date' })}`,
+            { signal: pageSignal }
+          ),
+        { signal }
       ),
     read: (id: string, signal?: AbortSignal) =>
       client.request<AttendanceLesson>(`/attendance/${encodeURIComponent(id)}`, { signal }),
@@ -135,11 +112,13 @@ export function createAttendanceApi(client: Pick<SessionClient, 'request'>) {
         signal
       }),
     staffHistory: (studentId: string, signal?: AbortSignal) =>
-      allPages<AttendanceStaffHistoryRead>((page) =>
-        client.request<AttendancePage<AttendanceStaffHistoryRead>>(
-          `/attendance?${new URLSearchParams({ studentId, page: String(page), pageSize: '100', sort: 'date' })}`,
-          { signal }
-        )
+      collectAllPages<AttendanceStaffHistoryRead>(
+        (page, pageSignal) =>
+          client.request<AttendancePage<AttendanceStaffHistoryRead>>(
+            `/attendance?${new URLSearchParams({ studentId, page: String(page), pageSize: '100', sort: 'date' })}`,
+            { signal: pageSignal }
+          ),
+        { signal }
       ).then((rows) =>
         rows.flatMap((row) => {
           const present = 'present' in row ? row.present : row.records[studentId];
