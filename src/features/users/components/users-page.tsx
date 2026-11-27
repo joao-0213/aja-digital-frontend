@@ -22,6 +22,7 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { countLabel } from '@/lib/utils';
 import { roleLabels } from '@/lib/labels';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import type { User, Role } from '@/models';
 import { createUsersApi, type UserFields } from '../api';
@@ -228,9 +229,11 @@ export function UsersPage() {
   const [filter, setFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [page, setPage] = useState(1);
-  const [selection, setSelection] = useState<Selection | null>(
-    () => client.readDraft<Selection>('users-open') ?? null
-  );
+  const {
+    selection,
+    open: openSelection,
+    close
+  } = useEditableDialogSelection<Selection>('users-open', 'users-fields');
   const query = useHttpQuery(
     { sessionKey, key: ['users', search, filter, page] },
     useCallback((signal) => api.list(search, filter, page, signal), [api, search, filter, page]),
@@ -259,14 +262,7 @@ export function UsersPage() {
     value.action === 'role' && value.record?.id === user.id && value.nextRole !== 'admin';
   const open = (value: Omit<Selection, 'intent'>) => {
     if (isSelfRoleDemotion(value)) return;
-    const next = { ...value, intent: crypto.randomUUID() };
-    client.clearDraft('users-fields', sessionKey);
-    client.saveDraft('users-open', next, sessionKey);
-    setSelection(next);
-  };
-  const close = () => {
-    client.clearDraft('users-open', sessionKey);
-    setSelection(null);
+    openSelection({ ...value, intent: crypto.randomUUID() });
   };
   const activeSelection = selection && !isSelfRoleDemotion(selection) ? selection : null;
   return (

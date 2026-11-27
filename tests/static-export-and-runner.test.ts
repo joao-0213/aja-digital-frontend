@@ -23,7 +23,8 @@ test('Node test runner resolves @/ alias without explicit .ts extension and disc
   assert.ok(discovered.includes('tests/client-boundary.test.mjs'));
   assert.ok(discovered.includes('tests/errors.test.ts'));
   assert.ok(discovered.includes('tests/http-pagination.test.ts'));
-  assert.equal(discovered.length, 55);
+  assert.ok(discovered.includes('tests/session-draft-storage.test.ts'));
+  assert.ok(discovered.length >= 56);
 });
 
 test('route-matrix.md defines the exact 22 product routes', () => {

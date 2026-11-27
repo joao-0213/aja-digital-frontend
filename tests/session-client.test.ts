@@ -173,7 +173,7 @@ test('profile response revealing a changed role invalidates old permission proje
   assert.notEqual(client.getSnapshot().sessionKey, before);
 });
 
-test('profile draft survives unavailable refresh only after same session is confirmed and never crosses logout or account', async () => {
+test('composition draft survives unavailable refresh only after same session is confirmed and never crosses logout or account', async () => {
   let offline = false;
   let reply = session;
   const client = createSessionClient({
@@ -183,29 +183,40 @@ test('profile draft survives unavailable refresh only after same session is conf
     }
   });
   await client.login(user.email, 'password');
-  client.saveProfileDraft({ name: 'Texto ainda não salvo', revision: 1 });
+  client.saveDraft(
+    'notice-fields',
+    { name: 'Texto ainda não salvo', revision: 1 },
+    client.getSnapshot().sessionKey
+  );
   offline = true;
   await client.refresh();
   assert.equal(client.getSnapshot().user, null);
   assert.equal(
-    client.readProfileDraft(),
+    client.readDraft('notice-fields'),
     undefined,
     'unverified identity must not expose composition'
   );
   offline = false;
   reply = { ...session, user: { ...user, name: 'Nome alterado por outra sessão', revision: 2 } };
   await client.refresh();
-  assert.deepEqual(client.readProfileDraft(), { name: 'Texto ainda não salvo', revision: 1 });
+  assert.deepEqual(client.readDraft('notice-fields'), {
+    name: 'Texto ainda não salvo',
+    revision: 1
+  });
   reply = { ...session, sessionId: 'other-session' };
   await client.refresh();
-  assert.equal(client.readProfileDraft(), undefined);
-  client.saveProfileDraft({ name: 'Another draft', revision: 1 });
+  assert.equal(client.readDraft('notice-fields'), undefined);
+  client.saveDraft(
+    'notice-fields',
+    { name: 'Another draft', revision: 1 },
+    client.getSnapshot().sessionKey
+  );
   await client.logout();
   await client.login(user.email, 'password');
-  assert.equal(client.readProfileDraft(), undefined);
+  assert.equal(client.readDraft('notice-fields'), undefined);
 });
 
-test('denied session refresh discards unpublished profile text even if a later response reuses its session identifier', async () => {
+test('denied session refresh discards unpublished composition text even if a later response reuses its session identifier', async () => {
   let revoked = false;
   const client = createSessionClient({
     request: async <T>(): Promise<T> => {
@@ -214,13 +225,17 @@ test('denied session refresh discards unpublished profile text even if a later r
     }
   });
   await client.login(user.email, 'password');
-  client.saveProfileDraft({ name: 'Texto privado', revision: 1 });
+  client.saveDraft(
+    'notice-fields',
+    { name: 'Texto privado', revision: 1 },
+    client.getSnapshot().sessionKey
+  );
   revoked = true;
   await client.refresh();
-  assert.equal(client.readProfileDraft(), undefined);
+  assert.equal(client.readDraft('notice-fields'), undefined);
   revoked = false;
   await client.refresh();
-  assert.equal(client.readProfileDraft(), undefined);
+  assert.equal(client.readDraft('notice-fields'), undefined);
 });
 
 test('registration and one-use token commands send only writable fields and do not create local sessions', async () => {
@@ -333,4 +348,31 @@ test('same-session refresh revalidates active queries silently without clearing 
   assert.equal(client.queryCache.getSnapshot(firstKey, ['subjects', 'list']).data, undefined);
   assert.equal(client.queryCache.getSnapshot(secondKey, ['subjects', 'list']).data, undefined);
   unsub();
+});
+
+test('draft operations do not notify session listeners and preserve snapshot/selector stability', async () => {
+  const client = createSessionClient({ request: async <T>(): Promise<T> => session as T });
+  await client.login(user.email, 'password');
+
+  let notifications = 0;
+  const unsubscribe = client.subscribe(() => {
+    notifications += 1;
+  });
+  const snapshotBefore = client.getSnapshot();
+  const statusBefore = snapshotBefore.status;
+  const userBefore = snapshotBefore.user;
+
+  client.saveDraft('users-fields', { name: 'Rascunho' }, snapshotBefore.sessionKey);
+  client.saveDraft('users-open', { intent: 'i1' }, snapshotBefore.sessionKey);
+  assert.equal(notifications, 0);
+  assert.equal(client.getSnapshot(), snapshotBefore);
+  assert.equal(client.getSnapshot().status, statusBefore);
+  assert.equal(client.getSnapshot().user, userBefore);
+
+  client.clearDraft('users-open', snapshotBefore.sessionKey);
+  assert.equal(client.readDraft('users-open'), undefined);
+  assert.deepEqual(client.readDraft('users-fields'), { name: 'Rascunho' });
+  assert.equal(notifications, 0);
+
+  unsubscribe();
 });

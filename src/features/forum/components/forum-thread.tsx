@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, ThumbsUp } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
+import { defaultSessionStorage, removeSessionDraft } from '@/lib/session-draft-storage';
 import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, Textarea } from '@/components/ui';
 import { ErrorState } from '@/components/ui/error-state';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
@@ -57,7 +58,7 @@ function ForumThreadContent() {
 
   useEffect(() => {
     if (!draftKey || loadedKey === draftKey) return;
-    const restored = readForumDraft({ getItem: (key) => sessionStorage.getItem(key) }, draftKey);
+    const restored = readForumDraft(defaultSessionStorage(), draftKey);
     if (restored.error) {
       setDraftError(restored.error);
       return;
@@ -80,11 +81,8 @@ function ForumThreadContent() {
   useEffect(() => {
     if (loadedKey === draftKey && draftKey)
       setDraftError(
-        saveForumDraft(
-          { setItem: (key, value) => sessionStorage.setItem(key, value) },
-          draftKey,
-          JSON.stringify({ body, pendingReply })
-        ) ?? ''
+        saveForumDraft(defaultSessionStorage(), draftKey, JSON.stringify({ body, pendingReply })) ??
+          ''
       );
   }, [body, draftKey, loadedKey, pendingReply]);
   // Read markers are server-owned and are set once for each unread topic.
@@ -112,7 +110,7 @@ function ForumThreadContent() {
       if (clearReply) {
         setBody('');
         setPendingReply(undefined);
-        if (draftKey) sessionStorage.removeItem(draftKey);
+        if (draftKey) removeSessionDraft(draftKey);
       }
       void client.invalidateQueries(['forum']);
     } catch (cause) {
@@ -139,7 +137,7 @@ function ForumThreadContent() {
     setPendingReply(intent);
     if (draftKey)
       saveForumDraft(
-        { setItem: (key, value) => sessionStorage.setItem(key, value) },
+        defaultSessionStorage(),
         draftKey,
         JSON.stringify({ body: intent.body, pendingReply: intent })
       );

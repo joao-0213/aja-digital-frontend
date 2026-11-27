@@ -1,9 +1,14 @@
-﻿/** Returns a visible recovery message instead of silently claiming a saved draft. */
+﻿import { defaultSessionStorage } from '@/lib/session-draft-storage';
+
+/** Returns a visible recovery message instead of silently claiming a saved draft. */
 export function saveForumDraft(
-  storage: Pick<Storage, 'setItem'>,
+  storage: Pick<Storage, 'setItem'> | undefined = defaultSessionStorage(),
   key: string,
   value: string
 ): string | undefined {
+  if (!storage) {
+    return 'Não foi possível guardar o rascunho. Mantenha esta tela aberta para não perder o preenchimento.';
+  }
   try {
     storage.setItem(key, value);
   } catch {
@@ -12,9 +17,10 @@ export function saveForumDraft(
 }
 
 export function readForumDraft(
-  storage: Pick<Storage, 'getItem'>,
+  storage: Pick<Storage, 'getItem'> | undefined = defaultSessionStorage(),
   key: string
 ): { value?: string | null; error?: string } {
+  if (!storage) return { value: null };
   try {
     return { value: storage.getItem(key) };
   } catch {
@@ -53,7 +59,7 @@ export function forumComposeDraftKeys(
 
 /** Read only the key produced by the current HTTP namespace. */
 export function readForumComposeDraft(
-  storage: Pick<Storage, 'getItem'>,
+  storage: Pick<Storage, 'getItem'> | undefined = defaultSessionStorage(),
   key: string
 ): { value?: ForumComposeDraft | null; error?: string } {
   const stored = readForumDraft(storage, key);
@@ -80,7 +86,7 @@ export function readForumComposeDraft(
 
 /** Serialize exactly the visible composition so removal of optional metadata is durable. */
 export function saveForumComposeDraft(
-  storage: Pick<Storage, 'setItem'>,
+  storage: Pick<Storage, 'setItem'> | undefined = defaultSessionStorage(),
   key: string,
   draft: ForumComposeDraft
 ): string | undefined {

@@ -19,6 +19,7 @@ import { Badge, Button, Card, Empty, ErrorState, LinkButton, Skeleton } from '@/
 import { brazilDateTimeLabel, cn } from '@/lib/utils';
 import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { createMaterialsApi } from '../api';
 import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
@@ -82,9 +83,11 @@ function ReaderContent({ id }: { id: string }) {
     setPreview({ blob: binary.data, url });
     return () => URL.revokeObjectURL(url);
   }, [binary.data]);
-  const [editing, setEditing] = useState(
-    () => client.readDraft<boolean>(`material-edit-open:${id}`) ?? false
-  );
+  const {
+    isOpen: editing,
+    open: openEditor,
+    close
+  } = useEditableDialogSelection<boolean>(`material-edit-open:${id}`);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
   if (!id) return <MaterialLibrary />;
@@ -136,10 +139,6 @@ function ReaderContent({ id }: { id: string }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const fileUrl = binary.data && preview?.blob === binary.data ? preview.url : undefined;
-  const close = () => {
-    client.clearDraft(`material-edit-open:${id}`, sessionKey);
-    setEditing(false);
-  };
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -153,13 +152,7 @@ function ReaderContent({ id }: { id: string }) {
       </div>
       {canManageContent && (
         <div className="mb-5 flex flex-wrap items-center gap-3">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              client.saveDraft(`material-edit-open:${id}`, true, sessionKey);
-              setEditing(true);
-            }}
-          >
+          <Button variant="secondary" onClick={() => openEditor(true)}>
             <Pencil aria-hidden="true" className="size-4" />
             Editar material
           </Button>

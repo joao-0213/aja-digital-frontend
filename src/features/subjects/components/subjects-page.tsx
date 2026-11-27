@@ -16,6 +16,7 @@ import {
   Skeleton
 } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { countLabel } from '@/lib/utils';
 import { createClassesApi } from '@/features/classes';
 import { createSubjectsApi, type SubjectSummary } from '../api';
@@ -31,9 +32,11 @@ export function SubjectsPage() {
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
-  const [selection, setSelection] = useState<SubjectSelection | null>(
-    () => client.readDraft<SubjectSelection>('subjects-open') ?? null
-  );
+  const {
+    selection,
+    open: openSelection,
+    close
+  } = useEditableDialogSelection<SubjectSelection>('subjects-open', 'subjects-fields');
   const api = useMemo(() => createSubjectsApi(client), [client]);
   const classApi = useMemo(() => createClassesApi(client), [client]);
   const query = useHttpQuery(
@@ -57,7 +60,7 @@ export function SubjectsPage() {
     (subject) => showArchived || classId !== 'all' || !inactiveClassIds.has(subject.classId)
   );
   const openEditor = (record?: SubjectSummary) => {
-    const next = {
+    openSelection({
       record,
       targetClass:
         record?.classId ??
@@ -65,14 +68,7 @@ export function SubjectsPage() {
           ? classId
           : (activeClasses[0]?.id ?? '')),
       intent: crypto.randomUUID()
-    };
-    client.clearDraft('subjects-fields', sessionKey);
-    client.saveDraft('subjects-open', next, sessionKey);
-    setSelection(next);
-  };
-  const close = () => {
-    client.clearDraft('subjects-open', sessionKey);
-    setSelection(null);
+    });
   };
   const fromClass = requestedClass !== 'all';
   return (

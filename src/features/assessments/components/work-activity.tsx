@@ -37,6 +37,13 @@ import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
 import { FeedbackEditor } from './feedback-editor';
 import { toErrorMessage } from '@/lib/errors';
+import {
+  readSessionDraft,
+  readSessionText,
+  removeSessionDraft,
+  writeSessionDraft,
+  writeSessionText
+} from '@/lib/session-draft-storage';
 
 type LocalAttachment = SubmissionAttachment;
 type LocalRecovery = {
@@ -62,20 +69,18 @@ async function digestFile(file: File) {
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
   return Array.from(hash, (value) => value.toString(16).padStart(2, '0')).join('');
 }
+function isLocalRecovery(value: unknown): value is LocalRecovery {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<LocalRecovery>;
+  return (
+    Number.isSafeInteger(candidate.revision) &&
+    Array.isArray(candidate.attachments) &&
+    typeof candidate.uploads === 'object' &&
+    candidate.uploads !== null
+  );
+}
 function safeRecoveryRead(key: string): LocalRecovery | null {
-  try {
-    const value = JSON.parse(window.sessionStorage.getItem(key) ?? 'null') as LocalRecovery | null;
-    if (
-      !value ||
-      !Number.isSafeInteger(value.revision) ||
-      !Array.isArray(value.attachments) ||
-      typeof value.uploads !== 'object'
-    )
-      return null;
-    return value;
-  } catch {
-    return null;
-  }
+  return readSessionDraft<LocalRecovery>(key, isLocalRecovery);
 }
 
 function FeedbackPublication({
@@ -339,9 +344,7 @@ function WorkStudent({
   const ownerKey = `aja-work-v1:${encodeURIComponent(userId)}:${encodeURIComponent(sessionId)}:${encodeURIComponent(activity.id)}`;
   const serverRevision = initialSubmission?.revision ?? 0;
   const [recoveryBundle] = useState(() => {
-    if (typeof window === 'undefined')
-      return { key: `${ownerKey}:revision:${serverRevision}`, data: null as LocalRecovery | null };
-    const key = window.sessionStorage.getItem(ownerKey) || `${ownerKey}:revision:${serverRevision}`;
+    const key = readSessionText(ownerKey) || `${ownerKey}:revision:${serverRevision}`;
     return { key, data: safeRecoveryRead(key) };
   });
   const [recovery] = useState(recoveryBundle.data);
@@ -397,22 +400,15 @@ function WorkStudent({
   const submissionRevision = submission?.revision ?? 0;
   const persistRecovery = useCallback(
     (nextItems = items, nextUploads = uploads, revision = submissionRevision) => {
-      try {
-        const storageKey = `${ownerKey}:revision:${revision}`;
-        recoveryKey.current = storageKey;
-        window.sessionStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            revision,
-            attachments: nextItems,
-            uploads: nextUploads,
-            submit: submitIntent.current
-          } satisfies LocalRecovery)
-        );
-        window.sessionStorage.setItem(ownerKey, storageKey);
-      } catch {
-        /* O servidor continua sendo a fonte do rascunho. */
-      }
+      const storageKey = `${ownerKey}:revision:${revision}`;
+      recoveryKey.current = storageKey;
+      writeSessionDraft(storageKey, {
+        revision,
+        attachments: nextItems,
+        uploads: nextUploads,
+        submit: submitIntent.current
+      } satisfies LocalRecovery);
+      writeSessionText(ownerKey, storageKey);
     },
     [items, uploads, submissionRevision, ownerKey]
   );
@@ -711,11 +707,7 @@ function WorkStudent({
       setConfirm(false);
       setConflict(null);
       submitIntent.current = null;
-      try {
-        window.sessionStorage.removeItem(ownerKey);
-      } catch {
-        /* O comprovante continua no servidor. */
-      }
+      removeSessionDraft(ownerKey);
     } catch (cause: unknown) {
       if (!current()) return;
       if (cause instanceof HttpError && cause.kind === 'conflict') {

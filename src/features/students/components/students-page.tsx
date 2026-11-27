@@ -22,6 +22,7 @@ import {
 } from '@/components/ui';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import { brazilDateTimeLabel } from '@/lib/utils';
 import { aggregateAttendanceByStudent } from '../lib/attendance-summary';
@@ -174,9 +175,11 @@ export function StudentsPage() {
   const [history, setHistory] = useState(false);
   const [page, setPage] = useState(1);
   const [enrollmentPage, setEnrollmentPage] = useState(1);
-  const [selection, setSelection] = useState<Selection | null>(
-    () => client.readDraft<Selection>('students-open') ?? null
-  );
+  const {
+    selection,
+    open: openSelection,
+    close
+  } = useEditableDialogSelection<Selection>('students-open', 'students-fields');
   const allowed = !!user && user.role !== 'student';
   const classes = useHttpQuery(
     { sessionKey, key: ['students', 'class-options'] },
@@ -240,20 +243,13 @@ export function StudentsPage() {
   const visible = students.data?.items ?? [];
   const pending = enrollments.data?.items ?? [];
   const open = (action: Selection['action'], record?: EnrollmentDto) => {
-    const next = {
+    openSelection({
       action,
       record,
       classId,
       className: schoolClass?.name ?? record?.className ?? 'Turma indisponível',
       intent: crypto.randomUUID()
-    };
-    client.clearDraft('students-fields', sessionKey);
-    client.saveDraft('students-open', next, sessionKey);
-    setSelection(next);
-  };
-  const close = () => {
-    client.clearDraft('students-open', sessionKey);
-    setSelection(null);
+    });
   };
   const refreshAll = () => {
     void students.invalidate();

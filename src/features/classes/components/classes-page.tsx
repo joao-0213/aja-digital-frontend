@@ -20,6 +20,7 @@ import {
 import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import { countLabel } from '@/lib/utils';
 import type { SchoolClass } from '@/models';
@@ -235,9 +236,11 @@ export function ClassesPage() {
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
   const [page, setPage] = useState(1);
-  const [selection, setSelection] = useState<Selection | null>(
-    () => client.readDraft<Selection>('classes-open') ?? null
-  );
+  const {
+    selection,
+    open: openSelection,
+    close
+  } = useEditableDialogSelection<Selection>('classes-open', 'classes-fields');
   const query = useHttpQuery(
     { sessionKey, key: ['classes', search, inactive, page] },
     useCallback(
@@ -259,14 +262,7 @@ export function ClassesPage() {
       />
     );
   const open = (action: Selection['action'], record?: SchoolClass) => {
-    const next = { action, record, intent: crypto.randomUUID() };
-    client.clearDraft('classes-fields', sessionKey);
-    client.saveDraft('classes-open', next, sessionKey);
-    setSelection(next);
-  };
-  const close = () => {
-    client.clearDraft('classes-open', sessionKey);
-    setSelection(null);
+    openSelection({ action, record, intent: crypto.randomUUID() });
   };
   return (
     <>

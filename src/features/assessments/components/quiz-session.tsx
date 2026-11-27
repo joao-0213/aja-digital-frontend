@@ -28,6 +28,12 @@ import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, createAttemptSubmitCommand, type AttemptStudent } from '../api';
 import { AttemptImage } from './attempt-image';
 import { toErrorMessage } from '@/lib/errors';
+import {
+  readSessionText,
+  removeSessionDraft,
+  writeSessionDraft,
+  writeSessionText
+} from '@/lib/session-draft-storage';
 
 type Answers = Record<string, number | null>;
 type SaveStatus = 'saved' | 'saving' | 'error' | 'conflict';
@@ -74,13 +80,13 @@ export function QuizSession({
       return { ...fresh, restored: false };
     try {
       const pointerKey = attemptRecoveryPointerKey(identity);
-      const storedOpenRevision = Number(window.sessionStorage.getItem(pointerKey));
+      const storedOpenRevision = Number(readSessionText(pointerKey) ?? '');
       const openedRevision =
         Number.isSafeInteger(storedOpenRevision) && storedOpenRevision > 0
           ? storedOpenRevision
           : owner.openedRevision;
       const storedOwner = attemptRecoveryOwnerFor(initialAttempt, identity, openedRevision);
-      const stored = window.sessionStorage.getItem(attemptRecoveryStorageKey(storedOwner));
+      const stored = readSessionText(attemptRecoveryStorageKey(storedOwner));
       const resolved = resolveAttemptRecovery(initialAttempt, identity, stored);
       return {
         ...resolved,
@@ -218,20 +224,13 @@ export function QuizSession({
   useEffect(() => {
     const sessionUser = client.getSnapshot().user;
     if (!sessionUser || !sessionId) return;
-    try {
-      window.sessionStorage.setItem(recoveryPointer, String(recoveryOwner.openedRevision));
-      window.sessionStorage.setItem(
-        key,
-        JSON.stringify({
-          owner: recoveryOwner,
-          serverRevision: attempt.revision,
-          questionOrder: attempt.questionOrder,
-          answers
-        })
-      );
-    } catch {
-      /* Server autosave remains authoritative when browser storage is unavailable. */
-    }
+    writeSessionText(recoveryPointer, String(recoveryOwner.openedRevision));
+    writeSessionDraft(key, {
+      owner: recoveryOwner,
+      serverRevision: attempt.revision,
+      questionOrder: attempt.questionOrder,
+      answers
+    });
     if (
       !dirty ||
       conflict ||
@@ -336,12 +335,8 @@ export function QuizSession({
       await api.readAttemptResult(attempt.id, undefined, sessionKey);
       if (!currentSession(client, sessionKey)) return;
       finalizedReceipt.current = true;
-      try {
-        window.sessionStorage.removeItem(key);
-        window.sessionStorage.removeItem(recoveryPointer);
-      } catch {
-        /* The delivered attempt is recovered from the server. */
-      }
+      removeSessionDraft(key);
+      removeSessionDraft(recoveryPointer);
       router.push(`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`);
       return;
     }
@@ -394,12 +389,8 @@ export function QuizSession({
       );
       if (!currentSession(client, sessionKey)) return;
       finalizedReceipt.current = true;
-      try {
-        window.sessionStorage.removeItem(key);
-        window.sessionStorage.removeItem(recoveryPointer);
-      } catch {
-        /* The delivered attempt is recovered from the server. */
-      }
+      removeSessionDraft(key);
+      removeSessionDraft(recoveryPointer);
       router.push(`/questionarios/resultado?id=${encodeURIComponent(attempt.id)}`);
     } catch (cause: unknown) {
       if (

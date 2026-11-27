@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createHttpEditor, type RevisionRecord } from '@/lib/http-editor';
 import { useSession } from '@/providers/app-context';
+import { useUnsavedChanges } from './use-unsaved-changes';
 
 export function useHttpEditor<F, R extends RevisionRecord>(
   fields: F,
@@ -19,16 +20,9 @@ export function useHttpEditor<F, R extends RevisionRecord>(
   });
   const state = useSyncExternalStore(editor.subscribe, editor.getSnapshot, editor.getSnapshot);
   const [initialFields] = useState(() => JSON.stringify(fields));
-  const dirty = JSON.stringify(state.fields) !== initialFields;
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  const serializedFields = useMemo(() => JSON.stringify(state.fields), [state.fields]);
+  const dirty = serializedFields !== initialFields;
+  useUnsavedChanges(dirty);
   useEffect(
     () =>
       editor.subscribe(() => {
@@ -41,5 +35,9 @@ export function useHttpEditor<F, R extends RevisionRecord>(
       }),
     [client, context, editor, sessionKey]
   );
-  return { ...state, dirty, editor, clear: () => client.clearDraft(context, sessionKey) };
+  const clear = useCallback(
+    () => client.clearDraft(context, sessionKey),
+    [client, context, sessionKey]
+  );
+  return { ...state, dirty, editor, clear };
 }

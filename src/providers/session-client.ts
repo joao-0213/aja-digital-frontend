@@ -1,6 +1,7 @@
 import type { User } from '@/models/user';
 import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
 import { createHttpQueryCache, type QueryKey } from '@/lib/http-query';
+import { createMemoryDraftStore } from './memory-draft-store';
 
 export interface SessionState {
   status: 'loading' | 'authenticated' | 'anonymous' | 'error';
@@ -20,10 +21,6 @@ interface SessionDto {
 interface Transport {
   request<T>(path: string, options?: HttpRequestOptions): Promise<T>;
 }
-interface ProfileDraft {
-  name: string;
-  revision: number;
-}
 
 /** Memory-only identity. The HTTP cookie is the sole source of session truth. */
 export function createSessionClient(http: Transport) {
@@ -38,17 +35,9 @@ export function createSessionClient(http: Transport) {
   };
   let pending: AbortController | undefined;
   let sessionId: string | undefined;
-  // Unpublished profile text stays in memory during a transient outage, hidden
-  // until exactly the same verified session returns. No password is buffered.
-  let draftOwner: string | undefined;
-  let profileDraft: ProfileDraft | undefined;
-  const compositions = new Map<string, unknown>();
-  const compositionExtras = new Map<string, unknown>();
+  const draftStore = createMemoryDraftStore();
   const discardDraft = () => {
-    draftOwner = undefined;
-    profileDraft = undefined;
-    compositions.clear();
-    compositionExtras.clear();
+    draftStore.clearAll();
   };
   const queryCache = createHttpQueryCache();
   queryCache.setSessionKey(state.sessionKey);
@@ -81,12 +70,7 @@ export function createSessionClient(http: Transport) {
         session.user.role,
         'profile'
       ]);
-      if (owner !== draftOwner) {
-        profileDraft = undefined;
-        compositions.clear();
-        compositionExtras.clear();
-      }
-      draftOwner = owner;
+      draftStore.setOwner(owner);
       sessionId = session.sessionId;
       publish({
         status: 'authenticated',
@@ -169,7 +153,6 @@ export function createSessionClient(http: Transport) {
         json: { name, expectedRevision }
       });
       if (current === version && state.user) {
-        profileDraft = undefined;
         if (state.user.id !== user.id || state.user.role !== user.role) {
           discardDraft();
           pending?.abort();
@@ -196,13 +179,6 @@ export function createSessionClient(http: Transport) {
   }
   return {
     getSnapshot: () => state,
-    readProfileDraft: () =>
-      state.status === 'authenticated' && sessionId && profileDraft
-        ? { ...profileDraft }
-        : undefined,
-    saveProfileDraft: (draft: ProfileDraft) => {
-      if (state.status === 'authenticated' && sessionId && draftOwner) profileDraft = { ...draft };
-    },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
@@ -234,25 +210,22 @@ export function createSessionClient(http: Transport) {
       }),
     request: protectedRequest,
     readDraft: <T>(context: string): T | undefined =>
-      state.status === 'authenticated' && sessionId
-        ? (structuredClone(compositions.get(context)) as T | undefined)
-        : undefined,
+      state.status === 'authenticated' && sessionId ? draftStore.readDraft<T>(context) : undefined,
     saveDraft: <T>(context: string, value: T, expectedSessionKey: string) => {
       if (state.status === 'authenticated' && sessionId && state.sessionKey === expectedSessionKey)
-        compositions.set(context, structuredClone(value));
+        draftStore.saveDraft(context, value);
     },
     readDraftExtra: <T>(context: string): T | undefined =>
       state.status === 'authenticated' && sessionId
-        ? (structuredClone(compositionExtras.get(context)) as T | undefined)
+        ? draftStore.readDraftExtra<T>(context)
         : undefined,
     saveDraftExtra: <T>(context: string, value: T, expectedSessionKey: string) => {
       if (state.status === 'authenticated' && sessionId && state.sessionKey === expectedSessionKey)
-        compositionExtras.set(context, structuredClone(value));
+        draftStore.saveDraftExtra(context, value);
     },
     clearDraft: (context: string, expectedSessionKey: string) => {
       if (state.sessionKey === expectedSessionKey) {
-        compositions.delete(context);
-        compositionExtras.delete(context);
+        draftStore.clearDraft(context);
       }
     },
     readProfile: () => protectedRequest<User>('/me'),

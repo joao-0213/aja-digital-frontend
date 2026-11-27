@@ -17,6 +17,7 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { useSession } from '@/providers/app-context';
 import { Button, Empty, ErrorState, LinkButton, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { HttpError } from '@/lib/http-client';
 import { countLabel } from '@/lib/utils';
 import type { TrailModule } from '@/models';
@@ -72,9 +73,11 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
   );
   const [editing, setEditing] = useState(false);
   const [collapsed, setCollapsed] = useState<string[]>([]);
-  const [selection, setSelection] = useState<ModuleSelection | null>(
-    () => client.readDraft<ModuleSelection>(`module-open:${id}`) ?? null
-  );
+  const {
+    selection,
+    open: openSelection,
+    close
+  } = useEditableDialogSelection<ModuleSelection>(`module-open:${id}`, `module-fields:${id}`);
   const [reorderBusy, setReorderBusy] = useState(false);
   const [reorderError, setReorderError] = useState('');
   const [reorderConflict, setReorderConflict] = useState(false);
@@ -111,14 +114,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
   const { subject, modules, projections } = data;
   const canEdit = subject.canManageContent;
   const openModule = (record?: TrailModule) => {
-    const next = { record, intent: crypto.randomUUID() };
-    client.clearDraft(`module-fields:${id}`, sessionKey);
-    client.saveDraft(`module-open:${id}`, next, sessionKey);
-    setSelection(next);
-  };
-  const close = () => {
-    client.clearDraft(`module-open:${id}`, sessionKey);
-    setSelection(null);
+    openSelection({ record, intent: crypto.randomUUID() });
   };
   const inspectOrder = async () => {
     try {

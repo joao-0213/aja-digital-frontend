@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
+import { defaultSessionStorage, removeSessionDraft } from '@/lib/session-draft-storage';
 import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
 import {
@@ -136,8 +137,7 @@ function ForumPageContent() {
   // Drafts contain text and a staged-file ID only; the server remains the source of attachment bytes.
   useEffect(() => {
     if (!composeKey || draftKey === composeKey || typeof window === 'undefined') return;
-    const storage = { getItem: (key: string) => window.sessionStorage.getItem(key) };
-    const restored = readForumComposeDraft(storage, composeKey);
+    const restored = readForumComposeDraft(defaultSessionStorage(), composeKey);
     if (restored.error) {
       setDraftError(restored.error);
       return;
@@ -173,11 +173,10 @@ function ForumPageContent() {
   }, [api, composeKey, draftKey, targetSubject]);
   useEffect(() => {
     if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
-    const failure = saveForumComposeDraft(
-      { setItem: (key, value) => window.sessionStorage.setItem(key, value) },
-      composeKey,
-      { ...composition(), pendingCreate }
-    );
+    const failure = saveForumComposeDraft(defaultSessionStorage(), composeKey, {
+      ...composition(),
+      pendingCreate
+    });
     setDraftError(failure ?? '');
   }, [composeKey, draftKey, composition, pendingCreate]);
 
@@ -252,15 +251,14 @@ function ForumPageContent() {
     const intent = pendingCreate ?? { key: crypto.randomUUID(), fields };
     setPendingCreate(intent);
     if (composeKey)
-      saveForumComposeDraft(
-        { setItem: (key, value) => window.sessionStorage.setItem(key, value) },
-        composeKey,
-        { ...composition(), pendingCreate: intent }
-      );
+      saveForumComposeDraft(defaultSessionStorage(), composeKey, {
+        ...composition(),
+        pendingCreate: intent
+      });
     setBusy(true);
     try {
       await api.create(fields, intent.key);
-      if (composeKey) window.sessionStorage.removeItem(composeKey);
+      if (composeKey) removeSessionDraft(composeKey);
       setOpen(false);
       setTitle('');
       setBody('');
