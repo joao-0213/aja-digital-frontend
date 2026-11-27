@@ -1,13 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  aggregateAttendanceByStudent,
-  formatScore,
-  initials,
-  moduleDisplayNumber,
-  resolveActorDisplayName,
-  sortByDeadlineAsc,
-} from '../src/lib/utils.ts';
+import { formatScore, initials } from '../src/lib/utils.ts';
+import { moduleDisplayNumber, resolveActorDisplayName, sortByDeadlineAsc } from '../src/lib/academic-format.ts';
+import { aggregateAttendanceByStudent } from '../src/features/students/lib/attendance-summary.ts';
 import { summarizeQuizResult } from '../src/features/assessments/lib/result-summary.ts';
 import type { AttemptResult } from '../src/features/assessments/api.ts';
 

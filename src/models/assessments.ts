@@ -17,38 +17,3 @@ export interface Assessment extends RecordMeta {
   allowLate?: boolean;
   status: 'draft' | 'published';
 }
-
-export type WorkAttachment =
-  | { id: string; kind: 'file'; name: string; size: number; mime: string }
-  | { id: string; kind: 'link'; name: string; url: string };
-
-export interface FeedbackPublication {
-  comment: string;
-  grade?: number;
-  authorId: string;
-  createdAt: string;
-}
-
-export interface WorkSubmission extends RecordMeta {
-  feedbackUpdated?: boolean;
-  id: string;
-  assessmentId: string;
-  userId: string;
-  attachments: WorkAttachment[];
-  submittedAt?: string;
-  feedbackDraft?: FeedbackPublication;
-  feedbackPublished?: FeedbackPublication;
-  feedbackHistory: FeedbackPublication[];
-}
-
-export interface Attempt extends RecordMeta {
-  questionsUpdatedAt?: string;
-  id: string;
-  assessmentId: string;
-  userId: string;
-  startedAt: string;
-  submittedAt?: string;
-  answers: Record<string, number>;
-  questionOrder: string[];
-  questions?: Question[];
-}

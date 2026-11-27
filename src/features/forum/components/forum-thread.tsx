@@ -10,7 +10,7 @@ import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, Textarea } from '@/components/ui';
 import { ErrorState } from '@/components/ui/error-state';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
-import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '@/lib/forum-draft';
+import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '../lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
 import { createForumApi } from '../api';
 import { ForumAttachments } from './forum-attachments';

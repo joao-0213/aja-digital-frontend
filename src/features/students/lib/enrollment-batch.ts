@@ -1,6 +1,6 @@
-import type { EnrollmentDto, EnrollmentPreview } from './api.ts';
-import { normalizeEmail, validEmail } from '../../lib/enrollment.ts';
-import { HttpError } from '../../lib/http-client.ts';
+import type { EnrollmentDto, EnrollmentPreview } from '../api.ts';
+import { normalizeEmail, validEmail } from '../../../lib/enrollment.ts';
+import { HttpError } from '../../../lib/http-client.ts';
 
 export const MAX_EMAIL_LENGTH = 254;
 export const DEFAULT_PREVIEW_CONCURRENCY = 2;

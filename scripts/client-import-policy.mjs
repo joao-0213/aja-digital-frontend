@@ -7,6 +7,7 @@ const legacySourcePaths = new Set([
   'lib/demo-mutations',
   'lib/material-files',
   'models/database',
+  'models/legacy',
   'providers/use-demo-state',
   'hooks/use-mock-query',
   'hooks/use-activity-clock'
@@ -37,9 +38,9 @@ export function isForbiddenClientImport(root, importerFile, specifier) {
 
 function isErasedModelDatabaseReference(root, reference) {
   if (!reference.typeOnly || !reference.candidateTarget) return false;
-  // The legacy rule modules still share this type for server/tests; this type-only edge is erased by TS.
+  // The legacy rule modules and model barrel still share these types for server/tests; type-only edges are erased by TS.
   const { outsideSource, withoutExtension } = classifySourceTarget(root, reference.candidateTarget);
-  return !outsideSource && withoutExtension === 'models/database';
+  return !outsideSource && (withoutExtension === 'models/database' || withoutExtension === 'models/legacy');
 }
 
 export function sourceModuleSpecifiers(root, file, source) {

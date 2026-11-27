@@ -16,7 +16,7 @@ import {
   summarizeBatch,
   type BatchEnrollmentItem,
   type BatchProgress,
-} from '../enrollment-batch';
+} from '../lib/enrollment-batch';
 
 type Phase = 'input' | 'checking' | 'review' | 'submitting' | 'done';
 

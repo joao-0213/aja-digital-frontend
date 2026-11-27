@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, Check, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Select, Skeleton, Textarea } from '@/components/ui';
-import { brazilDateTimeLabel, countLabel, resolveActorDisplayName } from '@/lib/utils';
+import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
+import { resolveActorDisplayName } from '@/lib/academic-format';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { BankSelector, type BankQuestion } from '@/features/questions';
 import { useHttpEditor } from '@/hooks/use-http-editor';

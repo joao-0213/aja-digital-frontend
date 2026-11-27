@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveWorkUploadBatch, type WorkUploadBatchAttachment, type WorkUploadIntent } from '../src/features/assessments/work-upload-batch.ts';
+import { resolveWorkUploadBatch, type WorkUploadBatchAttachment, type WorkUploadIntent } from '../src/features/assessments/lib/work-upload-batch.ts';
 
 const attachments: WorkUploadBatchAttachment[] = [
   { kind: 'file', fileId: 'local:a', name: 'a.png' },

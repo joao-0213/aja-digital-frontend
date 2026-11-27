@@ -15,7 +15,7 @@ import {
   runBatchConfirm,
   runBatchPreview,
   summarizeBatch,
-} from '../src/features/students/enrollment-batch.ts';
+} from '../src/features/students/lib/enrollment-batch.ts';
 
 test('batch flow works end-to-end against the real administration HTTP server without altering backend contracts', async t => {
   const origin = 'http://127.0.0.1:3000';

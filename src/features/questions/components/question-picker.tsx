@@ -1,7 +1,8 @@
 'use client';
 
 import { Badge, Button, Card } from '@/components/ui';
-import { countLabel, difficultyLabels } from '@/lib/utils';
+import { countLabel } from '@/lib/utils';
+import { difficultyLabels } from '@/lib/labels';
 import type { BankQuestion } from '../api';
 
 /** Selection exposes the public bank projection; assessment snapshots stay server-side. */

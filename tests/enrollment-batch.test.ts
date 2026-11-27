@@ -12,7 +12,7 @@ import {
   runBatchConfirm,
   runBatchPreview,
   summarizeBatch,
-} from '../src/features/students/enrollment-batch.ts';
+} from '../src/features/students/lib/enrollment-batch.ts';
 
 function previewFor(email: string, overrides: Partial<EnrollmentPreview> = {}): EnrollmentPreview {
   return {

@@ -1,12 +1,22 @@
 export type { Role, User } from './user';
 export type { SubjectIcon, SchoolClass, Subject, TrailModule } from './academic';
-export type { MaterialKind, Material, Progress } from './materials';
+export type { MaterialKind } from './materials';
 export type { Difficulty, Question } from './questions';
-export type { Assessment, Attempt, WorkAttachment, WorkSubmission, FeedbackPublication } from './assessments';
-export type { ForumReply, ForumTopic } from './forum';
-export type { Announcement } from './announcements';
-export type { CalendarEvent } from './calendar';
-export type { Attendance } from './attendance';
-export type { MockDatabase } from './database';
-export type { RecordMeta, AuditEvent } from './audit';
+export type { Assessment } from './assessments';
 export type { Enrollment } from './enrollment';
+export type { RecordMeta } from './audit';
+export type {
+  Announcement,
+  Attempt,
+  Attendance,
+  AuditEvent,
+  CalendarEvent,
+  FeedbackPublication,
+  ForumReply,
+  ForumTopic,
+  Material,
+  Progress,
+  WorkAttachment,
+  WorkSubmission
+} from './legacy';
+export type { MockDatabase } from './database';

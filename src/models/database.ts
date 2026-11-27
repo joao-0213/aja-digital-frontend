@@ -1,14 +1,19 @@
-import type { AuditEvent } from './audit';
 import type { User } from './user';
 import type { SchoolClass, Subject, TrailModule } from './academic';
-import type { Material, Progress } from './materials';
 import type { Question } from './questions';
-import type { Assessment, Attempt, WorkSubmission } from './assessments';
-import type { ForumTopic } from './forum';
-import type { Announcement } from './announcements';
-import type { CalendarEvent } from './calendar';
-import type { Attendance } from './attendance';
+import type { Assessment } from './assessments';
 import type { Enrollment } from './enrollment';
+import type {
+  Announcement,
+  Attempt,
+  Attendance,
+  AuditEvent,
+  CalendarEvent,
+  ForumTopic,
+  Material,
+  Progress,
+  WorkSubmission
+} from './legacy';
 
 export interface MockDatabase {
   version: 1;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dashboardDeadlineLabel } from '../src/lib/dashboard-time.ts';
+import { dashboardDeadlineLabel } from '../src/features/dashboard/lib/dashboard-time.ts';
 
 test('dashboard deadline cards use São Paulo time across a UTC date boundary', () => {
   assert.equal(dashboardDeadlineLabel('2031-06-16T00:30:00.000Z'), '15 de jun. · 21:30');

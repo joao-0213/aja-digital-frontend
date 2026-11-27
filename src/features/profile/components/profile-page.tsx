@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, KeyRound, LogOut } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { Avatar, Badge, Button, Card, ErrorState, LinkButton, PageHeading, Skeleton } from '@/components/ui';
-import { roleLabels } from '@/lib/utils';
+import { roleLabels } from '@/lib/labels';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
 import { createSubjectsApi } from '@/features/subjects';

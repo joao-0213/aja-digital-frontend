@@ -4,12 +4,12 @@ import { HttpError } from '../src/lib/http-client.ts';
 import { createHttpEditor } from '../src/lib/http-editor.ts';
 import * as announcementApi from '../src/features/announcements/api.ts';
 import type { AnnouncementFields } from '../src/features/announcements/api.ts';
-import { announcementSubjectAfterClassChange, canManageAnnouncementItem, initialAnnouncementFields } from '../src/features/announcements/announcement-form.ts';
-import { getOrCreateAnnouncementIntent } from '../src/features/announcements/announcement-intent.ts';
+import { announcementSubjectAfterClassChange, canManageAnnouncementItem, initialAnnouncementFields } from '../src/features/announcements/lib/announcement-form.ts';
+import { getOrCreateAnnouncementIntent } from '../src/features/announcements/lib/announcement-intent.ts';
 import { createCalendarApi } from '../src/features/calendar/api.ts';
 
 const { createAnnouncementsApi } = announcementApi;
-import { upcomingMeetings } from '../src/lib/announcement-calendar.ts';
+import { upcomingMeetings } from '../src/features/dashboard/lib/upcoming-meetings.ts';
 
 test('announcement API binds filters, create replay key, expected revision and withdrawal to HTTP routes', async () => {
   assert.equal(announcementApi.announcementsPath, '/avisos');

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { ClipboardCheck, Plus } from 'lucide-react';
 import { Badge, Button, Empty, LinkButton } from '@/components/ui';
-import { countLabel, sortByDeadlineAsc } from '@/lib/utils';
+import { countLabel } from '@/lib/utils';
+import { sortByDeadlineAsc } from '@/lib/academic-format';
 import type { TrailModule } from '@/models';
 import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
 import { classifyStudentActivity } from '../lib/activity-list';

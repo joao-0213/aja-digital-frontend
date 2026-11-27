@@ -69,7 +69,9 @@ test('client import policy resolves relative paths and aliases before classifyin
 test('client import policy handles relative, tsconfig alias, reexport, dynamic import, type-only and mixed value imports', async t => {
   const root = await createTempWorkspace(t, {
     'server/seed.mjs': 'export const seed = {};\n',
+    'tests/support/legacy/demo-storage.ts': 'export type LegacyHelper = { ok: boolean };\nexport const migrate = () => null;\n',
     'src/models/database.ts': 'export interface MockDatabase { users: unknown[] }\nexport const loadDb = () => ({ users: [] });\n',
+    'src/models/legacy.ts': 'export interface LegacyRecord { id: string }\nexport const legacyMarker = 1;\n',
     'src/lib/demo-storage.ts': 'export type LegacyStore = { ok: boolean };\nexport const readStore = () => null;\n',
     'src/lib/pure.ts': 'export const ok = true;\n',
     'src/features/alpha/ok-types.ts': [
@@ -77,12 +79,15 @@ test('client import policy handles relative, tsconfig alias, reexport, dynamic i
       "import { type MockDatabase as InlineDb } from '../../models/database';",
       "export type { MockDatabase as ReexportedDb } from '@/models/database';",
       "export { type MockDatabase as InlineReexportedDb } from '../../models/database';",
+      "export type { LegacyRecord } from '@/models/legacy';",
       "export type QueryDb = import('@/models/database').MockDatabase;",
       "import { ok } from '@/lib/pure';",
       'export type Combined = [MockDatabase, InlineDb, QueryDb];',
       'export const flag = ok;'
     ].join('\n'),
     'src/features/alpha/bad-mixed.ts': "import { type MockDatabase, loadDb } from '@/models/database';\nexport { loadDb };\nexport type Db = MockDatabase;\n",
+    'src/features/alpha/bad-legacy-model-value.ts': "import { legacyMarker } from '@/models/legacy';\nexport const n = legacyMarker;\n",
+    'src/features/alpha/bad-legacy-support-type.ts': "import type { LegacyHelper } from '../../../tests/support/legacy/demo-storage';\nexport type H = LegacyHelper;\n",
     'src/features/alpha/bad-reexport.ts': "export * from '../../../server/seed.mjs';\n",
     'src/features/alpha/bad-dynamic.ts': "export const loadSeed = () => import('../../../server/seed.mjs');\n",
     'src/features/alpha/bad-legacy-type.ts': "import { type LegacyStore } from '@/lib/demo-storage';\nexport type S = LegacyStore;\n"
@@ -95,6 +100,8 @@ test('client import policy handles relative, tsconfig alias, reexport, dynamic i
 
   assert.deepEqual(violations, [
     'features/alpha/bad-dynamic.ts -> ../../../server/seed.mjs',
+    'features/alpha/bad-legacy-model-value.ts -> @/models/legacy',
+    'features/alpha/bad-legacy-support-type.ts -> ../../../tests/support/legacy/demo-storage',
     'features/alpha/bad-legacy-type.ts -> @/lib/demo-storage',
     'features/alpha/bad-mixed.ts -> @/models/database',
     'features/alpha/bad-reexport.ts -> ../../../server/seed.mjs'

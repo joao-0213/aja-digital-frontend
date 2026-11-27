@@ -8,8 +8,8 @@ import { useHttpEditor } from '@/hooks/use-http-editor';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useApp, useSession } from '@/providers/app-context';
 import { countLabel } from '@/lib/utils';
-import { announcementSubjectAfterClassChange, brasiliaMinTimeForDate, brasiliaTodayDate, initialAnnouncementFields, isOccurrenceInPast } from '../announcement-form';
-import { getOrCreateAnnouncementIntent } from '../announcement-intent';
+import { announcementSubjectAfterClassChange, brasiliaMinTimeForDate, brasiliaTodayDate, initialAnnouncementFields, isOccurrenceInPast } from '../lib/announcement-form';
+import { getOrCreateAnnouncementIntent } from '../lib/announcement-intent';
 import { createAnnouncementsApi, type AnnouncementDto, type AnnouncementFields } from '../api';
 
 const ALL_CLASSES = '__all__';

@@ -1,4 +1,4 @@
-import type { AnnouncementDto, AnnouncementFields } from './api';
+import type { AnnouncementDto, AnnouncementFields } from '../api';
 
 export function initialAnnouncementFields(item?: AnnouncementDto, subjectId?: string, classId?: string): AnnouncementFields {
   return {

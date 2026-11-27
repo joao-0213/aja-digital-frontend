@@ -13,7 +13,7 @@ import { HttpError } from '@/lib/http-client';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { Badge, Button, Card, Dialog, Empty, ErrorState, Input, LinkButton, PageHeading, Skeleton } from '@/components/ui';
 import { brazilDateTimeLabel, cn, countLabel } from '@/lib/utils';
-import { resolveWorkUploadBatch, type WorkUploadIntent } from '../work-upload-batch';
+import { resolveWorkUploadBatch, type WorkUploadIntent } from '../lib/work-upload-batch';
 import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
 import { FeedbackEditor } from './feedback-editor';

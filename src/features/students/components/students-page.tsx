@@ -9,7 +9,8 @@ import { Avatar, Badge, Button, Card, Check, Dialog, Empty, Input, LinkButton, P
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useHttpEditor } from '@/hooks/use-http-editor';
-import { aggregateAttendanceByStudent, brazilDateTimeLabel } from '@/lib/utils';
+import { brazilDateTimeLabel } from '@/lib/utils';
+import { aggregateAttendanceByStudent } from '../lib/attendance-summary';
 import { createAttendanceApi } from '@/features/attendance';
 import { createClassesApi } from '@/features/classes';
 import { createStudentsApi, type EnrollmentDto } from '../api';

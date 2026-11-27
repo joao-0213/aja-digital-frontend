@@ -2,7 +2,8 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BookOpen, Building2, Calendar, Check, ChevronDown, Gauge, PanelLeftClose, Search, SlidersHorizontal, Tag, X } from 'lucide-react';
-import { cn, difficultyLabels, textMatch } from '@/lib/utils';
+import { cn, textMatch } from '@/lib/utils';
+import { difficultyLabels } from '@/lib/labels';
 import type { BankQuestion } from '../api';
 import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-filters';
 

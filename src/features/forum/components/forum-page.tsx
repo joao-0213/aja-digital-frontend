@@ -9,7 +9,7 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
-import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } from '@/lib/forum-draft';
+import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } from '../lib/forum-draft';
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
 import { createForumApi, type ForumAttachmentDto, type ForumFilter, type ForumTopicFields } from '../api';

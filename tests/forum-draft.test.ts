@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { forumComposeDraftKeys, forumReplyDraftKey, readForumComposeDraft, readForumDraft, saveForumComposeDraft, saveForumDraft } from '../src/lib/forum-draft.ts';
+import { forumComposeDraftKeys, forumReplyDraftKey, readForumComposeDraft, readForumDraft, saveForumComposeDraft, saveForumDraft } from '../src/features/forum/lib/forum-draft.ts';
 
 function createMemoryDraftStorage() {
   const values = new Map<string, string>();
