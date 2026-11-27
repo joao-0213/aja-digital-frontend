@@ -22,7 +22,7 @@ import { toErrorMessage } from '@/lib/errors';
 import { collectAllPages } from '@/lib/http-pagination';
 
 export function ProfilePage() {
-  const { user, client, sessionKey, resourceEpoch } = useSession();
+  const { user, client, sessionKey } = useSession();
   const { notify } = useApp();
   const router = useRouter();
   const subjectsApi = useMemo(() => createSubjectsApi(client), [client]);
@@ -31,12 +31,12 @@ export function ProfilePage() {
   const [passwordRequested, setPasswordRequested] = useState(false);
   const [error, setError] = useState('');
   const enrollments = useHttpQuery(
-    { sessionKey, key: `profile-enrollments:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` },
+    { sessionKey, key: ['profile', 'enrollments', user?.emailConfirmedAt ?? ''] },
     useCallback((signal) => client.readEnrollments(signal), [client]),
     user?.role === 'student'
   );
   const assignedSubjects = useHttpQuery(
-    { sessionKey, key: `profile-subjects:${resourceEpoch}` },
+    { sessionKey, key: ['profile', 'subjects'] },
     useCallback(
       (signal) =>
         collectAllPages((page, pageSignal) => subjectsApi.list('', 'all', page, pageSignal), {

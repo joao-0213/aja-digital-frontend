@@ -222,7 +222,7 @@ function UserDialog({
 }
 
 export function UsersPage() {
-  const { client, sessionKey, user, resourceEpoch } = useSession();
+  const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createUsersApi(client), [client]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -232,9 +232,9 @@ export function UsersPage() {
     () => client.readDraft<Selection>('users-open') ?? null
   );
   const query = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['users', search, filter, page, resourceEpoch]) },
+    { sessionKey, key: ['users', search, filter, page] },
     useCallback((signal) => api.list(search, filter, page, signal), [api, search, filter, page]),
-    user?.role === 'admin'
+    { enabled: user?.role === 'admin', keepPreviousData: true }
   );
   if (user?.role !== 'admin')
     return (

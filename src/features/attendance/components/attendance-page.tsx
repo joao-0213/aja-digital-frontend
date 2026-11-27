@@ -37,12 +37,12 @@ function todayInBrasilia() {
 }
 
 export function AttendancePage() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const { notify } = useApp();
   const params = useSearchParams();
   const api = useMemo(() => createAttendanceApi(client), [client]);
   const subjects = useHttpQuery(
-    { sessionKey, key: `attendance-subjects:${resourceEpoch}` },
+    { sessionKey, key: ['attendance', 'subjects'] },
     useCallback((signal) => api.subjects(signal), [api]),
     user?.role !== 'student'
   );
@@ -68,7 +68,7 @@ export function AttendancePage() {
   const available = subjects.data ?? [];
   const selectedSubject = available.find((item) => item.id === subjectId);
   const recentLessons = useHttpQuery(
-    { sessionKey, key: `attendance-recent:${subjectId}:${resourceEpoch}` },
+    { sessionKey, key: ['attendance', 'recent', subjectId] },
     useCallback((signal) => api.subjectLessons(subjectId, signal), [api, subjectId]),
     user?.role !== 'student' && !!subjectId
   );

@@ -19,18 +19,18 @@ import { createStudentsApi } from '../api';
 import { createAttendanceApi } from '@/features/attendance';
 
 export function StudentDetails() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const id = useSearchParams().get('id') ?? '';
   const api = useMemo(() => createStudentsApi(client), [client]);
   const attendanceApi = useMemo(() => createAttendanceApi(client), [client]);
   const allowed = !!user && user.role !== 'student' && !!id;
   const query = useHttpQuery(
-    { sessionKey, key: `student:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['students', 'detail', id] },
     useCallback((signal) => api.read(id, signal), [api, id]),
     allowed
   );
   const attendance = useHttpQuery(
-    { sessionKey, key: `student-attendance:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['students', 'attendance', id] },
     useCallback(
       async (signal) => {
         const [history, subjects] = await Promise.all([

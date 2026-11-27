@@ -63,7 +63,7 @@ export function AnnouncementComposer({
   const [localError, setLocalError] = useState('');
   const [nowMs, setNowMs] = useState(() => Date.now());
   const options = useHttpQuery(
-    { sessionKey, key: 'announcement-options' },
+    { sessionKey, key: ['announcements', 'options'] },
     useCallback((signal) => api.options(signal), [api])
   );
   useEffect(() => {

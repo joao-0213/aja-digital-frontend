@@ -27,8 +27,9 @@ export function CalendarPage() {
   const from = dayKey(month),
     to = dayKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
   const query = useHttpQuery(
-    { sessionKey, key: `calendar:${from}:${to}` },
-    useCallback((signal) => api.range(from, to, signal), [api, from, to])
+    { sessionKey, key: ['calendar', from, to] },
+    useCallback((signal) => api.range(from, to, signal), [api, from, to]),
+    { keepPreviousData: true }
   );
   const entries = query.data ?? [];
   const selected = entries.find((item) => item.id === selectedId);

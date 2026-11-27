@@ -25,10 +25,10 @@ import { createDashboardApi, type StaffDashboardDto } from '../api';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StaffDashboard() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const api = useMemo(() => createDashboardApi(client), [client]);
   const dashboard = useHttpQuery(
-    { sessionKey, key: `dashboard:${resourceEpoch}:${user?.role ?? 'staff'}` },
+    { sessionKey, key: ['dashboard', user?.role ?? 'staff'] },
     useCallback((signal) => api.read(signal), [api]),
     user?.role !== 'student'
   );

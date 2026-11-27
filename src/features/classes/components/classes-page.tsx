@@ -230,7 +230,7 @@ function ClassDialog({
 }
 
 export function ClassesPage() {
-  const { client, sessionKey, user, resourceEpoch } = useSession();
+  const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createClassesApi(client), [client]);
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
@@ -239,12 +239,12 @@ export function ClassesPage() {
     () => client.readDraft<Selection>('classes-open') ?? null
   );
   const query = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['classes', search, inactive, page, resourceEpoch]) },
+    { sessionKey, key: ['classes', search, inactive, page] },
     useCallback(
       (signal) => api.list(search, inactive, page, signal),
       [api, search, inactive, page]
     ),
-    user?.role === 'admin'
+    { enabled: user?.role === 'admin', keepPreviousData: true }
   );
   if (user?.role !== 'admin')
     return (

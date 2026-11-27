@@ -44,14 +44,14 @@ function KindIcon({ kind }: { kind: MaterialKind }) {
 }
 
 export function MaterialLibrary() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const api = useMemo(() => createMaterialsApi(client), [client]);
   const [search, setSearch] = useState('');
   const [subjectId, setSubjectId] = useState('all');
   const [kind, setKind] = useState<'all' | MaterialKind>('all');
 
   const catalog = useHttpQuery(
-    { sessionKey, key: `materials-library:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'library'] },
     useCallback(
       async (signal) => {
         const subjects = await api.subjects(signal);
@@ -76,7 +76,7 @@ export function MaterialLibrary() {
   );
 
   const progress = useHttpQuery(
-    { sessionKey, key: `materials-library-progress:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'library-progress'] },
     useCallback((signal) => api.allProgress(undefined, signal), [api]),
     user?.role === 'student'
   );

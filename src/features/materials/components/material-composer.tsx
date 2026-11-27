@@ -491,10 +491,10 @@ export function MaterialComposer({
   onPublished?: () => void;
 }) {
   const closeRef = useRef(onClose);
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const api = useMemo(() => createMaterialsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `material-composer:${moduleId}:${materialId ?? 'new'}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'composer', moduleId, materialId ?? 'new'] },
     useCallback(
       async (signal) => {
         if (materialId) {

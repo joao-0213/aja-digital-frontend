@@ -80,17 +80,17 @@ function TeamSubmissions({ attempts }: { attempts: AttemptRead[] }) {
 }
 
 export function AnswerAssessment() {
-  const { client, sessionKey, resourceEpoch, status, user } = useSession();
+  const { client, sessionKey, status, user } = useSession();
   const params = useSearchParams();
   const id = params.get('id') ?? '';
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const assessment = useHttpQuery(
-    { sessionKey, key: `attempt-assessment:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'attempt-assessment', id] },
     useCallback((signal) => api.readForSession(id, sessionKey, signal), [api, id, sessionKey]),
     status === 'authenticated' && !!id
   );
   const attempts = useHttpQuery(
-    { sessionKey, key: `attempt-list:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'attempt-list', id] },
     useCallback(
       (signal) => api.allAttempts({ assessmentId: id }, signal, sessionKey),
       [api, id, sessionKey]

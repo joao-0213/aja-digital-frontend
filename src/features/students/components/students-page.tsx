@@ -160,7 +160,7 @@ function EnrollmentDialog({
 }
 
 export function StudentsPage() {
-  const { client, sessionKey, user, resourceEpoch } = useSession();
+  const { client, sessionKey, user } = useSession();
   const params = useSearchParams();
   const api = useMemo(() => createStudentsApi(client), [client]);
   const attendanceApi = useMemo(() => createAttendanceApi(client), [client]);
@@ -179,7 +179,7 @@ export function StudentsPage() {
   );
   const allowed = !!user && user.role !== 'student';
   const classes = useHttpQuery(
-    { sessionKey, key: `student-class-options:${resourceEpoch}` },
+    { sessionKey, key: ['students', 'class-options'] },
     useCallback((signal) => classApi.options(signal), [classApi]),
     allowed
   );
@@ -190,34 +190,27 @@ export function StudentsPage() {
   const students = useHttpQuery(
     {
       sessionKey,
-      key: JSON.stringify(['students', classId, search, history, page, resourceEpoch])
+      key: ['students', 'list', classId, search, history, page]
     },
     useCallback(
       (signal) => api.list(classId, search, history, page, signal),
       [api, classId, search, history, page]
     ),
-    allowed && !!classId
+    { enabled: allowed && !!classId, keepPreviousData: true }
   );
   const enrollments = useHttpQuery(
     {
       sessionKey,
-      key: JSON.stringify([
-        'class-enrollments',
-        classId,
-        search,
-        history,
-        enrollmentPage,
-        resourceEpoch
-      ])
+      key: ['students', 'enrollments', classId, search, history, enrollmentPage]
     },
     useCallback(
       (signal) => api.enrollments(classId, search, history, enrollmentPage, signal),
       [api, classId, search, history, enrollmentPage]
     ),
-    user?.role === 'admin' && !!classId
+    { enabled: user?.role === 'admin' && !!classId, keepPreviousData: true }
   );
   const classAttendance = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['class-attendance-summary', classId, resourceEpoch]) },
+    { sessionKey, key: ['students', 'attendance-summary', classId] },
     useCallback(
       async (signal) => {
         const subjects = await attendanceApi.subjects(signal);

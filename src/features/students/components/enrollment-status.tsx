@@ -7,9 +7,9 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 
 /** Own-account status uses the same service projection as the profile. */
 export function EnrollmentStatus() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const query = useHttpQuery(
-    { sessionKey, key: `own-enrollment:${user?.emailConfirmedAt ?? ''}:${resourceEpoch}` },
+    { sessionKey, key: ['students', 'own-enrollment', user?.emailConfirmedAt ?? ''] },
     useCallback((signal) => client.readEnrollments(signal), [client]),
     user?.role === 'student'
   );

@@ -340,7 +340,7 @@ function ActivityDetails({
 }
 
 export function AssessmentsPage() {
-  const { client, sessionKey, resourceEpoch, status, user } = useSession();
+  const { client, sessionKey, status, user } = useSession();
   const params = useSearchParams();
   const detailId = params.get('id');
   const [staffFilter, setStaffFilter] = useState<StaffFilter>('all');
@@ -348,26 +348,26 @@ export function AssessmentsPage() {
   const [subjectFilter, setSubjectFilter] = useState('all');
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['assessments', staffFilter, resourceEpoch]) },
+    { sessionKey, key: ['assessments', 'list', staffFilter] },
     useCallback(
       (signal) =>
         api.overview(staffFilter === 'all' ? {} : { status: staffFilter }, signal, sessionKey),
       [api, staffFilter, sessionKey]
     ),
-    status === 'authenticated'
+    { enabled: status === 'authenticated', keepPreviousData: true }
   );
   const detail = useHttpQuery(
-    { sessionKey, key: `assessment-detail:${detailId ?? ''}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'detail', detailId ?? ''] },
     useCallback((signal) => api.read(detailId ?? '', signal), [api, detailId]),
     status === 'authenticated' && !!detailId
   );
   const attempts = useHttpQuery(
-    { sessionKey, key: `assessment-attempts:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'attempts'] },
     useCallback((signal) => api.allAttempts({}, signal, sessionKey), [api, sessionKey]),
     status === 'authenticated'
   );
   const submissions = useHttpQuery(
-    { sessionKey, key: `assessment-submissions:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'submissions'] },
     useCallback((signal) => api.allSubmissions({}, signal, sessionKey), [api, sessionKey]),
     status === 'authenticated'
   );

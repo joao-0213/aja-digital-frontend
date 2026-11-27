@@ -17,18 +17,18 @@ import { createDashboardApi, type StudentDashboardDto } from '../api';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StudentDashboard() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const api = useMemo(() => createDashboardApi(client), [client]);
   const assessmentsApi = useMemo(() => createAssessmentsApi(client), [client]);
   const materialsApi = useMemo(() => createMaterialsApi(client), [client]);
   const isStudent = user?.role === 'student';
   const dashboard = useHttpQuery(
-    { sessionKey, key: `dashboard:${resourceEpoch}:student` },
+    { sessionKey, key: ['dashboard', 'student'] },
     useCallback((signal) => api.read(signal), [api]),
     isStudent
   );
   const attempts = useHttpQuery(
-    { sessionKey, key: `dashboard-attempts:${resourceEpoch}` },
+    { sessionKey, key: ['dashboard', 'attempts'] },
     useCallback(
       (signal) => assessmentsApi.allAttempts({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
@@ -36,7 +36,7 @@ export function StudentDashboard() {
     isStudent
   );
   const submissions = useHttpQuery(
-    { sessionKey, key: `dashboard-submissions:${resourceEpoch}` },
+    { sessionKey, key: ['dashboard', 'submissions'] },
     useCallback(
       (signal) => assessmentsApi.allSubmissions({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
@@ -47,7 +47,7 @@ export function StudentDashboard() {
     dashboard.data?.role === 'student' ? (dashboard.data as StudentDashboardDto) : undefined;
   const subjectIdsKey = (data?.subjects ?? []).map((item) => item.id).join(',');
   const subjectMaterials = useHttpQuery(
-    { sessionKey, key: `dashboard-subject-materials:${resourceEpoch}:${subjectIdsKey}` },
+    { sessionKey, key: ['dashboard', 'subject-materials', subjectIdsKey] },
     useCallback(
       async (signal) => {
         const ids = subjectIdsKey ? subjectIdsKey.split(',') : [];

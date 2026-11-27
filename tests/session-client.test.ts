@@ -306,3 +306,31 @@ test('real HTTP login, reload and logout use session endpoint and never browser 
     });
   }
 });
+
+test('same-session refresh revalidates active queries silently without clearing cache; session change clears cache', async () => {
+  let reply = session;
+  const client = createSessionClient({
+    request: async <T>(): Promise<T> => reply as T
+  });
+  await client.login(user.email, 'password');
+  const firstKey = client.getSnapshot().sessionKey;
+
+  let loadCalls = 0;
+  const unsub = client.queryCache.subscribe(firstKey, ['subjects', 'list'], () => {});
+  await client.queryCache.ensure(firstKey, ['subjects', 'list'], async () => `v${++loadCalls}`);
+  assert.equal(client.queryCache.getSnapshot(firstKey, ['subjects', 'list']).data, 'v1');
+
+  await client.refresh();
+  assert.equal(client.getSnapshot().sessionKey, firstKey);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(loadCalls, 2);
+  assert.equal(client.queryCache.getSnapshot(firstKey, ['subjects', 'list']).data, 'v2');
+
+  reply = { ...session, sessionId: 'new-session' };
+  await client.refresh();
+  const secondKey = client.getSnapshot().sessionKey;
+  assert.notEqual(secondKey, firstKey);
+  assert.equal(client.queryCache.getSnapshot(firstKey, ['subjects', 'list']).data, undefined);
+  assert.equal(client.queryCache.getSnapshot(secondKey, ['subjects', 'list']).data, undefined);
+  unsub();
+});

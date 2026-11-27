@@ -23,7 +23,7 @@ import { SubjectCard } from './subject-card';
 import { SubjectEditor, type SubjectSelection } from './subject-editor';
 
 export function SubjectsPage() {
-  const { client, user, sessionKey, resourceEpoch } = useSession();
+  const { client, user, sessionKey } = useSession();
   const params = useSearchParams();
   const requestedClass = params.get('turma') ?? 'all';
   const [filter, setFilter] = useState({ source: requestedClass, value: requestedClass });
@@ -37,11 +37,12 @@ export function SubjectsPage() {
   const api = useMemo(() => createSubjectsApi(client), [client]);
   const classApi = useMemo(() => createClassesApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['subjects', classId, search, page, resourceEpoch]) },
-    useCallback((signal) => api.list(search, classId, page, signal), [api, search, classId, page])
+    { sessionKey, key: ['subjects', 'list', classId, search, page] },
+    useCallback((signal) => api.list(search, classId, page, signal), [api, search, classId, page]),
+    { keepPreviousData: true }
   );
   const classes = useHttpQuery(
-    { sessionKey, key: `subject-class-options:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'class-options'] },
     useCallback((signal) => classApi.options(signal), [classApi])
   );
   const canAdmin = user?.role === 'admin';

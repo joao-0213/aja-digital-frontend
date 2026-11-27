@@ -21,7 +21,7 @@ export function SubjectWall({ subject }: { subject: SubjectSummary }) {
   const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createAnnouncementsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `subject-announcements:${subject.id}` },
+    { sessionKey, key: ['announcements', 'subject', subject.id] },
     useCallback((signal) => api.all({ subjectId: subject.id }, signal), [api, subject.id])
   );
   const [composing, setComposing] = useState<AnnouncementDto | 'new' | null>(null);

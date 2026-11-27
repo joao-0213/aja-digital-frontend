@@ -36,7 +36,7 @@ const fields = {
 } as const;
 
 export function QuestionBank() {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const { notify } = useApp();
   const router = useRouter(),
     params = useSearchParams();
@@ -51,7 +51,7 @@ export function QuestionBank() {
   };
   const page = Math.max(1, Number(params.get('page')) || 1),
     id = params.get('id');
-  const identity = `${sessionKey}:${resourceEpoch}:${id}`;
+  const identity = `${sessionKey}:${id}`;
   const currentIdentity = useRef(identity);
   currentIdentity.current = identity;
   const filterKey = JSON.stringify(filters);
@@ -82,14 +82,15 @@ export function QuestionBank() {
     );
   };
   const list = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['questions', filterKey, page, resourceEpoch]) },
+    { sessionKey, key: ['questions', 'list', filters, page] },
     useCallback(
       (signal) => api.list(JSON.parse(filterKey) as QuestionFilterValue, page, signal),
       [api, filterKey, page]
-    )
+    ),
+    { keepPreviousData: true }
   );
   const options = useHttpQuery(
-    { sessionKey, key: `question-options:${resourceEpoch}` },
+    { sessionKey, key: ['questions', 'options'] },
     useCallback(
       (signal) =>
         collectAllPages(
@@ -103,7 +104,7 @@ export function QuestionBank() {
     )
   );
   const detail = useHttpQuery(
-    { sessionKey, key: `question:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['questions', 'detail', id] },
     useCallback((signal) => api.read(id ?? '', signal), [api, id]),
     !!id
   );
@@ -113,13 +114,13 @@ export function QuestionBank() {
     [practiceError, setPracticeError] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const activeFilterCount = countActiveQuestionFilters(filters);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: practice state resets whenever the question, session or resource epoch changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: practice state resets whenever the question or session changes
   useEffect(() => {
     setAnswer(null);
     setResult(null);
     setPending(false);
     setPracticeError('');
-  }, [id, sessionKey, resourceEpoch]);
+  }, [id, sessionKey]);
   const practice = async () => {
     if (!id || answer === null || pending) return;
     const generation = client.getSnapshot(),
@@ -420,12 +421,12 @@ export function QuestionBank() {
 }
 
 function QuestionImage({ image }: { image: { src: string; alt: string } }) {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const match = image.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
   const fileId = match ? decodeURIComponent(match[1]) : '';
   const files = useMemo(() => createFilesApi(client), [client]);
   const imageQuery = useHttpQuery(
-    { sessionKey, key: `question-image:${fileId}:${resourceEpoch}` },
+    { sessionKey, key: ['questions', 'image', fileId] },
     useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),
     !!fileId
   );

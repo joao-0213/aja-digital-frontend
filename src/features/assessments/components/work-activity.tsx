@@ -106,12 +106,12 @@ function FeedbackPublication({
 }
 
 export function WorkActivity({ activity }: { activity: AssessmentRead }) {
-  const { client, sessionKey, resourceEpoch, status, user, sessionId } = useSession();
+  const { client, sessionKey, status, user, sessionId } = useSession();
   const params = useSearchParams();
   const selectedId = params.get('entrega');
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const submissions = useHttpQuery(
-    { sessionKey, key: `work-submissions:${activity.id}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'work-submissions', activity.id] },
     useCallback(
       (signal) => api.allSubmissions({ assessmentId: activity.id }, signal, sessionKey),
       [activity.id, api, sessionKey]
@@ -119,7 +119,7 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
     status === 'authenticated'
   );
   const roster = useHttpQuery(
-    { sessionKey, key: `work-roster:${activity.moduleId}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'work-roster', activity.moduleId] },
     useCallback(
       (signal) => api.rosterForModule(activity.moduleId, signal, sessionKey),
       [activity.moduleId, api, sessionKey]

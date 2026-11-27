@@ -1,5 +1,6 @@
 import type { User } from '@/models/user';
 import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
+import { createHttpQueryCache, type QueryKey } from '@/lib/http-query';
 
 export interface SessionState {
   status: 'loading' | 'authenticated' | 'anonymous' | 'error';
@@ -49,9 +50,12 @@ export function createSessionClient(http: Transport) {
     compositions.clear();
     compositionExtras.clear();
   };
+  const queryCache = createHttpQueryCache();
+  queryCache.setSessionKey(state.sessionKey);
   const listeners = new Set<() => void>();
   const publish = (next: Omit<SessionState, 'resourceEpoch'> & { resourceEpoch?: number }) => {
     state = { ...next, resourceEpoch: next.resourceEpoch ?? state.resourceEpoch };
+    queryCache.setSessionKey(state.sessionKey);
     listeners.forEach((listener) => listener());
   };
   const begin = (status: SessionState['status']) => {
@@ -116,6 +120,7 @@ export function createSessionClient(http: Transport) {
         previous.user.role === session.user.role &&
         previous.expiresAt === session.expiresAt;
       save(session, current, sameSession ? previous.sessionKey : undefined);
+      if (sameSession) void queryCache.revalidateActiveQueries();
     } catch (error: unknown) {
       if (current !== version) return;
       sessionId = undefined;
@@ -261,10 +266,14 @@ export function createSessionClient(http: Transport) {
           enrolledAt: string | null;
         }[];
       }>('/me/enrollments', { signal }),
+    queryCache,
+    invalidateQueries: (prefix?: QueryKey) => queryCache.invalidateQueries(prefix),
+    revalidateQueries: () => queryCache.revalidateActiveQueries(),
     dispose: () => {
       version++;
       pending?.abort();
       discardDraft();
+      queryCache.clear();
       listeners.clear();
     }
   };

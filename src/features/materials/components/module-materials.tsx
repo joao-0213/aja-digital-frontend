@@ -25,14 +25,14 @@ export function ModuleMaterials({
   editing: boolean;
   onChanged?: () => void;
 }) {
-  const { client, sessionKey, resourceEpoch, user } = useSession();
+  const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createMaterialsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `module-materials:${module.id}:${resourceEpoch}:${module.revision ?? 1}` },
+    { sessionKey, key: ['materials', 'module', module.id, module.revision ?? 1] },
     useCallback((signal) => api.all({ moduleId: module.id }, signal), [api, module.id])
   );
   const progress = useHttpQuery(
-    { sessionKey, key: `module-progress:${module.subjectId}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'module-progress', module.subjectId] },
     useCallback((signal) => api.allProgress(module.subjectId, signal), [api, module.subjectId])
   );
   const [composer, setComposer] = useState(

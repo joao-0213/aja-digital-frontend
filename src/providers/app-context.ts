@@ -14,7 +14,7 @@ export function useSession() {
   const client = useContext(SessionContext);
   if (!client) throw new Error('Providers missing');
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
-  return { ...state, client };
+  return { ...state, client, invalidateQueries: client.invalidateQueries };
 }
 
 export function useApp() {

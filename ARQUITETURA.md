@@ -27,7 +27,7 @@ Rotas importam entradas públicas de features. Dentro de uma feature, imports s�
 
 `src/providers/session-client.ts` mantém a identidade consultada à API apenas em memória. O cookie HttpOnly é a credencial; IDs públicos de sessão servem apenas para invalidar consultas e rascunhos. `useSession()` expõe sessão e operações HTTP. `useApp()` contém somente `notify`, usado para mensagens transitórias de interface.
 
-O cliente não importa seed, banco institucional completo, transporte mock, callbacks genéricos de mutação, coordenadores Web Locks ou repositório de anexos IndexedDB. As mensagens de erro e sucesso de uma ação dependem da resposta do serviço. Consultas com `useHttpQuery` são canceláveis e identificadas pela sessão e pelos filtros necessários.
+O cliente não importa seed, banco institucional completo, transporte mock, callbacks genéricos de mutação, coordenadores Web Locks ou repositório de anexos IndexedDB. As mensagens de erro e sucesso de uma ação dependem da resposta do serviço. Consultas com `useHttpQuery` (`src/hooks/use-http-query.ts` + `HttpQueryCache` em `src/lib/http-query.ts`) usam chaves estruturadas canônicas escopadas em memória ao `sessionKey`: deduplicam montagens simultâneas, revalidam silenciosamente em retorno de foco sem piscar a tela (`revalidating`) e suportam invalidação declarativa por prefixo (`invalidateQueries`) após mutações, descartando todo o cache e abortando requisições em voo imediatamente quando a sessão muda.
 
 ## Dados e armazenamento
 

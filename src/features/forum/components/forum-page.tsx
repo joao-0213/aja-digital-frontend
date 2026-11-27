@@ -53,7 +53,7 @@ function ForumPageContent() {
   const params = useSearchParams();
   const api = useMemo(() => createForumApi(client), [client]);
   const options = useHttpQuery(
-    { sessionKey, key: 'forum-options' },
+    { sessionKey, key: ['forum', 'options'] },
     useCallback((signal) => api.options(signal), [api]),
     !!user
   );
@@ -102,9 +102,9 @@ function ForumPageContent() {
     [classId, subjectId, search, filter]
   );
   const topics = useHttpQuery(
-    { sessionKey, key: `forum:${JSON.stringify(filters)}` },
+    { sessionKey, key: ['forum', 'topics', filters] },
     useCallback((signal) => api.all(filters, signal), [api, filters]),
-    !!user
+    { enabled: !!user, keepPreviousData: true }
   );
   const activeSubjects = useMemo(
     () =>
@@ -270,7 +270,7 @@ function ForumPageContent() {
       setLegacyAttachment(undefined);
       setPendingCreate(undefined);
       setDraftKey('');
-      topics.invalidate();
+      void client.invalidateQueries(['forum']);
     } catch (cause) {
       if (
         cause instanceof HttpError &&

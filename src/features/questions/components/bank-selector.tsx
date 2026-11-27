@@ -18,16 +18,17 @@ export function BankSelector({
   disabled: boolean;
   onSelect: (question: BankQuestion) => void;
 }) {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const api = useMemo(() => createQuestionsApi(client), [client]);
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1);
   const query = useHttpQuery(
-    { sessionKey, key: JSON.stringify(['bank-selector', search, page, resourceEpoch]) },
+    { sessionKey, key: ['questions', 'selector', search, page] },
     useCallback(
       (signal) => api.list({ ...emptyQuestionFilters, search }, page, signal),
       [api, search, page]
-    )
+    ),
+    { keepPreviousData: true }
   );
   return (
     <div className="space-y-4">

@@ -150,17 +150,17 @@ function ResultContent({ result, isStudent }: { result: AttemptResult; isStudent
 }
 
 export function AssessmentResult() {
-  const { client, sessionKey, resourceEpoch, status, user } = useSession();
+  const { client, sessionKey, status, user } = useSession();
   const id = useSearchParams().get('id') ?? '';
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const direct = useHttpQuery(
-    { sessionKey, key: `attempt-result:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'attempt-result', id] },
     useCallback((signal) => api.readAttemptResult(id, signal, sessionKey), [api, id, sessionKey]),
     status === 'authenticated' && !!id
   );
   const notFound = direct.error instanceof HttpError && direct.error.kind === 'not-found';
   const choices = useHttpQuery(
-    { sessionKey, key: `attempt-result-list:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'attempt-result-list', id] },
     useCallback(
       (signal) => api.allAttempts({ assessmentId: id }, signal, sessionKey),
       [api, id, sessionKey]

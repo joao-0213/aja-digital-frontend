@@ -26,12 +26,12 @@ import { MaterialLibrary } from './material-library';
 import { toErrorMessage } from '@/lib/errors';
 
 function ReaderContent({ id }: { id: string }) {
-  const { client, sessionKey, resourceEpoch, user } = useSession();
+  const { client, sessionKey, user } = useSession();
   const { notify } = useApp();
   const isStudent = user?.role === 'student';
   const api = useMemo(() => createMaterialsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `material:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'detail', id] },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!id
   );
@@ -39,17 +39,17 @@ function ReaderContent({ id }: { id: string }) {
   const subjectId = detail?.subject.id ?? '';
   const fileId = detail?.material.fileId ?? '';
   const navigation = useHttpQuery(
-    { sessionKey, key: `material-navigation:${subjectId}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'navigation', subjectId] },
     useCallback((signal) => api.all({ subjectId }, signal), [api, subjectId]),
     !!subjectId
   );
   const outline = useHttpQuery(
-    { sessionKey, key: `material-outline:${subjectId}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'outline', subjectId] },
     useCallback((signal) => api.outline(subjectId, signal), [api, subjectId]),
     !!subjectId
   );
   const progress = useHttpQuery(
-    { sessionKey, key: `material-progress:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'progress', id] },
     useCallback(
       async (signal) => {
         if (
@@ -67,7 +67,7 @@ function ReaderContent({ id }: { id: string }) {
     !!detail && isStudent
   );
   const binary = useHttpQuery(
-    { sessionKey, key: `material-file:${fileId}:${resourceEpoch}` },
+    { sessionKey, key: ['materials', 'file', fileId] },
     useCallback((signal) => api.files.download(fileId, 'inline', signal), [api, fileId]),
     !!fileId
   );

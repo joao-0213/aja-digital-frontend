@@ -30,7 +30,7 @@ export function SubjectEditor({
   close: () => void;
   saved: () => void;
 }) {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const { notify } = useApp();
   const api = useMemo(() => createSubjectsApi(client), [client]);
   const classApi = useMemo(() => createClassesApi(client), [client]);
@@ -50,11 +50,11 @@ export function SubjectEditor({
   );
   const [confirmMode, setConfirmMode] = useState<'close' | 'remove-teachers' | null>(null);
   const classes = useHttpQuery(
-    { sessionKey, key: `subject-editor-classes:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'editor-classes'] },
     useCallback((signal) => classApi.options(signal), [classApi])
   );
   const teachers = useHttpQuery(
-    { sessionKey, key: `subject-editor-teachers:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'editor-teachers'] },
     useCallback((signal) => api.teachers(signal), [api])
   );
   const options = teachingTeamOptions(teachers.data ?? [], state.fields.teacherIds).map((option) =>

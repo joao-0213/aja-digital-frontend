@@ -93,7 +93,7 @@ function defaultDeadline() {
 }
 
 function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string } | null }) {
-  const { client, sessionKey, resourceEpoch } = useSession();
+  const { client, sessionKey } = useSession();
   const match = image?.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
   let fileId = '';
   try {
@@ -103,7 +103,7 @@ function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string
   }
   const files = useMemo(() => createFilesApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `assessment-question-image:${fileId}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'question-image', fileId] },
     useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),
     !!fileId
   );
@@ -1233,12 +1233,12 @@ function AssessmentEditor({
 
 export function AssessmentBuilder() {
   const params = useSearchParams();
-  const { client, sessionKey, resourceEpoch, status, user } = useSession();
+  const { client, sessionKey, status, user } = useSession();
   const id = params.get('id') ?? undefined;
   const requestedModule = params.get('modulo') ?? '';
   const api = useMemo(() => createAssessmentsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `assessment-builder:${id ?? 'new'}:${requestedModule}:${resourceEpoch}` },
+    { sessionKey, key: ['assessments', 'builder', id ?? 'new', requestedModule] },
     useCallback((signal) => api.builder(id, signal, sessionKey), [api, id, sessionKey]),
     status === 'authenticated' && user?.role !== 'student'
   );

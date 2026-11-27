@@ -27,15 +27,16 @@ export function AnnouncementsPage() {
   const [withdrawing, setWithdrawing] = useState<AnnouncementDto | null>(null);
   const [actionError, setActionError] = useState('');
   const options = useHttpQuery(
-    { sessionKey, key: 'announcement-options' },
+    { sessionKey, key: ['announcements', 'options'] },
     useCallback((signal) => api.options(signal), [api])
   );
   const notices = useHttpQuery(
-    { sessionKey, key: `announcements:${filter}` },
+    { sessionKey, key: ['announcements', 'list', filter] },
     useCallback(
       (signal) => api.all(filter === 'all' ? {} : { classId: filter }, signal),
       [api, filter]
-    )
+    ),
+    { keepPreviousData: true }
   );
   const canManage = (item: AnnouncementDto) =>
     user?.role === 'admin' ||
@@ -161,7 +162,9 @@ export function AnnouncementsPage() {
           item={composing === 'new' ? undefined : composing}
           onClose={() => {
             setComposing(null);
-            notices.invalidate();
+            void client.invalidateQueries(['announcements']);
+            void client.invalidateQueries(['calendar']);
+            void client.invalidateQueries(['dashboard']);
           }}
         />
       )}
@@ -169,7 +172,11 @@ export function AnnouncementsPage() {
         item={withdrawing}
         onClose={() => setWithdrawing(null)}
         onWithdraw={(item) => api.withdraw(item.id, item.revision)}
-        onWithdrawn={() => notices.invalidate()}
+        onWithdrawn={() => {
+          void client.invalidateQueries(['announcements']);
+          void client.invalidateQueries(['calendar']);
+          void client.invalidateQueries(['dashboard']);
+        }}
         onError={setActionError}
       />
     </>

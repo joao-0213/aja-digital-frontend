@@ -27,7 +27,7 @@ function ForumThreadContent() {
   const id = useSearchParams().get('id') ?? '';
   const api = useMemo(() => createForumApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `forum-topic:${id}` },
+    { sessionKey, key: ['forum', 'topic', id] },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!user && !!id
   );
@@ -43,7 +43,7 @@ function ForumThreadContent() {
     { kind: 'topic' } | { kind: 'reply'; replyId: string } | null
   >(null);
   const options = useHttpQuery(
-    { sessionKey, key: 'forum-options' },
+    { sessionKey, key: ['forum', 'options'] },
     useCallback((signal) => api.options(signal), [api]),
     !!user
   );
@@ -90,18 +90,18 @@ function ForumThreadContent() {
   // Read markers are server-owned and are set once for each unread topic.
   const hasTopic = !!topic;
   const topicRead = topic?.read;
-  const { invalidate, loading: queryLoading } = query;
+  const { loading: queryLoading } = query;
   useEffect(() => {
     if (hasTopic && !topicRead && !queryLoading)
       void api
         .markRead(id)
         .then(() => {
-          invalidate();
+          void client.invalidateQueries(['forum']);
         })
         .catch((cause) =>
           setError(toErrorMessage(cause, 'Não foi possível marcar a conversa como lida.'))
         );
-  }, [api, id, hasTopic, topicRead, queryLoading, invalidate]);
+  }, [api, client, id, hasTopic, topicRead, queryLoading]);
 
   const updateTopic = async (action: () => Promise<unknown>, clearReply = false) => {
     if (busy) return;
@@ -114,7 +114,7 @@ function ForumThreadContent() {
         setPendingReply(undefined);
         if (draftKey) sessionStorage.removeItem(draftKey);
       }
-      query.invalidate();
+      void client.invalidateQueries(['forum']);
     } catch (cause) {
       if (
         clearReply &&

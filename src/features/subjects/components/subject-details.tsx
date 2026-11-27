@@ -32,22 +32,22 @@ import { subjectCovers } from './subject-colors';
 import { toErrorMessage } from '@/lib/errors';
 
 function SubjectContent({ id, materialsView }: { id: string; materialsView: boolean }) {
-  const { client, sessionKey, resourceEpoch, user } = useSession();
+  const { client, sessionKey, user } = useSession();
   const api = useMemo(() => createSubjectsApi(client), [client]);
   const query = useHttpQuery(
-    { sessionKey, key: `subject:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'detail', id] },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!id
   );
   const materialsApi = useMemo(() => createMaterialsApi(client), [client]);
   const subjectMaterials = useHttpQuery(
-    { sessionKey, key: `subject-materials:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'materials', id] },
     useCallback((signal) => materialsApi.all({ subjectId: id }, signal), [materialsApi, id]),
     !!id && materialsView
   );
   const assessmentsApi = useMemo(() => createAssessmentsApi(client), [client]);
   const activities = useHttpQuery(
-    { sessionKey, key: `subject-assessments:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'assessments', id] },
     useCallback(
       (signal) => assessmentsApi.all({ subjectId: id }, signal, sessionKey),
       [assessmentsApi, id, sessionKey]
@@ -55,7 +55,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
     !!id && materialsView
   );
   const attempts = useHttpQuery(
-    { sessionKey, key: `subject-attempts:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'attempts', id] },
     useCallback(
       (signal) => assessmentsApi.allAttempts({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
@@ -63,7 +63,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
     !!id && materialsView
   );
   const submissions = useHttpQuery(
-    { sessionKey, key: `subject-submissions:${id}:${resourceEpoch}` },
+    { sessionKey, key: ['subjects', 'submissions', id] },
     useCallback(
       (signal) => assessmentsApi.allSubmissions({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
