@@ -1,5 +1,5 @@
 import { Atom, BookOpen, Calculator, FlaskConical, Globe, GraduationCap, Landmark, Languages, Leaf, Palette } from 'lucide-react';
-import { type Subject, type SubjectIcon } from '@/models';
+import type { Subject, SubjectIcon } from '@/models';
 
 export const subjectIcons = [
   { value: 'book', label: 'Livro', Icon: BookOpen },

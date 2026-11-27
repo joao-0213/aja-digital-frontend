@@ -8,6 +8,7 @@ import { Logo } from '@/components/shared/logo';
 import { Button, Input, Skeleton } from '@/components/ui';
 import { useSession } from '@/providers/app-context';
 import { PrivacyNotice } from '@/features/privacy';
+import { toErrorMessage } from '@/lib/errors';
 
 type Mode = 'login' | 'register' | 'recover';
 
@@ -43,14 +44,14 @@ function AuthForm({ mode, token }: { mode: Mode; token: string | null }) {
         setMessage('Conta criada. Confira seu e-mail para confirmar a conta e continuar.');
       }
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível concluir. Tente novamente.');
+      setError(toErrorMessage(cause, 'Não foi possível concluir. Tente novamente.'));
     } finally { setBusy(false); }
   };
   const requestConfirmation = async () => {
     if (busy) return;
     setBusy(true); setError('');
     try { setMessage((await client.requestConfirmation(email)).message); }
-    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível solicitar a confirmação.'); }
+    catch (cause: unknown) { setError(toErrorMessage(cause, 'Não foi possível solicitar a confirmação.')); }
     finally { setBusy(false); }
   };
   return <div className="min-h-dvh bg-slate-50"><main className="flex min-h-dvh flex-col justify-center px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-md">

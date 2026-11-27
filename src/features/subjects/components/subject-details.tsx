@@ -21,6 +21,7 @@ import { AssessmentSummaries, createAssessmentsApi } from '@/features/assessment
 import { SubjectWall } from './subject-wall';
 import { resolveSubjectIcon } from './subject-icons';
 import { subjectCovers } from './subject-colors';
+import { toErrorMessage } from '@/lib/errors';
 
 function SubjectContent({ id, materialsView }: { id: string; materialsView: boolean }) {
   const { client, sessionKey, resourceEpoch, user } = useSession();
@@ -52,7 +53,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
   const close = () => { client.clearDraft(`module-open:${id}`, sessionKey); setSelection(null); };
   const inspectOrder = async () => {
     try { setLatestOrder(await api.read(id)); }
-    catch (cause: unknown) { setReorderError(cause instanceof Error ? cause.message : 'Não foi possível consultar a ordem atual.'); }
+    catch (cause: unknown) { setReorderError(toErrorMessage(cause, 'Não foi possível consultar a ordem atual.')); }
   };
   const move = async (moduleId: string, direction: -1 | 1) => {
     if (reorderBusy || reorderConflict || !canEdit) return;
@@ -64,7 +65,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
       // The command response may be paged; only the full detail can replace this set.
       await query.invalidate();
     } catch (cause: unknown) {
-      setReorderError(cause instanceof Error ? cause.message : 'Não foi possível alterar a ordem. O conjunto anterior foi mantido.');
+      setReorderError(toErrorMessage(cause, 'Não foi possível alterar a ordem. O conjunto anterior foi mantido.'));
       if (cause instanceof HttpError && cause.kind === 'conflict') { setReorderConflict(true); await inspectOrder(); }
     } finally { setReorderBusy(false); }
   };

@@ -1,6 +1,6 @@
-import { formatScore } from '../../../lib/utils.ts';
-import { sortByDeadlineAsc } from '../../../lib/academic-format.ts';
-import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api.ts';
+import { formatScore } from '@/lib/utils';
+import { sortByDeadlineAsc } from '@/lib/academic-format';
+import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
 
 export type StudentActivityGroupKey = 'pending' | 'awaiting_feedback' | 'completed' | 'readonly';
 

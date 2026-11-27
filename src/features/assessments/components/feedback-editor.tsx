@@ -8,6 +8,7 @@ import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { brazilDateTimeLabel } from '@/lib/utils';
 import { createAssessmentsApi, type AssessmentRead, type SubmissionStaff, type WorkFeedback } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 function feedbackMatches(value: SubmissionStaff['feedbackDraft'], comment: string, grade: number | null) {
   return value?.comment === comment.trim() && value.grade === grade;
@@ -107,7 +108,7 @@ export function FeedbackEditor({ activity, submission: initialSubmission, onPubl
         onPublished?.();
       }
     } catch (cause: unknown) {
-      if (current()) setError(cause instanceof Error ? cause.message : 'Não foi possível salvar o retorno.');
+      if (current()) setError(toErrorMessage(cause, 'Não foi possível salvar o retorno.'));
     } finally { if (current()) setBusy(false); }
   };
 

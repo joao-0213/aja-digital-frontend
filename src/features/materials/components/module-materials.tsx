@@ -12,6 +12,7 @@ import { HttpError } from '@/lib/http-client';
 import type { TrailModule } from '@/models';
 import { createMaterialsApi, type MaterialDto } from '../api';
 import { MaterialComposer } from './material-composer';
+import { toErrorMessage } from '@/lib/errors';
 
 export function ModuleMaterials({ module, canEdit, editing, onChanged }: { module: TrailModule; canEdit: boolean; editing: boolean; onChanged?: () => void }) {
   const { client, sessionKey, resourceEpoch, user } = useSession();
@@ -33,7 +34,7 @@ export function ModuleMaterials({ module, canEdit, editing, onChanged }: { modul
       if (client.getSnapshot().sessionKey !== sessionKey) return;
       const rows = await api.all({ moduleId: module.id });
       if (client.getSnapshot().sessionKey === sessionKey) setLatest({ module: current.module, items: rows });
-    } catch (cause: unknown) { if (client.getSnapshot().sessionKey === sessionKey) setError(cause instanceof Error ? cause.message : 'Não foi possível consultar a ordem atual.'); }
+    } catch (cause: unknown) { if (client.getSnapshot().sessionKey === sessionKey) setError(toErrorMessage(cause, 'Não foi possível consultar a ordem atual.')); }
   };
   const moveUp = async (index: number) => {
     if (!index || busy || conflict || client.getSnapshot().sessionKey !== sessionKey) return;
@@ -46,7 +47,7 @@ export function ModuleMaterials({ module, canEdit, editing, onChanged }: { modul
       onChanged?.(); await query.invalidate();
     } catch (cause: unknown) {
       if (client.getSnapshot().sessionKey !== sessionKey) return;
-      setError(cause instanceof Error ? cause.message : 'Não foi possível ordenar. O conjunto anterior foi mantido.');
+      setError(toErrorMessage(cause, 'Não foi possível ordenar. O conjunto anterior foi mantido.'));
       if (cause instanceof HttpError && cause.kind === 'conflict') { setConflict(true); await inspect(); }
     } finally { setBusy(false); }
   };

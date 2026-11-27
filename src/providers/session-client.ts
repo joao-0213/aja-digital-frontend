@@ -1,5 +1,5 @@
-import type { User } from '../models/user.ts';
-import { HttpError, type HttpRequestOptions } from '../lib/http-client.ts';
+import type { User } from '@/models/user';
+import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
 
 export interface SessionState {
   status: 'loading' | 'authenticated' | 'anonymous' | 'error';

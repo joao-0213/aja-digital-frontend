@@ -1,4 +1,4 @@
-import type { SessionClient } from '../../providers/session-client.ts';
+import type { SessionClient } from '@/providers/session-client';
 
 export interface AttendanceSubject {
   id: string;

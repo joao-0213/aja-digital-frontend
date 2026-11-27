@@ -21,7 +21,8 @@ test('Node test runner resolves @/ alias without explicit .ts extension and disc
   assert.deepEqual(discovered, sorted);
   assert.ok(discovered.includes('tests/static-export-and-runner.test.ts'));
   assert.ok(discovered.includes('tests/client-boundary.test.mjs'));
-  assert.equal(discovered.length, 53);
+  assert.ok(discovered.includes('tests/errors.test.ts'));
+  assert.equal(discovered.length, 54);
 });
 
 test('route-matrix.md defines the exact 22 product routes', () => {

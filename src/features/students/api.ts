@@ -1,6 +1,6 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { Enrollment } from '../../models/enrollment.ts';
-import type { User } from '../../models/user.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { Enrollment } from '@/models/enrollment';
+import type { User } from '@/models/user';
 
 export interface EnrollmentDto extends Enrollment { className?: string | null }
 export interface StudentDto { id: string; name: string; email: string; active: boolean; enrollment: EnrollmentDto | null; attendance?: { present: number; total: number } }

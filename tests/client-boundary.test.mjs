@@ -119,7 +119,8 @@ test('architecture check enforces feature public entries across static, reexport
     'src/features/beta/bad-import-type.ts': "export type Leak = import('../alpha/api').PrivateAlpha;\n"
   });
 
-  const { errors } = checkArchitecture(root);
+  const { errors: allErrors } = checkArchitecture(root);
+  const errors = allErrors.filter(error => error.includes('use a entrada pública'));
   assert.equal(errors.length, 4);
   assert.ok(errors.some(error => error.includes('src/features/beta/bad-relative.ts') && error.includes('use a entrada pública de alpha')));
   assert.ok(errors.some(error => error.includes('src/features/beta/bad-reexport.ts') && error.includes('use a entrada pública de alpha')));
@@ -209,4 +210,26 @@ test('shared ts-local-references reader classifies reference natures and resolve
     { specifier: '@/components/ui/card', found: true, syntax: 'dynamic-import', typeOnly: false, staticValue: false, dynamic: true, sideEffect: false },
     { specifier: '@/components/ui/card', found: true, syntax: 'import-type', typeOnly: true, staticValue: false, dynamic: false, sideEffect: false }
   ]);
+});
+
+test('architecture check requires @/ across layers and extensionless imports, except modules loaded by the Node server', async t => {
+  const root = await createTempWorkspace(t, {
+    'server/service.mjs': "import { rule } from '../src/lib/rule.ts';\nexport const run = () => rule();\n",
+    'src/lib/rule.ts': "import { helper } from './helper.ts';\nexport const rule = () => helper();\n",
+    'src/lib/helper.ts': 'export const helper = () => 1;\n',
+    'src/lib/ok.ts': "import { helper } from './helper';\nexport const ok = helper;\n",
+    'src/models/shape.ts': 'export interface Shape { id: string }\n',
+    'src/features/alpha/index.ts': "export { run } from './lib/run';\n",
+    'src/features/alpha/lib/run.ts': "import { helper } from '@/lib/helper';\nimport type { Shape } from '@/models/shape';\nexport const run = (shape?: Shape) => [helper(), shape];\n",
+    'src/features/alpha/lib/bad-cross.ts': "import { helper } from '../../../lib/helper';\nexport const bad = helper;\n",
+    'src/features/alpha/lib/bad-extension.ts': "import { run } from './run.ts';\nexport const bad = run;\n",
+    'src/features/alpha/lib/bad-alias-extension.ts': "import { helper } from '@/lib/helper.ts';\nexport const bad = helper;\n"
+  });
+
+  const { errors } = checkArchitecture(root);
+  assert.equal(errors.length, 3, errors.join('\n'));
+  assert.ok(errors.some(error => error.includes('bad-cross.ts') && error.includes('use o alias @/')));
+  assert.ok(errors.some(error => error.includes('bad-extension.ts') && error.includes('remova a extens')));
+  assert.ok(errors.some(error => error.includes('bad-alias-extension.ts') && error.includes('remova a extens')));
+  assert.ok(!errors.some(error => error.includes('src/lib/rule.ts') || error.includes('src/lib/ok.ts')));
 });

@@ -11,6 +11,7 @@ import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type AssessmentRead, type AttemptRead, type AttemptStudent } from '../api';
 import { QuizSession } from './quiz-session';
 import { WorkActivity } from './work-activity';
+import { toErrorMessage } from '@/lib/errors';
 
 function isStaffAssessment(assessment: AssessmentRead): assessment is Extract<AssessmentRead, { questionIds: string[] }> {
   return 'questionIds' in assessment;
@@ -84,7 +85,7 @@ export function AnswerAssessment() {
       if (latest.status === 'authenticated' && latest.sessionKey === requestSession && currentSessionKey.current === requestSession) setStarted(attempt);
     } catch (cause: unknown) {
       const latest = client.getSnapshot();
-      if (latest.status === 'authenticated' && latest.sessionKey === requestSession && currentSessionKey.current === requestSession) setStartError(cause instanceof Error ? cause.message : 'Não foi possível iniciar o questionário.');
+      if (latest.status === 'authenticated' && latest.sessionKey === requestSession && currentSessionKey.current === requestSession) setStartError(toErrorMessage(cause, 'Não foi possível iniciar o questionário.'));
     } finally {
       if (currentSessionKey.current === requestSession) setStartBusy(false);
     }

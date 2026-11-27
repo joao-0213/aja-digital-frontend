@@ -1,6 +1,6 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { Subject, TrailModule } from '../../models/academic.ts';
-import type { User } from '../../models/user.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { Subject, TrailModule } from '@/models/academic';
+import type { User } from '@/models/user';
 
 export interface SubjectSummary extends Subject {
   className: string;

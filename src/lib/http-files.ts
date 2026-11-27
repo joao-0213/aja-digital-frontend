@@ -1,4 +1,4 @@
-import type { HttpRequestOptions } from './http-client.ts';
+import type { HttpRequestOptions } from './http-client';
 
 export interface HttpFile {
   id: string; name: string; size: number; mime: string;

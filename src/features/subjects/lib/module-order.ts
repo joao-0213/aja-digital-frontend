@@ -1,4 +1,4 @@
-import type { ModuleOrderCommand } from '../api.ts';
+import type { ModuleOrderCommand } from '../api';
 
 /** Reorder the complete server snapshot, never an arbitrarily paged subset. */
 export function moduleOrderCommand(subjectRevision: number, modules: readonly { id: string; revision?: number }[], movingId: string, direction: -1 | 1): ModuleOrderCommand | null {

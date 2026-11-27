@@ -1,6 +1,6 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { Difficulty } from '../../models/questions.ts';
-import type { QuestionFilterValue } from './lib/question-filters.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { Difficulty } from '@/models/questions';
+import type { QuestionFilterValue } from './lib/question-filters';
 
 export interface BankQuestion { id: string; subject: string; topic: string; difficulty: Difficulty; institution: string; year: number; statement: string; options: string[]; image?: { src: string; alt: string } }
 export interface QuestionPage { items: BankQuestion[]; page: number; pageSize: number; total: number }

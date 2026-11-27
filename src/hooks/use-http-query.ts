@@ -8,6 +8,7 @@ export function useHttpQuery<T>(identity: HttpQueryIdentity, load: HttpQueryLoad
   const { sessionKey, key } = identity;
   // A new controller hides the previous account/filter snapshot in this render,
   // before effect cleanup can abort the old request.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new controller per session/key hides the previous snapshot in this render
   const query = useMemo(() => createHttpQuery<T>(), [sessionKey, key]);
   const state = useSyncExternalStore(query.subscribe, query.getSnapshot, query.getSnapshot);
   useEffect(() => {

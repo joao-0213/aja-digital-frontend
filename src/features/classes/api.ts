@@ -1,5 +1,5 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { SchoolClass } from '../../models/academic.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { SchoolClass } from '@/models/academic';
 
 export interface ClassPageDto { items: SchoolClass[]; page: number; pageSize: number; total: number }
 export type ClassFields = Pick<SchoolClass, 'name' | 'code' | 'year' | 'shift'>;

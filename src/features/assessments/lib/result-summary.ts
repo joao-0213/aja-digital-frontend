@@ -1,5 +1,5 @@
-import { percent } from '../../../lib/utils.ts';
-import type { AttemptResult } from '../api.ts';
+import { percent } from '@/lib/utils';
+import type { AttemptResult } from '../api';
 
 export interface QuizResultSummary {
   percentage: number;

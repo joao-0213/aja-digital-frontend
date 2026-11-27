@@ -1,5 +1,5 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { User, Role } from '../../models/user.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { User, Role } from '@/models/user';
 
 export interface UsersPageDto { items: User[]; page: number; pageSize: number; total: number }
 export type UserFields = { name: string; email: string };

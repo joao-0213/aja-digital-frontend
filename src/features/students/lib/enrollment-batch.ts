@@ -1,6 +1,7 @@
-import type { EnrollmentDto, EnrollmentPreview } from '../api.ts';
-import { normalizeEmail, validEmail } from '../../../lib/enrollment.ts';
-import { HttpError } from '../../../lib/http-client.ts';
+import type { EnrollmentDto, EnrollmentPreview } from '../api';
+import { normalizeEmail, validEmail } from '@/lib/enrollment';
+import { HttpError } from '@/lib/http-client';
+import { toErrorMessage } from '@/lib/errors';
 
 export const MAX_EMAIL_LENGTH = 254;
 export const DEFAULT_PREVIEW_CONCURRENCY = 2;
@@ -197,7 +198,7 @@ function isSessionError(error: unknown): boolean {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
+  return toErrorMessage(error, fallback);
 }
 
 function replaceItem(

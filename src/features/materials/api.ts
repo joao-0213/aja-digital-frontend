@@ -1,9 +1,9 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import { createFilesApi, type HttpFile } from '../../lib/http-files.ts';
+import type { SessionClient } from '@/providers/session-client';
+import { createFilesApi, type HttpFile } from '@/lib/http-files';
 import type { SubjectSummary, SubjectDetail } from '@/features/subjects';
-import type { TrailModule } from '../../models/academic.ts';
-import type { MaterialKind } from '../../models/materials.ts';
-import { HttpError } from '../../lib/http-client.ts';
+import type { TrailModule } from '@/models/academic';
+import type { MaterialKind } from '@/models/materials';
+import { HttpError } from '@/lib/http-client';
 
 export interface MaterialDto {
   id: string; revision: number; moduleId: string; title: string; kind: MaterialKind;

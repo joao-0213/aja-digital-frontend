@@ -15,6 +15,7 @@ import { createMaterialsApi } from '../api';
 import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
 import { MaterialLibrary } from './material-library';
+import { toErrorMessage } from '@/lib/errors';
 
 function ReaderContent({ id }: { id: string }) {
   const { client, sessionKey, resourceEpoch, user } = useSession();
@@ -62,7 +63,7 @@ function ReaderContent({ id }: { id: string }) {
       if (client.getSnapshot().sessionKey !== sessionKey) return;
       notify('Material marcado como concluído.');
       await progress.invalidate();
-    } catch (cause: unknown) { if (client.getSnapshot().sessionKey === sessionKey) setError(cause instanceof Error ? cause.message : 'Não foi possível concluir. Tente novamente.'); }
+    } catch (cause: unknown) { if (client.getSnapshot().sessionKey === sessionKey) setError(toErrorMessage(cause, 'Não foi possível concluir. Tente novamente.')); }
     finally { setCompleting(false); }
   };
   const downloadText = () => {

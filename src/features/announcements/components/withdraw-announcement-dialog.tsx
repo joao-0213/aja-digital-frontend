@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button, Dialog } from '@/components/ui';
 import type { AnnouncementDto } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 function truncateTitle(title: string, maxLength = 80) {
   return title.length > maxLength ? `${title.slice(0, maxLength).trimEnd()}…` : title;
@@ -32,7 +33,7 @@ export function WithdrawAnnouncementDialog({
       onError('');
       onClose();
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Não foi possível retirar o aviso.');
+      onError(toErrorMessage(error, 'Não foi possível retirar o aviso.'));
       onClose();
     } finally {
       setBusy(false);

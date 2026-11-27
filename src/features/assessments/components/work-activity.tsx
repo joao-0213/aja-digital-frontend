@@ -17,6 +17,7 @@ import { resolveWorkUploadBatch, type WorkUploadIntent } from '../lib/work-uploa
 import { ActivityConditions } from './activity-conditions';
 import { WorkAttachments } from './work-attachments';
 import { FeedbackEditor } from './feedback-editor';
+import { toErrorMessage } from '@/lib/errors';
 
 type LocalAttachment = SubmissionAttachment;
 type LocalRecovery = { revision: number; attachments: LocalAttachment[]; uploads: Record<string, WorkUploadIntent>; submit?: { revision: number; key: string } | null };
@@ -161,15 +162,16 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
   useUnsavedChanges((isDirty || !!link.trim()) && !isSubmitted);
 
   const current = () => status === 'authenticated' && client.getSnapshot().status === 'authenticated' && client.getSnapshot().sessionKey === sessionKey;
-  const persistRecovery = (nextItems = items, nextUploads = uploads, revision = submission?.revision ?? 0) => {
+  const submissionRevision = submission?.revision ?? 0;
+  const persistRecovery = useCallback((nextItems = items, nextUploads = uploads, revision = submissionRevision) => {
     try {
       const storageKey = `${ownerKey}:revision:${revision}`;
       recoveryKey.current = storageKey;
       window.sessionStorage.setItem(storageKey, JSON.stringify({ revision, attachments: nextItems, uploads: nextUploads, submit: submitIntent.current } satisfies LocalRecovery));
       window.sessionStorage.setItem(ownerKey, storageKey);
     } catch { /* O servidor continua sendo a fonte do rascunho. */ }
-  };
-  useEffect(() => { if (!isSubmitted) persistRecovery(); }, [items, uploads, submission?.revision, isSubmitted]);
+  }, [items, uploads, submissionRevision, ownerKey]);
+  useEffect(() => { if (!isSubmitted) persistRecovery(); }, [isSubmitted, persistRecovery]);
 
   const addFiles = async (selected: File[]) => {
     setError('');
@@ -189,7 +191,7 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
         nextUploads[id] = { key, name: file.name, size: file.size, type: file.type, digest };
       }
       setItems(nextItems); setFiles(nextFiles); setUploads(nextUploads); persistRecovery(nextItems, nextUploads);
-    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Confira os arquivos selecionados.'); }
+    } catch (cause: unknown) { setError(toErrorMessage(cause, 'Confira os arquivos selecionados.')); }
   };
 
   const addLink = () => {
@@ -199,7 +201,7 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
       if (items.length >= 5) throw new Error('Adicione até 5 arquivos e links no total.');
       const next = [...items, { kind: 'link' as const, name: 'Link do trabalho', url: parsed.href }];
       setItems(next); setLink(''); persistRecovery(next, uploads);
-    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Informe um link válido.'); }
+    } catch (cause: unknown) { setError(toErrorMessage(cause, 'Informe um link válido.')); }
   };
 
   const remove = (id: string) => {
@@ -292,7 +294,7 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
     } catch (cause: unknown) {
       if (!current()) return null;
       if (!submission && prepareCommand.current) ambiguousPrepare.current = true;
-      setError(cause instanceof Error ? cause.message : 'Não foi possível salvar o rascunho. O conteúdo local foi preservado.');
+      setError(toErrorMessage(cause, 'Não foi possível salvar o rascunho. O conteúdo local foi preservado.'));
       return null;
     } finally { if (current()) setBusy(false); }
   };
@@ -306,7 +308,7 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
         patchCommand.current = null;
         setError('Rascunho confirmado no servidor.');
       } else if (latest && !latest.submittedAt) setError('A versão do servidor foi carregada. Confira a revisão para preservar sua edição local.');
-    } catch (cause: unknown) { if (current()) setError(cause instanceof Error ? cause.message : 'Não foi possível consultar a revisão atual.'); }
+    } catch (cause: unknown) { if (current()) setError(toErrorMessage(cause, 'Não foi possível consultar a revisão atual.')); }
     finally { if (current()) setBusy(false); }
   };
 
@@ -334,8 +336,8 @@ function WorkStudent({ activity, initialSubmission, userId, sessionId }: { activ
           if (!current()) return;
           if (latest.submittedAt) { submissionId.current = latest.id; setSubmission(latest); setItems(latest.attachments); submitIntent.current = null; }
           else { setConflict(latest); setError('Outra sessão alterou o rascunho. Confira a versão atual antes de criar um novo envio.'); }
-        } catch (readCause: unknown) { if (current()) setError(readCause instanceof Error ? readCause.message : 'Não foi possível consultar o estado do envio.'); }
-      } else setError(cause instanceof Error ? cause.message : 'Não foi possível confirmar a entrega. Tente novamente o mesmo envio.');
+        } catch (readCause: unknown) { if (current()) setError(toErrorMessage(readCause, 'Não foi possível consultar o estado do envio.')); }
+      } else setError(toErrorMessage(cause, 'Não foi possível confirmar a entrega. Tente novamente o mesmo envio.'));
     } finally { if (current()) setBusy(false); }
   };
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/providers/app-context';
 import { createFilesApi } from '@/lib/http-files';
+import { isCancelledError, toErrorMessage } from '@/lib/errors';
 
 export function AttemptImage({ image }: { image: { src: string; alt: string } }) {
   const { client, sessionKey, resourceEpoch, status } = useSession();
@@ -12,6 +13,7 @@ export function AttemptImage({ image }: { image: { src: string; alt: string } })
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resourceEpoch and retry are intentional triggers to reload the authenticated image
   useEffect(() => {
     if (!fileId) {
       setSource(image.src);
@@ -37,7 +39,7 @@ export function AttemptImage({ image }: { image: { src: string; alt: string } })
       objectUrl = URL.createObjectURL(blob);
       setSource(objectUrl);
     }).catch(cause => {
-      if (current()) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar a imagem.');
+      if (current() && !isCancelledError(cause)) setError(toErrorMessage(cause, 'Não foi possível carregar a imagem.'));
     });
     return () => {
       active = false;

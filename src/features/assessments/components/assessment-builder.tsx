@@ -15,6 +15,7 @@ import { HttpError } from '@/lib/http-client';
 import { createFilesApi } from '@/lib/http-files';
 import { createAssessmentsApi, type AssessmentCreate, type AssessmentFields, type AssessmentQuestionEntry, type AssessmentRead, type AssessmentSnapshot, type AssessmentStaff } from '../api';
 import { fromBrazilDateTimeLocal, isDeadlineInPast, minBrazilDateTimeLocal, needsAssessmentStructureRecovery, restoreAssessmentStructure, toBrazilDateTimeLocal } from '../lib/assessment-editor';
+import { toErrorMessage } from '@/lib/errors';
 
 type AuthoredEntry = Extract<AssessmentQuestionEntry, { source: 'authored' }>;
 type DialogState = 'bank' | 'author' | 'review' | 'reset' | 'leave' | null;
@@ -186,7 +187,7 @@ function AssessmentEditor({
       if (!isStaffAssessment(latest)) throw new HttpError('forbidden', 'A atividade não está disponível para edição.');
       setLatestRecord(latest);
     } catch (cause: unknown) {
-      setLatestError(cause instanceof Error ? cause.message : 'Não foi possível consultar a estrutura atual.');
+      setLatestError(toErrorMessage(cause, 'Não foi possível consultar a estrutura atual.'));
     } finally { setLatestLoading(false); }
   };
   const adoptCurrent = async () => {
@@ -420,7 +421,7 @@ export function AssessmentBuilder() {
   const id = params.get('id') ?? undefined;
   const requestedModule = params.get('modulo') ?? '';
   const api = useMemo(() => createAssessmentsApi(client), [client]);
-  const query = useHttpQuery({ sessionKey, key: `assessment-builder:${id ?? 'new'}:${requestedModule}:${resourceEpoch}` }, useCallback(signal => api.builder(id, signal, sessionKey), [api, id, requestedModule, sessionKey]), status === 'authenticated' && user?.role !== 'student');
+  const query = useHttpQuery({ sessionKey, key: `assessment-builder:${id ?? 'new'}:${requestedModule}:${resourceEpoch}` }, useCallback(signal => api.builder(id, signal, sessionKey), [api, id, sessionKey]), status === 'authenticated' && user?.role !== 'student');
   if (status === 'loading') return <Skeleton />;
   if (status !== 'authenticated' || !user) return <Empty title="Entre para preparar atividades" description="A autoria de atividades está disponível para a equipe docente." />;
   if (user.role === 'student') return <Empty title="Criação de atividades" description="Esta área está disponível para a equipe autorizada." action={<LinkButton href="/questionarios">Ver atividades</LinkButton>} />;

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { buttonStyles } from './button-styles';

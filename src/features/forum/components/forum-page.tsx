@@ -13,6 +13,7 @@ import { forumComposeDraftKeys, readForumComposeDraft, saveForumComposeDraft } f
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
 import { createForumApi, type ForumAttachmentDto, type ForumFilter, type ForumTopicFields } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 type LegacyForumAttachment = { id: string; name: string; mime: string; size: number };
 type ComposeDraft = { title: string; body: string; tags: string; reference: string; targetSubject?: string; subjectId?: string; attachment?: ForumAttachmentDto | LegacyForumAttachment; legacyAttachment?: LegacyForumAttachment; pendingCreate?: { key: string; fields: ForumTopicFields } };
@@ -52,13 +53,13 @@ function ForumPageContent() {
   const context = materialId ? `material:${materialId}` : questionId ? `question:${questionId}` : 'new';
   const composeKeys = user ? forumComposeDraftKeys(user.id, materialId, questionId) : undefined;
   const composeKey = composeKeys?.current ?? '';
-  const filters: ForumFilter = { ...(classId !== 'all' ? { classId } : {}), ...(subjectId !== 'all' ? { subjectId } : {}), ...(search.trim() ? { q: search.trim() } : {}), ...(filter === 'unread' ? { unread: true } : {}), ...(filter === 'solved' ? { solved: true } : {}), sort: '-createdAt' };
-  const topics = useHttpQuery({ sessionKey, key: `forum:${JSON.stringify(filters)}` }, useCallback(signal => api.all(filters, signal), [api, JSON.stringify(filters)]), !!user);
-  const activeSubjects = (options.data?.subjects ?? []).filter(item => options.data?.classes.some(row => row.id === item.classId && row.active));
+  const filters = useMemo<ForumFilter>(() => ({ ...(classId !== 'all' ? { classId } : {}), ...(subjectId !== 'all' ? { subjectId } : {}), ...(search.trim() ? { q: search.trim() } : {}), ...(filter === 'unread' ? { unread: true } : {}), ...(filter === 'solved' ? { solved: true } : {}), sort: '-createdAt' }), [classId, subjectId, search, filter]);
+  const topics = useHttpQuery({ sessionKey, key: `forum:${JSON.stringify(filters)}` }, useCallback(signal => api.all(filters, signal), [api, filters]), !!user);
+  const activeSubjects = useMemo(() => (options.data?.subjects ?? []).filter(item => options.data?.classes.some(row => row.id === item.classId && row.active)), [options.data]);
   const activeClasses = options.data?.classes ?? [];
   const visibleSubjects = options.data?.subjects ?? [];
   const canPublish = !!user && activeSubjects.some(item => classId === 'all' || item.classId === classId);
-  const composition = () => ({ title, body, tags, reference, targetSubject, ...(attachment ? { attachment } : legacyAttachment ? { attachment: legacyAttachment } : {}) });
+  const composition = useCallback(() => ({ title, body, tags, reference, targetSubject, ...(attachment ? { attachment } : legacyAttachment ? { attachment: legacyAttachment } : {}) }), [title, body, tags, reference, targetSubject, attachment, legacyAttachment]);
 
   useEffect(() => {
     if (!targetSubject && activeSubjects[0]) setTargetSubject(activeSubjects[0].id);
@@ -81,12 +82,12 @@ function ForumPageContent() {
       }
     }
     setDraftKey(composeKey);
-  }, [api, composeKey, draftKey]);
+  }, [api, composeKey, draftKey, targetSubject]);
   useEffect(() => {
     if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
     const failure = saveForumComposeDraft({ setItem: (key, value) => window.sessionStorage.setItem(key, value) }, composeKey, { ...composition(), pendingCreate });
     setDraftError(failure ?? '');
-  }, [composeKey, draftKey, title, body, tags, reference, targetSubject, attachment, legacyAttachment, pendingCreate]);
+  }, [composeKey, draftKey, composition, pendingCreate]);
 
   const chooseFile = async (file?: File) => {
     if (!file || !targetSubject) return;
@@ -94,14 +95,14 @@ function ForumPageContent() {
     try {
       if (file.size < 1 || file.size > 5 * 1024 * 1024 || !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('Escolha um PDF, PNG, JPEG ou WebP de até 5 MB.');
       setAttachment(await api.upload(targetSubject, file, crypto.randomUUID())); setLegacyAttachment(undefined);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível enviar o anexo.'); }
+    } catch (cause) { setError(toErrorMessage(cause, 'Não foi possível enviar o anexo.')); }
     finally { setBusy(false); }
   };
   const removeFile = async () => {
     if (!attachment || busy) return;
     setBusy(true);
     try { await api.discardFile(attachment.id); setAttachment(undefined); setFileInputVersion(current => current + 1); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível remover o anexo.'); }
+    catch (cause) { setError(toErrorMessage(cause, 'Não foi possível remover o anexo.')); }
     finally { setBusy(false); }
   };
   const publish = async (event: FormEvent) => {
@@ -121,7 +122,7 @@ function ForumPageContent() {
       setOpen(false); setTitle(''); setBody(''); setTags(''); setReference(''); setAttachment(undefined); setLegacyAttachment(undefined); setPendingCreate(undefined); setDraftKey(''); topics.invalidate();
     } catch (cause) {
       if (cause instanceof HttpError && ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)) setPendingCreate(undefined);
-      setError(cause instanceof Error ? cause.message : 'Não foi possível publicar a pergunta. Tente novamente para conferir o resultado.');
+      setError(toErrorMessage(cause, 'Não foi possível publicar a pergunta. Tente novamente para conferir o resultado.'));
     }
     finally { setBusy(false); }
   };

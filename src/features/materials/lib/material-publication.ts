@@ -1,7 +1,7 @@
-import { HttpError } from '../../../lib/http-client.ts';
-import type { HttpFile } from '../../../lib/http-files.ts';
-import { videoSource } from '../../../lib/material-video.ts';
-import type { MaterialBatch } from '../api.ts';
+import { HttpError } from '@/lib/http-client';
+import type { HttpFile } from '@/lib/http-files';
+import { videoSource } from '@/lib/material-video';
+import type { MaterialBatch } from '../api';
 
 export interface PublicationInput {
   moduleId: string; kind: 'lesson' | 'pdf' | 'video'; title: string;

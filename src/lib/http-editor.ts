@@ -1,4 +1,5 @@
-import { HttpError } from './http-client.ts';
+import { HttpError } from './http-client';
+import { toErrorMessage } from './errors';
 
 export interface RevisionRecord { id: string; revision?: number }
 export interface HttpEditorState<F, R> {
@@ -15,7 +16,7 @@ export function createHttpEditor<F, R extends RevisionRecord = RevisionRecord>(f
     try { publish({ ...state, latest: await load() }); }
     catch (error: unknown) {
       const blocked = error instanceof HttpError && ['session', 'forbidden', 'not-found'].includes(error.kind);
-      publish({ ...state, blocked, latest: null, error: error instanceof Error ? error.message : 'Não foi possível consultar a versão atual.' });
+      publish({ ...state, blocked, latest: null, error: toErrorMessage(error, 'Não foi possível consultar a versão atual.') });
     }
   }
   return {
@@ -35,7 +36,7 @@ export function createHttpEditor<F, R extends RevisionRecord = RevisionRecord>(f
         return true;
       } catch (error: unknown) {
         const denied = error instanceof HttpError && (['session', 'forbidden', 'not-found'].includes(error.kind) || error.code === 'IDEMPOTENCY_CONFLICT');
-        publish({ ...state, busy: false, blocked: denied, error: error instanceof Error ? error.message : 'Não foi possível salvar. Seu preenchimento foi mantido.' });
+        publish({ ...state, busy: false, blocked: denied, error: toErrorMessage(error, 'Não foi possível salvar. Seu preenchimento foi mantido.') });
         const currentRevision = error instanceof HttpError && typeof error.details === 'object' && error.details !== null && 'currentRevision' in error.details ? error.details.currentRevision : undefined;
         if (load && error instanceof HttpError && error.kind === 'conflict' && state.expectedRevision > 0 && (!error.code || error.code === 'REVISION_CONFLICT' && typeof currentRevision === 'number')) {
           publish({ ...state, conflicted: true });

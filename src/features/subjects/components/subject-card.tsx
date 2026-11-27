@@ -6,7 +6,7 @@ import { Badge, Button } from '@/components/ui';
 import { cn, countLabel, percent } from '@/lib/utils';
 import { resolveSubjectIcon } from './subject-icons';
 import { subjectCovers } from './subject-colors';
-import { type Subject } from '@/models';
+import type { Subject } from '@/models';
 import type { SubjectSummary } from '../api';
 
 export function SubjectCard({ subject, className, archived = false, progress, onEdit }: {

@@ -14,6 +14,7 @@ import { createQuestionsApi, type BankQuestion, type PracticeResult } from '../a
 import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-filters';
 import { countActiveQuestionFilters, QuestionFilters } from './question-filters';
 import { QuestionPicker } from './question-picker';
+import { toErrorMessage } from '@/lib/errors';
 
 const fields = { search: 'busca', subject: 'subject', topic: 'topic', difficulty: 'difficulty', institution: 'institution', year: 'year' } as const;
 
@@ -59,6 +60,7 @@ export function QuestionBank() {
   const [answer, setAnswer] = useState<number | null>(null), [result, setResult] = useState<PracticeResult | null>(null), [pending, setPending] = useState(false), [practiceError, setPracticeError] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const activeFilterCount = countActiveQuestionFilters(filters);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: practice state resets whenever the question, session or resource epoch changes
   useEffect(() => { setAnswer(null); setResult(null); setPending(false); setPracticeError(''); }, [id, sessionKey, resourceEpoch]);
   const practice = async () => {
     if (!id || answer === null || pending) return;
@@ -66,7 +68,7 @@ export function QuestionBank() {
     try {
       const value = await api.practice(id, answer);
       if (currentIdentity.current === startedIdentity && client.getSnapshot().sessionKey === generation.sessionKey && client.getSnapshot().resourceEpoch === generation.resourceEpoch) setResult(value);
-    } catch (error) { if (currentIdentity.current === startedIdentity && client.getSnapshot().sessionKey === generation.sessionKey && client.getSnapshot().resourceEpoch === generation.resourceEpoch) setPracticeError(error instanceof Error ? error.message : 'Não foi possível conferir a resolução.'); }
+    } catch (error) { if (currentIdentity.current === startedIdentity && client.getSnapshot().sessionKey === generation.sessionKey && client.getSnapshot().resourceEpoch === generation.resourceEpoch) setPracticeError(toErrorMessage(error, 'Não foi possível conferir a resolução.')); }
     finally { if (currentIdentity.current === startedIdentity && client.getSnapshot().sessionKey === generation.sessionKey && client.getSnapshot().resourceEpoch === generation.resourceEpoch) setPending(false); }
   };
   const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 5));

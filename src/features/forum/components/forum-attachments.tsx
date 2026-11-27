@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Dialog } from '@/components/ui';
 import type { ForumAttachmentDto } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 const safePreview = /^(application\/pdf|image\/(png|jpeg|webp))$/;
 
@@ -17,7 +18,7 @@ export function ForumAttachments({ item, readContent, onRemove }: { item: ForumA
       const url = URL.createObjectURL(new Blob([blob], { type: inline ? item.mime : 'application/octet-stream' }));
       if (inline && safePreview.test(item.mime)) setPreview({ url, image: item.mime.startsWith('image/') });
       else { const anchor = document.createElement('a'); anchor.href = url; anchor.download = item.name; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o anexo.'); }
+    } catch (cause) { setError(toErrorMessage(cause, 'Não foi possível abrir o anexo.')); }
   };
   return <>
     <div className="mt-4 rounded-lg border border-slate-200 p-4 text-sm">

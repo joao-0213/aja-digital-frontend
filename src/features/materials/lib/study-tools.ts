@@ -1,4 +1,4 @@
-import { HttpError } from '../../../lib/http-client.ts';
+import { HttpError } from '@/lib/http-client';
 
 export interface StudyTool {
   name: string; description: string; inputSchema: object;

@@ -15,6 +15,27 @@ export function checkArchitecture(root = defaultRoot) {
   const graph = new Map(files.map(file => [file, []]));
   const errors = [];
   const domain = file => relative(file).match(/^src\/features\/([^/]+)\//)?.[1];
+  const scopeOf = rel => rel.match(/^src\/features\/[^/]+/)?.[0]
+    ?? rel.match(/^src\/components\/[^/]+/)?.[0]
+    ?? rel.match(/^src\/[^/]+/)?.[0];
+
+  // Módulos de src/ importados pelo servidor Node (sem resolução de `@/`) mantêm imports relativos com extensão.
+  const nodeRuntime = new Set();
+  const serverDir = path.join(resolvedRoot, 'server');
+  const pending = [];
+  for (const serverFile of fs.existsSync(serverDir) ? walkSourceFiles(serverDir) : []) {
+    for (const ref of collectLocalReferences(resolvedRoot, serverFile)) {
+      if (ref.target && ref.target.startsWith(srcDir) && !ref.typeOnly) pending.push(ref.target);
+    }
+  }
+  while (pending.length) {
+    const file = pending.pop();
+    if (nodeRuntime.has(file) || !graph.has(file)) continue;
+    nodeRuntime.add(file);
+    for (const ref of collectLocalReferences(resolvedRoot, file)) {
+      if (ref.target && ref.target.startsWith(srcDir) && !ref.typeOnly) pending.push(ref.target);
+    }
+  }
 
   for (const file of files) {
     const source = relative(file);
@@ -35,6 +56,13 @@ export function checkArchitecture(root = defaultRoot) {
       const destination = relative(target);
       if (!destination.startsWith('src/')) {
         errors.push(`${source}: módulos em src/ não podem importar fora de src/ (${specifier}).`);
+      } else if (!nodeRuntime.has(file)) {
+        if (specifier.startsWith('.') && scopeOf(source) !== scopeOf(destination)) {
+          errors.push(`${source}: use o alias @/ para atravessar camadas (${specifier}).`);
+        }
+        if (/\.(tsx?|[cm]?js)$/.test(specifier)) {
+          errors.push(`${source}: remova a extensão explícita do import (${specifier}).`);
+        }
       }
       if (!source.startsWith('src/app/') && destination.startsWith('src/app/')) {
         errors.push(`${source}: módulos reutilizáveis não podem importar rotas (${specifier}).`);

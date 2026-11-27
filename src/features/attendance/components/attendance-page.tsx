@@ -11,6 +11,7 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { HttpError } from '@/lib/http-client';
 import { compareAttendanceRecords } from '../lib/attendance-comparison';
 import { createAttendanceApi, type AttendanceLesson, type AttendanceRoster } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 function todayInBrasilia() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -93,7 +94,7 @@ export function AttendancePage() {
       setLoaded(true);
     } catch (cause: unknown) {
       if (version !== requestVersion.current || selectionRef.current !== requestedSelection) return;
-      setError(cause instanceof Error ? cause.message : 'Não foi possível consultar a chamada.');
+      setError(toErrorMessage(cause, 'Não foi possível consultar a chamada.'));
       setLoaded(false);
     } finally { if (version === requestVersion.current) setLoading(false); }
   };

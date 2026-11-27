@@ -10,6 +10,7 @@ import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, createAttemptSubmitCommand, type AttemptStudent } from '../api';
 import { AttemptImage } from './attempt-image';
+import { toErrorMessage } from '@/lib/errors';
 
 type Answers = Record<string, number | null>;
 type SaveStatus = 'saved' | 'saving' | 'error' | 'conflict';
@@ -124,12 +125,12 @@ export function QuizSession({
           } catch (readCause: unknown) {
             if (currentSession(client, sessionKey)) {
               setSaveStatus('error');
-              setSaveError(readCause instanceof Error ? readCause.message : 'Não foi possível consultar a versão salva.');
+              setSaveError(toErrorMessage(readCause, 'Não foi possível consultar a versão salva.'));
             }
           }
         } else if (!(cause instanceof HttpError && cause.kind === 'cancelled') && currentSession(client, sessionKey)) {
           setSaveStatus('error');
-          setSaveError(cause instanceof Error ? cause.message : 'Não foi possível salvar as respostas.');
+          setSaveError(toErrorMessage(cause, 'Não foi possível salvar as respostas.'));
         }
         throw cause;
       }
@@ -166,7 +167,7 @@ export function QuizSession({
     catch { /* The local map and recovery key stay available for another explicit retry. */ }
   };
 
-  const useLocalAfterReview = async () => {
+  const applyLocalAfterReview = async () => {
     if (!conflict) return;
     if (conflict.questionsUpdatedAt !== attempt.questionsUpdatedAt || conflict.questionOrder.join('\u0000') !== attempt.questionOrder.join('\u0000')) {
       setReloadPrompt('As questões desta tentativa mudaram. As respostas locais antigas serão preservadas na chave anterior e não serão aplicadas à nova ordem. Recarregar a revisão atual?');
@@ -231,7 +232,7 @@ export function QuizSession({
     setSubmitError('');
     try { await inspectSubmissionState(); }
     catch (cause: unknown) {
-      if (currentSession(client, sessionKey)) setSubmitError(cause instanceof Error ? cause.message : 'Não foi possível consultar o estado atual da tentativa.');
+      if (currentSession(client, sessionKey)) setSubmitError(toErrorMessage(cause, 'Não foi possível consultar o estado atual da tentativa.'));
     } finally {
       submitBusyRef.current = false;
       if (currentSession(client, sessionKey)) setSubmitBusy(false);
@@ -263,11 +264,11 @@ export function QuizSession({
         setSubmitError('A tentativa foi alterada em outra sessão. Confira o estado mais recente antes de criar um novo envio.');
         try { await inspectSubmissionState(); }
         catch (readCause: unknown) {
-          if (currentSession(client, sessionKey)) setSubmitError(readCause instanceof Error ? readCause.message : 'Não foi possível consultar o estado atual da tentativa.');
+          if (currentSession(client, sessionKey)) setSubmitError(toErrorMessage(readCause, 'Não foi possível consultar o estado atual da tentativa.'));
         }
         return;
       }
-      if (currentSession(client, sessionKey)) setSubmitError(cause instanceof Error ? cause.message : 'Não foi possível confirmar o envio. Suas respostas foram preservadas.');
+      if (currentSession(client, sessionKey)) setSubmitError(toErrorMessage(cause, 'Não foi possível confirmar o envio. Suas respostas foram preservadas.'));
     } finally {
       submitBusyRef.current = false;
       if (currentSession(client, sessionKey)) setSubmitBusy(false);
@@ -290,7 +291,7 @@ export function QuizSession({
       <ol className="my-3 list-decimal space-y-1 pl-5">{conflict.questionOrder.map((id, position) => <li key={id}>Questão {position + 1}: {displayChoice(conflict, id, conflict.answers[id])}</li>)}</ol>
       {snapshotChanged ? <Button variant="secondary" onClick={discardLocalAfterReview}>Conferi a nova revisão; recarregar questões atuais</Button> : <div className="flex flex-wrap gap-3">
         <Button variant="secondary" onClick={discardLocalAfterReview}>Descartar minha edição e carregar respostas salvas</Button>
-        <Button onClick={() => void useLocalAfterReview()}>Conferi as salvas; usar minhas respostas</Button>
+        <Button onClick={() => void applyLocalAfterReview()}>Conferi as salvas; usar minhas respostas</Button>
       </div>}
     </section>}
     <div className="mb-3 flex justify-between text-sm text-slate-500"><span>Questão {index + 1} de {attempt.questionOrder.length}</span><span>{countLabel(answeredCount, 'respondida', 'respondidas')}</span></div>

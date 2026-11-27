@@ -26,6 +26,7 @@ export function Input({
   const isFile = type === 'file';
   const hasSearchValue = isSearch && typeof props.value === 'string' && props.value.length > 0;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the value prop is an intentional trigger to re-run validation after controlled updates
   useEffect(() => {
     if (!validationError) return;
     if (inputRef.current?.validity.valid) setValidationError('');

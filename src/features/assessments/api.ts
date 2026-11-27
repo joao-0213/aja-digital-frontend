@@ -1,7 +1,7 @@
-import type { SessionClient } from '../../providers/session-client.ts';
-import type { Question } from '../../models/questions.ts';
-import type { Subject, TrailModule } from '../../models/academic.ts';
-import { HttpError, type HttpRequestOptions } from '../../lib/http-client.ts';
+import type { SessionClient } from '@/providers/session-client';
+import type { Question } from '@/models/questions';
+import type { Subject, TrailModule } from '@/models/academic';
+import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
 
 export interface AssessmentSnapshot extends Omit<Question, 'image'> {
   origin: 'bank' | 'author';

@@ -1,5 +1,5 @@
 import type { ForumTopic, MockDatabase, User } from '@/models';
-import { canAccessSubject } from './access.ts';
+import { canAccessSubject } from './access';
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const deny = () => { throw new Error('Sem permissão para alterar esta conversa. Confira seu vínculo e sua atribuição.'); };

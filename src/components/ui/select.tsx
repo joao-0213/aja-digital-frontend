@@ -187,6 +187,7 @@ export function Select({
     };
   }, [open, showSearch, updatePosition, closeMenu]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: currentValue is an intentional trigger to re-sync the active option after selection
   useEffect(() => {
     if (!validationError) return;
     if (nativeRef.current?.validity.valid) setValidationError('');

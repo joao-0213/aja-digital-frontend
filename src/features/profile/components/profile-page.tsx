@@ -9,6 +9,7 @@ import { roleLabels } from '@/lib/labels';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
 import { createSubjectsApi } from '@/features/subjects';
+import { toErrorMessage } from '@/lib/errors';
 
 export function ProfilePage() {
   const { user, client, sessionKey, resourceEpoch } = useSession();
@@ -34,7 +35,7 @@ export function ProfilePage() {
     if (exiting) return;
     setExiting(true);
     try { await client.logout(); router.replace('/login'); }
-    catch (cause: unknown) { notify(cause instanceof Error ? cause.message : 'Não foi possível encerrar a sessão. Tente novamente.', true); }
+    catch (cause: unknown) { notify(toErrorMessage(cause, 'Não foi possível encerrar a sessão. Tente novamente.'), true); }
     finally { setExiting(false); }
   };
 
@@ -42,7 +43,7 @@ export function ProfilePage() {
     if (busy) return;
     setBusy(true); setError('');
     try { notify((await client.requestConfirmation(user.email)).message); }
-    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Não foi possível solicitar a confirmação.'); }
+    catch (cause: unknown) { setError(toErrorMessage(cause, 'Não foi possível solicitar a confirmação.')); }
     finally { setBusy(false); }
   };
 
@@ -54,7 +55,7 @@ export function ProfilePage() {
       setPasswordRequested(true);
       notify(response.message);
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível enviar o link para alterar a senha.');
+      setError(toErrorMessage(cause, 'Não foi possível enviar o link para alterar a senha.'));
     } finally {
       setBusy(false);
     }

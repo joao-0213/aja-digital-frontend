@@ -14,6 +14,7 @@ import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '../lib/forum
 import { RichText } from '@/components/ui/rich-text';
 import { createForumApi } from '../api';
 import { ForumAttachments } from './forum-attachments';
+import { toErrorMessage } from '@/lib/errors';
 
 export function ForumThread() {
   const { user } = useSession();
@@ -56,9 +57,12 @@ function ForumThreadContent() {
     if (loadedKey === draftKey && draftKey) setDraftError(saveForumDraft({ setItem: (key, value) => sessionStorage.setItem(key, value) }, draftKey, JSON.stringify({ body, pendingReply })) ?? '');
   }, [body, draftKey, loadedKey, pendingReply]);
   // Read markers are server-owned and are set once for each unread topic.
+  const hasTopic = !!topic;
+  const topicRead = topic?.read;
+  const { invalidate, loading: queryLoading } = query;
   useEffect(() => {
-    if (topic && !topic.read && !query.loading) void api.markRead(id).then(() => { query.invalidate(); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Não foi possível marcar a conversa como lida.'));
-  }, [api, id, topic?.read, query.loading]);
+    if (hasTopic && !topicRead && !queryLoading) void api.markRead(id).then(() => { invalidate(); }).catch(cause => setError(toErrorMessage(cause, 'Não foi possível marcar a conversa como lida.')));
+  }, [api, id, hasTopic, topicRead, queryLoading, invalidate]);
 
   const updateTopic = async (action: () => Promise<unknown>, clearReply = false) => {
     if (busy) return;
@@ -66,7 +70,7 @@ function ForumThreadContent() {
     try { await action(); if (clearReply) { setBody(''); setPendingReply(undefined); if (draftKey) sessionStorage.removeItem(draftKey); } query.invalidate(); }
     catch (cause) {
       if (clearReply && cause instanceof HttpError && ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)) setPendingReply(undefined);
-      setError(cause instanceof Error ? cause.message : 'Não foi possível salvar a alteração. Tente novamente para conferir o resultado.');
+      setError(toErrorMessage(cause, 'Não foi possível salvar a alteração. Tente novamente para conferir o resultado.'));
     }
     finally { setBusy(false); }
   };

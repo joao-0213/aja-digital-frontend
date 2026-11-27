@@ -22,6 +22,7 @@ export function Textarea({
   const [validationError, setValidationError] = useState('');
   const displayedError = error || validationError;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the value prop is an intentional trigger to re-run validation after controlled updates
   useEffect(() => {
     if (!validationError) return;
     if (textareaRef.current?.validity.valid) setValidationError('');

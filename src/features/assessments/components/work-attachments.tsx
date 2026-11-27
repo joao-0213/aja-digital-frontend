@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Dialog } from '@/components/ui';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
 import { createAssessmentsApi, type SubmissionAttachment } from '../api';
+import { toErrorMessage } from '@/lib/errors';
 
 const SAFE_PREVIEW = /^(application\/pdf|image\/(png|jpeg|webp))$/;
 
@@ -19,10 +20,10 @@ export function WorkAttachments({ items, files, onRemove }: {
   const [error, setError] = useState('');
   const [remotePreviewTypes, setRemotePreviewTypes] = useState<Record<string, { sessionKey: string; mime: string }>>({});
   const remoteFileIds = items.filter((item): item is Extract<SubmissionAttachment, { kind: 'file' }> => item.kind === 'file' && !files?.[item.fileId]).map(item => item.fileId).join('\u001f');
-  const sessionCurrent = () => {
+  const sessionCurrent = useCallback(() => {
     const snapshot = client.getSnapshot();
     return status === 'authenticated' && snapshot.status === 'authenticated' && snapshot.sessionKey === sessionKey;
-  };
+  }, [client, sessionKey, status]);
   useEffect(() => {
     let active = true;
     if (status !== 'authenticated') {
@@ -42,7 +43,7 @@ export function WorkAttachments({ items, files, onRemove }: {
       setRemotePreviewTypes(current => ({ ...current, ...Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null)) }));
     });
     return () => { active = false; };
-  }, [api, client, remoteFileIds, sessionKey, status]);
+  }, [api, remoteFileIds, sessionCurrent, sessionKey, status]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
 
   const open = async (item: Extract<SubmissionAttachment, { kind: 'file' }>, inline: boolean) => {
@@ -66,7 +67,7 @@ export function WorkAttachments({ items, files, onRemove }: {
         window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       } else setPreview({ url: objectUrl, name: item.name, image: mime.startsWith('image/') });
     } catch (cause: unknown) {
-      if (sessionCurrent()) setError(cause instanceof HttpError && cause.kind === 'not-found' ? 'Arquivo indisponível nesta sessão. O registro do anexo permanece preservado.' : cause instanceof Error ? cause.message : 'Não foi possível abrir o anexo.');
+      if (sessionCurrent()) setError(cause instanceof HttpError && cause.kind === 'not-found' ? 'Arquivo indisponível nesta sessão. O registro do anexo permanece preservado.' : toErrorMessage(cause, 'Não foi possível abrir o anexo.'));
     }
   };
 
