@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-AJA Digital is a Portuguese-language educational platform built with Next.js 16 App Router, React 19, strict TypeScript, and Tailwind CSS 4. The frontend is a static export and uses a separate JSON Server under `/api/v1` for institutional data.
+AJA Digital is a Portuguese-language educational platform built with Next.js 16 App Router, React 19, strict TypeScript, and Tailwind CSS 4. The frontend is a static export and uses the backend HTTP gateway at `http://127.0.0.1:3002/api/v1` by default for institutional data (with an isolated local JSON Server mock on port `3102` via `npm run dev:mock` / `npm run api`).
 
 - `src/app/`: route entry points, global styles, layouts, and loading/error states.
 - `src/features/<domain>/`: domain modules, with screens in `components/`, domain hooks in `hooks/`, and an explicit public entry in `index.ts`.
@@ -17,7 +17,7 @@ Shared API models are grouped by domain in `src/models/`; `index.ts` exposes exp
 
 Read `ARQUITETURA.md` for the domain map and dependency rules before changing structure. Routes compose public feature entries. Inside a feature, use direct internal imports; across features, use `@/features/<domain>` rather than private files. UI elements never import features, application state, routes, or server data. Keep generic UI imports within `ui/` direct to avoid barrel cycles. Features use `useApp` from `@/providers/app-context` only for interface notifications and `useSession` for authenticated session/client access; only the root layout composes `Providers`.
 
-Preserve query-string routes, Suspense boundaries, and existing local browser data. The current frontend must not read, migrate, overwrite, delete, or upload legacy identity, database, draft, or attachment stores on first open. During the HTTP migration, ISSUES-FRONTEND-HTTP.md and docs/http/ take precedence for affected flows: institutional reads and writes use the separate JSON Server under `/api/v1`; no artificial delays or local-success fallback. Keep the static export, with authenticated requests made in the browser. Do not introduce Server Actions or a Next.js runtime backend; never dual-write or merge divergent snapshots.
+Preserve query-string routes, Suspense boundaries, and existing local browser data. The current frontend must not read, migrate, overwrite, delete, or upload legacy identity, database, draft, or attachment stores on first open. Follow `docs/http/` for HTTP contracts and operational rules: institutional reads and writes use the HTTP API under `/api/v1` (gateway on `3002` by default, or the isolated JSON Server mock on `3102`); no artificial delays or local-success fallback. Keep the static export, with authenticated requests made in the browser. Do not introduce Server Actions or a Next.js runtime backend; never dual-write or merge divergent snapshots.
 
 ## Build, Test, and Development Commands
 

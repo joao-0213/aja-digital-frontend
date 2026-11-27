@@ -1,5 +1,7 @@
 # AJA-05 — navegador (em andamento)
 
+> **Registro histórico da entrega AJA-05 (pré-INT-05).** As referências a `VALIDACAO.md` e ao JSON Server na porta `3002` refletem a validação intermediária da época; para a operação vigente com gateway em `3002` e mock isolado em `3102`, consulte [operator.md](operator.md) e [validation-INT-05.md](validation-INT-05.md).
+
 Base `43549c1`, Microsoft Edge controlado por `playwright-cli`, sessões independentes `aja05a` e `aja05b`. Aplicadas a skill de navegador e as verificações pertinentes de `VALIDACAO.md`. Nenhuma resposta de sucesso foi interceptada. API real na porta 3002, Next dev na 3000; persistência isolada em `tmp/aja05-browser-runtime` (NODE_ENV=test só autoriza o diretório temporário, sem bypass de sessão). A revisão e os gates finais ainda não concluíram esta issue.
 
 `npm.cmd test` após as correções atuais: **183/183**, zero falhas, cancelados ou ignorados. Contrato recebeu `sessionId` opaco não autenticador e `className` opcional no vínculo; validação estrutural e dos 851 exemplos passou na revisão de sessão (reexecutar após o último acréscimo de vínculo no aceite final).

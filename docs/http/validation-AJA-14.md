@@ -1,5 +1,7 @@
 # AJA-14 — validação
 
+> **Registro histórico da entrega AJA-14 (pré-AJA-17 e pré-INT-05).** As menções a `dev-full.mjs` e à leitura transitória de rascunhos legados refletem o estágio anterior ao corte de runtime da [AJA-17](validation-AJA-17.md) e à integração padrão ao gateway ([operator.md](operator.md) e [storage-inventory.md](storage-inventory.md)).
+
 ## Baseline
 
 - Revisão inicial: `64c9529d2a3ed619fda3db90c23d7c48ce119355` (`feat/announcements: migrate notices and calendar to HTTP`). Worktree limpo.

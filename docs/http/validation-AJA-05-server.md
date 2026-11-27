@@ -1,5 +1,7 @@
 # AJA-05 — identidade e sessão no serviço
 
+> **Registro histórico da entrega AJA-05 (pré-INT-05).** A menção a `scripts/dev-full.mjs` reflete a estrutura anterior à integração do gateway (`INT-05`); na operação vigente, `npm run dev` / `npm run dev:full` usam o gateway em `3002` e `npm run dev:mock` (`scripts/dev-mock.mjs`) inicia o JSON Server em `3102`, conforme [operator.md](operator.md).
+
 Revisão inicial `43549c1`. Escopo: serviço de autenticação, allowlist do app, configuração, composição do store, CLI de caixa de saída e `tests/http-auth.test.mjs`. Entradas: `server/auth-service.mjs`, `server/app.mjs`, `server/index.mjs`, `server/config.mjs`, `server/outbox.mjs`. Compatibilidade Node 22.6: processos de API em `scripts/dev-full.mjs` e no teste de processo anterior receberam `--experimental-strip-types`, pois a confirmação reutiliza a regra pura de matrícula TypeScript.
 
 ## Contrato e arquitetura

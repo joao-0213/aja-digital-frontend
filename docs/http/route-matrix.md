@@ -1,6 +1,6 @@
 # Matriz de migração HTTP
 
-Escopo AJA-01, revisão inicial `e169df6`. Esta matriz especifica o destino; não afirma que os endpoints já estejam implementados. Todos os caminhos HTTP são relativos a `/api/v1`. O contrato OpenAPI é a referência dos DTOs. Cada linha deve ser exercitada contra a API real na issue responsável e novamente no aceite AJA-18.
+Escopo AJA-01, revisão inicial `e169df6`. Esta matriz especifica o destino das 22 rotas de produto; todos os caminhos HTTP são relativos a `/api/v1` (servidos por padrão pelo gateway em `http://127.0.0.1:3002/api/v1` e, em fluxo mock isolado, pelo JSON Server em `http://127.0.0.1:3102/api/v1`; consulte [operator.md](operator.md)). O contrato [OpenAPI](openapi.json) é a referência dos DTOs. Os registros de aceite estão em [validation-AJA-18.md](validation-AJA-18.md) e [validation-INT-05.md](validation-INT-05.md).
 
 ## Fronteiras e regras comuns
 
@@ -67,10 +67,10 @@ Estas regras complementam as falhas comuns, inclusive em diálogos e efeitos aut
 
 ## Estados, navegação e prova de cobertura
 
-Filtros, paginação, seleção de abas, expansão de módulos, menus, confirmação de descarte, cópia de link e escolha de abrir vídeo externo são estado de interface. Não constituem confirmação de escrita institucional. Toda listagem/detalhe tem carregamento, vazio, falha com nova tentativa e sucesso após recarga; manter textos PT-BR e foco/teclado conforme `VALIDACAO.md`. IDs por URL são reautorizados pelo endpoint, inclusive `?entrega=`, questão, referência e arquivo.
+Filtros, paginação, seleção de abas, expansão de módulos, menus, confirmação de descarte, cópia de link e escolha de abrir vídeo externo são estado de interface. Não constituem confirmação de escrita institucional. Toda listagem/detalhe tem carregamento, vazio, falha com nova tentativa e sucesso após recarga; manter textos PT-BR, foco visível e navegação por teclado conforme [ARQUITETURA.md](../../ARQUITETURA.md) e [validation-AJA-18.md](validation-AJA-18.md). IDs por URL são reautorizados pelo endpoint, inclusive `?entrega=`, questão, referência e arquivo.
 
-AJA-18 deve registrar para cada linha e papel permitido/proibido: conta/cenário, requisição/resposta real, recarga, indisponibilidade, teclado/foco e 390/768/1440 px. AJA-01 fixa responsabilidade e destino; a existência desta tabela não fecha as issues de implementação.
+AJA-18 registra para cada linha e papel permitido/proibido: conta/cenário, requisição/resposta real, recarga, indisponibilidade, teclado/foco e 390/768/1440 px; [validation-INT-05.md](validation-INT-05.md) registra a validação contra o gateway padrão em `3002`. AJA-01 fixou responsabilidade e destino; a existência desta tabela não substitui a verificação por operação.
 
-Fontes conferidas: índice de rotas e aceites de `ISSUES-FRONTEND-HTTP.md`, `ARQUITETURA.md`, `src/lib/access.ts`, `src/lib/demo-mutations.ts`, navegação/shell, componentes de subjects, students, classes, users, profile, materials, assessments, questions, announcements, forum, attendance e `src/hooks/use-study-tools.ts`. Orientação aplicada: `.agents/skills/arquiteto-nextjs/SKILL.md` e `node_modules/next/dist/docs/01-app/02-guides/static-exports.md` (Server Components executam no build; cookies/Server Actions dinâmicos não são suportados na exportação).
+Fontes históricas conferidas na revisão inicial `e169df6` (AJA-01): índice de rotas e aceites de `ISSUES-FRONTEND-HTTP.md` (backlog encerrado e retirado após a migração), `ARQUITETURA.md`, `src/lib/access.ts`, `src/lib/demo-mutations.ts`, navegação/shell, componentes de subjects, students, classes, users, profile, materials, assessments, questions, announcements, forum, attendance e `src/hooks/use-study-tools.ts`. Orientação aplicada: `.agents/skills/arquiteto-nextjs/SKILL.md` e `node_modules/next/dist/docs/01-app/02-guides/static-exports.md` (Server Components executam no build; cookies/Server Actions dinâmicos não são suportados na exportação).
 
 

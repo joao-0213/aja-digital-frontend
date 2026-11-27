@@ -31,11 +31,11 @@ O cliente não importa seed, banco institucional completo, transporte mock, call
 
 ## Dados e armazenamento
 
-`server/seed.mjs`, `server/seed.json` e `server/fixtures/` são fontes exclusivas do processo local da API. O diretório `server/runtime/` contém estado mutável local e não é versionado nem publicado em `out/`. O frontend recebe apenas projeções HTTP autorizadas. Credenciais de teste e procedimento de reset ficam no guia técnico do operador.
+No ambiente integrado padrão (`http://127.0.0.1:3002/api/v1`), a persistência institucional pertence aos serviços do backend; `server/seed.mjs`, `server/seed.json`, `server/fixtures/` e o diretório mutável `server/runtime/` pertencem exclusivamente ao mock local JSON Server (`3102`) e não são versionados nem publicados em `out/`. O frontend recebe apenas projeções HTTP autorizadas. Credenciais fictícias e procedimento de reset do mock ficam em [docs/http/operator.md](docs/http/operator.md).
 
 O perfil anterior pode conter `aja-digital-demo-v1`, `aja-demo-role`, `aja-demo-user`, `aja-demo-email` e o IndexedDB `aja-material-files`. O frontend atual não lê, importa, regrava nem apaga esses dados; essas chaves não criam sessão. Antes do corte, preserve o perfil e faça cópias manuais do conteúdo que precise ser consultado. Não limpe os dados do navegador para abrir a versão nova.
 
-O browser usa o cookie de sessão HttpOnly emitido pela API e memória transitória para estado de sessão e interface. Alguns formulários mantêm recuperação temporária em `sessionStorage`, isolada por conta/contexto/revisão: resposta ainda não enviada de tentativa ou trabalho, composição de aviso e composição/resposta do fórum. Esses rascunhos não confirmam operações, não concedem acesso e são enviados somente após ação explícita à API. Filtros, abas, diálogos e notificações ficam em memória. Não há persistência institucional em `localStorage` nem arquivo institucional novo em IndexedDB.
+O browser usa o cookie de sessão HttpOnly emitido pela API e memória transitória para estado de sessão, rascunhos ativos de editores (`session-client` / `useHttpEditor`, incluindo a composição de avisos) e interface. Apenas fluxos específicos mantêm recuperação temporária em `sessionStorage`, isolada por conta/sessão/contexto/revisão: resposta ainda não enviada de tentativa (`aja-attempt-recovery:*`), entrega de trabalho (`aja-work-v1:*`) e composição/resposta do fórum (`aja-http-forum-*`). Esses rascunhos não confirmam operações, não concedem acesso e são enviados somente após ação explícita à API. Filtros, abas, diálogos e notificações ficam em memória. Não há persistência institucional em `localStorage` nem arquivo institucional novo em IndexedDB.
 
 ## Rotas e domínios
 
@@ -68,4 +68,4 @@ A interface descreve o serviço como produto educacional e não como demonstraç
 5. Acrescente regressões de contrato/regra e execute `npm run verify` (que encadeia `typecheck`, `check:architecture`, `test` com descoberta automática de `tests/**/*.test.{ts,mjs}` e suporte a `@/` no Node, `build` e `check:export` das 22 rotas); exercite a rota alterada com a API e uma falha real de rede. Registre limitações em `docs/http/validation-AJA-<número>.md`.
 6. Depois de código, execute `graphify update .`; não versione `graphify-out/`, builds ou dados de execução.
 
-O roteiro vigente está em [VALIDACAO.md](VALIDACAO.md); a política detalhada de corte e stores está em [docs/http/storage-inventory.md](docs/http/storage-inventory.md).
+A operação vigente e as validações integradas estão em [docs/http/operator.md](docs/http/operator.md), [docs/http/validation-INT-05.md](docs/http/validation-INT-05.md) e [docs/http/validation-AJA-18.md](docs/http/validation-AJA-18.md); a política detalhada de corte e stores está em [docs/http/storage-inventory.md](docs/http/storage-inventory.md).

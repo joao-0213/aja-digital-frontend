@@ -2,7 +2,7 @@
 
 Plataforma de apoio a um cursinho pré-vestibular presencial. Reúne materiais, avisos, atividades, questões para praticar e ferramentas de gestão para a equipe docente.
 
-Construída com Next.js 16 App Router, React 19, TypeScript e Tailwind CSS 4. O frontend é exportado como site estático e usa o cliente HTTP/OpenAPI em `docs/http/` para acessar a API.
+Construída com Next.js 16 App Router, React 19, TypeScript e Tailwind CSS 4. O frontend é exportado como site estático e usa o cliente HTTP em `src/lib/http-client.ts`, conforme o contrato OpenAPI em `docs/http/`, para acessar a API sob `/api/v1`.
 
 ## Desenvolvimento
 
@@ -15,7 +15,7 @@ npm run dev
 
 Antes, inicie o ambiente integrado do backend (`docker compose --env-file env.integrated.example -f compose.integrated.yaml -p aja-integrated up --build --wait` no repositório `aja-digital-backend`). `npm run dev` abre o frontend em `http://127.0.0.1:3000` e usa por padrão o gateway em `http://127.0.0.1:3002/api/v1`. O comando `npm run dev:full` continua disponível como alias para `npm run dev`.
 
-Para trabalhar isoladamente com o JSON Server local, use `npm run dev:mock`; essa API inicia na porta `3102` e não ocupa a porta do gateway. A URL da API mock é configurada apenas nesse comando. No PowerShell, use `npm.cmd` se a política de execução bloquear `npm`.
+Para trabalhar isoladamente com o JSON Server local, use `npm run dev:mock` (ou `npm run api` apenas para o serviço); essa API inicia na porta `3102` e não ocupa a porta do gateway, com reset e caixa de saída locais em `npm run api:reset` e `npm run api:outbox`. A URL da API mock é sobreposta automaticamente em `npm run dev:mock`. No PowerShell, use `npm.cmd` se a política de execução bloquear `npm`.
 
 ## Build e prévia estática
 
@@ -47,7 +47,7 @@ Os testes usam `node:test`. `typecheck` gera os tipos de rota do Next antes do T
 - `src/components/`: controles reutilizáveis, composições genéricas e shell.
 - `src/providers/`: sessão HTTP em memória e contexto de notificações/interface.
 - `src/models/`, `src/hooks/` e `src/lib/`: DTOs, hooks, regras e transporte HTTP do cliente.
-- `server/`: API separada, regras autoritativas, seed, arquivos de execução e fixtures locais.
+- `server/`: mock local JSON Server (`3102`), seed, pasta privada de execução e fixtures de contrato.
 - `tests/`: testes de domínio, contrato HTTP e fronteira de imports do frontend.
 - `public/`: assets estáticos.
 

@@ -1,5 +1,7 @@
 # AJA-18 — validacao integrada e roteiro de operacao
 
+> **Registro histórico do aceite da migração frontend HTTP (AJA-18, pré-INT-05).** As evidências, referências (`ISSUES-FRONTEND-HTTP.md`, `VALIDACAO.md`) e comandos abaixo preservam o estado da entrega AJA-18 antes da adoção do gateway como padrão. Para a operação vigente (`npm run dev` apontando por padrão para o gateway em `http://127.0.0.1:3002/api/v1` e `npm run dev:mock` / `npm run api` isolados em `3102`), consulte [operator.md](operator.md), [README.md](../../README.md) e [validation-INT-05.md](validation-INT-05.md).
+
 ## Baseline, aceite e pontos de entrada
 
 - Revisao inicial: `b0b4a3ab2aa7007f6c074f6c6b07409b282e6445` (`refactor(migration): remove legacy client runtime`), branch `feat/frontend-http`; checkout iniciado limpo.

@@ -1,5 +1,7 @@
 # Ownership das operações backend
 
+> **Registro histórico de planejamento da decomposição backend (pré-INT-05).** Observações sobre serviços ainda inexistentes e integração de gateway “fora da etapa atual” refletem o momento em que esta matriz foi elaborada. Para a execução vigente do frontend integrado por padrão ao gateway em `http://127.0.0.1:3002/api/v1` (e mock JSON Server opt-in em `3102`), consulte [README.md](../../README.md), [operator.md](../http/operator.md) e [validation-INT-05.md](../http/validation-INT-05.md).
+
 Esta matriz atribui cada operação pública do OpenAPI 1.0.8 ao serviço que a implementará. São contratos-alvo do frontend atual, não prova de que os três serviços já existam. Caminhos são relativos a `/api/v1`. O gateway e a integração com frontend estão fora da etapa atual.
 
 ## Superfície pública

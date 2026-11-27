@@ -1,5 +1,7 @@
 # Validação da skill local refactor-project
 
+> **Registro histórico (2026-11-02, pré-corte final e integração do gateway).** Referências a `VALIDACAO.md` e `ISSUES-FRONTEND-HTTP.md` abaixo registram a conferência realizada naquela data; para a arquitetura e operação vigentes (`http://127.0.0.1:3002/api/v1` por padrão e mock em `3102`), consulte [README.md](../../README.md), [ARQUITETURA.md](../../ARQUITETURA.md) e [operator.md](../http/operator.md).
+
 Data: 2026-11-02 (America/Sao_Paulo).
 
 ## Escopo

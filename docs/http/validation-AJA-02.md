@@ -1,5 +1,7 @@
 # Validação AJA-02
 
+> **Registro histórico da fundação AJA-02 (pré-INT-05).** Comandos e portas citados abaixo (`scripts/dev-full.mjs`, `npm.cmd run dev:full` subindo o JSON Server na porta `3002`) descrevem o ambiente da época; na operação vigente, `3002` pertence ao gateway integrado (`npm run dev` / `npm run dev:full`) e o JSON Server local roda isolado em `3102` (`npm run dev:mock` / `npm run api`), conforme [operator.md](operator.md) e [validation-INT-05.md](validation-INT-05.md).
+
 Revisão inicial: `e1bade7`. Escopo: processo JSON Server separado, persistência reproduzível, scripts portáveis e allowlist fechada. Entradas: `server/`, `scripts/dev-full.mjs`, scripts npm, configuração/documentação e `tests/http-server.test.mjs`. Nenhuma mudança de interface ou regra acadêmica.
 
 ## ECC RED/GREEN

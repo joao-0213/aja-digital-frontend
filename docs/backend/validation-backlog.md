@@ -1,5 +1,7 @@
 # Validação documental do backlog backend
 
+> **Registro histórico de validação documental (revisão `516b820`, pré-INT-05).** Menções a issues ainda não implementadas e a `ISSUES-FRONTEND-HTTP.md` (posteriormente encerrado e removido junto com `ISSUES-BACKEND.md`) preservam o estado da revisão original. Para a operação vigente com gateway padrão em `http://127.0.0.1:3002/api/v1`, consulte [README.md](../../README.md), [operator.md](../http/operator.md) e [validation-INT-05.md](../http/validation-INT-05.md).
+
 **Estado:** documento e backlog propostos; nenhuma issue de implementação está concluída. Revisão de partida `516b820ef0324e3693cdf1c305f660153671aeec`.
 
 ## Verificações feitas
