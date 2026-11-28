@@ -17,17 +17,11 @@ import {
 import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import type { AssessmentRead, AttemptRead, AttemptStudent } from '../api';
+import { isStaffAssessment, isStudentAttempt, type AttemptRead, type AttemptStudent } from '../api';
 import { useAssessmentsApi } from '../hooks/use-assessments';
 import { QuizSession } from './quiz-session';
 import { WorkActivity } from './work-activity';
 import { toErrorMessage } from '@/lib/errors';
-
-function isStaffAssessment(
-  assessment: AssessmentRead
-): assessment is Extract<AssessmentRead, { questionIds: string[] }> {
-  return 'questionIds' in assessment;
-}
 
 function deadlineLabel(value: string | null) {
   if (!value) return 'Sem prazo';
@@ -134,8 +128,7 @@ export function AnswerAssessment() {
   if (user.role !== 'student') return <TeamSubmissions attempts={listed} />;
   const studentAttempts = listed.filter((attempt) => attempt.userId === user.id);
   const active =
-    started ??
-    (studentAttempts.find((attempt) => !attempt.submittedAt) as AttemptStudent | undefined);
+    started ?? studentAttempts.find((attempt) => isStudentAttempt(attempt) && !attempt.submittedAt);
   const submitted = studentAttempts.filter((attempt) => attempt.submittedAt);
   if (active)
     return (

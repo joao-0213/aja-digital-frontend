@@ -25,7 +25,8 @@ import {
 } from '../lib/attempt-recovery';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
-import { createAttemptSubmitCommand, type AttemptStudent } from '../api';
+import { createAttemptSubmitCommand } from '../lib/attempt-submit-command';
+import { isStudentAttempt, type AttemptStudent } from '../api';
 import { useAssessmentsApi } from '../hooks/use-assessments';
 import { AttemptImage } from './attempt-image';
 import { toErrorMessage } from '@/lib/errors';
@@ -190,8 +191,8 @@ export function QuizSession({
             ) {
               try {
                 const latest = await api.readAttempt(attempt.id, undefined, sessionKey);
-                if (currentSession(client, sessionKey) && 'questionsUpdatedAt' in latest) {
-                  setConflict(latest as AttemptStudent);
+                if (currentSession(client, sessionKey) && isStudentAttempt(latest)) {
+                  setConflict(latest);
                   setSaveStatus('conflict');
                   setSaveError(
                     'Outra aba ou uma atualização da atividade alterou esta tentativa. Suas respostas locais foram mantidas.'
@@ -329,9 +330,9 @@ export function QuizSession({
     if (!currentSession(client, sessionKey)) return;
     const latest = await api.readAttempt(attempt.id, undefined, sessionKey);
     if (!currentSession(client, sessionKey)) return;
-    if (!('questionsUpdatedAt' in latest))
+    if (!isStudentAttempt(latest))
       throw new Error('A resposta atual da tentativa não está disponível.');
-    const currentAttempt = latest as AttemptStudent;
+    const currentAttempt = latest;
     if (currentAttempt.submittedAt) {
       await api.readAttemptResult(attempt.id, undefined, sessionKey);
       if (!currentSession(client, sessionKey)) return;

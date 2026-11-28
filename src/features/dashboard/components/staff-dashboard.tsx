@@ -21,7 +21,7 @@ import { dashboardDeadlineLabel } from '../lib/dashboard-time';
 import { SubjectCard } from '@/features/subjects';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import type { StaffDashboardDto } from '../api';
+import { isStaffDashboard } from '../api';
 import { useDashboardApi } from '../hooks/use-dashboard';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
@@ -33,10 +33,7 @@ export function StaffDashboard() {
     useCallback((signal) => api.read(signal), [api]),
     user?.role !== 'student'
   );
-  const data =
-    dashboard.data && dashboard.data.role !== 'student'
-      ? (dashboard.data as StaffDashboardDto)
-      : undefined;
+  const data = isStaffDashboard(dashboard.data) ? dashboard.data : undefined;
   const events = upcomingMeetings(data?.upcoming ?? []);
   const activeClassIds = new Set(
     (data?.classes ?? []).filter((item) => item.active).map((item) => item.id)

@@ -27,13 +27,14 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { useAssessmentFilesApi, useAssessmentsApi } from '../hooks/use-assessments';
-import type {
-  AssessmentCreate,
-  AssessmentFields,
-  AssessmentQuestionEntry,
-  AssessmentRead,
-  AssessmentSnapshot,
-  AssessmentStaff
+import {
+  isStaffAssessment,
+  toAssessmentCreate,
+  type AssessmentFields,
+  type AssessmentQuestionEntry,
+  type AssessmentRead,
+  type AssessmentSnapshot,
+  type AssessmentStaff
 } from '../api';
 import {
   fromBrazilDateTimeLocal,
@@ -50,10 +51,6 @@ type DialogState = 'bank' | 'author' | 'review' | 'reset' | 'leave' | null;
 type SaveAction = 'draft' | 'publish';
 type PendingCreate = { fields: AssessmentFields; intent: string; action: SaveAction };
 type PendingPublish = { id: string; revision: number; intent: string };
-
-function isStaffAssessment(activity: AssessmentRead | undefined): activity is AssessmentStaff {
-  return !!activity && 'questionIds' in activity;
-}
 
 function entriesFromRecord(record: AssessmentStaff | undefined): AssessmentQuestionEntry[] {
   if (!record) return [];
@@ -380,15 +377,13 @@ function AssessmentEditor({
           );
           assertSession();
           setPendingOperation(pendingPublishKey, null, setPendingPublish);
-          current = result as AssessmentStaff;
+          current = result;
           await rememberRecord(current);
           return current;
         }
         if (pendingCreate) {
           const created = await api.create(
-            Object.fromEntries(
-              Object.entries(pendingCreate.fields).filter(([key]) => key !== 'confirmResetDrafts')
-            ) as AssessmentCreate,
+            toAssessmentCreate(pendingCreate.fields),
             pendingCreate.intent
           );
           assertSession();
@@ -397,11 +392,11 @@ function AssessmentEditor({
           await rememberRecord(current);
         } else if (activeRecord) {
           try {
-            current = (await api.edit(
+            current = await api.edit(
               activeRecord.id,
               confirmResetDrafts ? payload : draft,
               revision
-            )) as AssessmentStaff;
+            );
           } catch (cause: unknown) {
             if (cause instanceof HttpError && cause.code === 'BUSINESS_CONFLICT') {
               setBusinessConflict(true);
@@ -417,10 +412,7 @@ function AssessmentEditor({
           setPendingOperation(pendingCreateKey, frozen, setPendingCreate);
           let created: AssessmentStaff;
           try {
-            const createPayload = Object.fromEntries(
-              Object.entries(frozen.fields).filter(([key]) => key !== 'confirmResetDrafts')
-            ) as AssessmentCreate;
-            created = await api.create(createPayload, frozen.intent);
+            created = await api.create(toAssessmentCreate(frozen.fields), frozen.intent);
             assertSession();
           } catch (cause: unknown) {
             if (!ambiguous(cause)) setPendingOperation(pendingCreateKey, null, setPendingCreate);
@@ -446,7 +438,7 @@ function AssessmentEditor({
             );
             assertSession();
             setPendingOperation(pendingPublishKey, null, setPendingPublish);
-            await rememberRecord(published as AssessmentStaff);
+            await rememberRecord(published);
             return published;
           } catch (cause: unknown) {
             if (!ambiguous(cause)) setPendingOperation(pendingPublishKey, null, setPendingPublish);

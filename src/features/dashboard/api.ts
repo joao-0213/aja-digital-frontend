@@ -93,6 +93,18 @@ export interface StaffDashboardDto {
 }
 export type DashboardDto = StudentDashboardDto | StaffDashboardDto;
 
+export function isStaffDashboard(
+  value: DashboardDto | undefined | null
+): value is StaffDashboardDto {
+  return value?.role === 'teacher' || value?.role === 'admin';
+}
+
+export function isStudentDashboard(
+  value: DashboardDto | undefined | null
+): value is StudentDashboardDto {
+  return value?.role === 'student';
+}
+
 export function createDashboardApi(client: Pick<SessionClient, 'request'>) {
   return {
     read: (signal?: AbortSignal) => client.request<DashboardDto>('/me/dashboard', { signal })

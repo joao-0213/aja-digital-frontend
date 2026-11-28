@@ -7,7 +7,12 @@ import { Button, Card, Input, Textarea } from '@/components/ui';
 import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { brazilDateTimeLabel } from '@/lib/utils';
-import type { AssessmentRead, SubmissionStaff, WorkFeedback } from '../api';
+import {
+  isStaffSubmission,
+  type AssessmentRead,
+  type SubmissionStaff,
+  type WorkFeedback
+} from '../api';
 import { useAssessmentsApi } from '../hooks/use-assessments';
 import { toErrorMessage } from '@/lib/errors';
 
@@ -116,7 +121,9 @@ export function FeedbackEditor({
           }
           // PATCH has no replay key. Read latest state before deciding whether it committed.
           try {
-            latest = (await api.readSubmission(submission.id, sessionKey)) as SubmissionStaff;
+            const read = await api.readSubmission(submission.id, sessionKey);
+            if (!isStaffSubmission(read)) return;
+            latest = read;
             if (!current()) return;
             if (!feedbackMatches(latest.feedbackDraft, comment, parsedGrade)) {
               setConflict(latest);

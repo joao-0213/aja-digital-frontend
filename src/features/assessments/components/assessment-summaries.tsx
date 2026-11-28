@@ -6,14 +6,13 @@ import { Badge, Button, Empty, LinkButton } from '@/components/ui';
 import { countLabel } from '@/lib/utils';
 import { sortByDeadlineAsc } from '@/lib/academic-format';
 import type { TrailModule } from '@/models';
-import type { AssessmentRead, AttemptRead, SubmissionRead } from '../api';
+import {
+  isStaffAssessment,
+  type AssessmentRead,
+  type AttemptRead,
+  type SubmissionRead
+} from '../api';
 import { classifyStudentActivity } from '../lib/activity-list';
-
-function isStaffAssessment(
-  activity: AssessmentRead
-): activity is Extract<AssessmentRead, { questionIds: string[] }> {
-  return 'questionIds' in activity;
-}
 
 function deadlineLabel(value: string | null) {
   if (!value) return 'Sem prazo';

@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createAssessmentsApi,
-  createWorkSubmitCommand,
+  isStaffAssessment,
+  isStaffSubmission,
+  isStudentAttempt,
+  isStudentSubmission,
   type AttemptQuestionPrompt,
   type AttemptStaff
 } from '../src/features/assessments/api.ts';
-import * as assessmentApiModule from '../src/features/assessments/api.ts';
+import { createAttemptSubmitCommand } from '../src/features/assessments/lib/attempt-submit-command.ts';
 import { HttpError } from '../src/lib/http-client.ts';
 import type { HttpRequestOptions } from '../src/lib/http-client.ts';
 import {
@@ -114,22 +117,121 @@ test('work adapter freezes submissions, uses multipart upload, and rejects a lat
   });
 });
 
-test('work submission retries keep one frozen revision and require acknowledgment before replacement', async () => {
-  const command = createWorkSubmitCommand(() => 'work-submit-frozen-key');
+test('assessment, submission, and attempt type guards narrow role DTOs without casts', () => {
+  assert.equal(isStaffAssessment(undefined), false);
+  assert.equal(
+    isStaffAssessment({
+      id: 'a1',
+      revision: 1,
+      createdAt: '',
+      updatedAt: '',
+      updatedBy: '',
+      moduleId: 'm1',
+      title: 'T',
+      description: '',
+      kind: 'quiz',
+      maxGrade: null,
+      deadline: null,
+      required: true,
+      allowLate: false,
+      status: 'published',
+      publishedAt: '',
+      questionCount: 1,
+      assigned: true
+    }),
+    false
+  );
+  assert.equal(
+    isStaffAssessment({
+      id: 'a1',
+      revision: 1,
+      createdAt: '',
+      updatedAt: '',
+      updatedBy: '',
+      moduleId: 'm1',
+      title: 'T',
+      description: '',
+      kind: 'quiz',
+      maxGrade: null,
+      deadline: null,
+      required: true,
+      allowLate: false,
+      status: 'draft',
+      publishedAt: null,
+      questionIds: [],
+      questions: [],
+      hasSubmissions: false
+    }),
+    true
+  );
+
+  const studentSub = {
+    id: 's1',
+    revision: 1,
+    createdAt: '',
+    updatedAt: '',
+    updatedBy: '',
+    assessmentId: 'a1',
+    userId: 'u1',
+    attachments: [],
+    submittedAt: null,
+    receipt: null,
+    feedbackPublished: null,
+    feedbackUpdated: false
+  };
+  const staffSub = { ...studentSub, studentName: 'Ana', feedbackDraft: null, feedbackHistory: [] };
+  assert.equal(isStudentSubmission(studentSub), true);
+  assert.equal(isStaffSubmission(studentSub), false);
+  assert.equal(isStaffSubmission(staffSub), true);
+  assert.equal(isStudentSubmission(staffSub), false);
+
+  assert.equal(isStudentAttempt(null), false);
+  assert.equal(
+    isStudentAttempt({
+      id: 'att1',
+      revision: 1,
+      createdAt: '',
+      updatedAt: '',
+      updatedBy: '',
+      assessmentId: 'a1',
+      assessmentTitle: 'T',
+      userId: 'u1',
+      studentName: 'Ana',
+      startedAt: '',
+      submittedAt: null,
+      answers: {},
+      questionOrder: [],
+      questions: [],
+      questionsUpdatedAt: null
+    }),
+    true
+  );
+});
+
+test('attempt submit controller freezes revision and key across retries and requires newer revision on conflict', async () => {
+  const command = createAttemptSubmitCommand(() => 'attempt-submit-frozen-key');
   const sent: { revision: number; key: string }[] = [];
-  const frozen = command.freeze(4);
   const send = async (value: { revision: number; key: string }) => {
     sent.push(value);
     if (sent.length === 1) throw new Error('connection lost after possible commit');
     return { receipt: 'receipt-stable' };
   };
-  await assert.rejects(command.send(send), /connection lost/);
-  assert.deepEqual(command.current(), frozen);
-  assert.deepEqual(await command.send(send), { receipt: 'receipt-stable' });
-  assert.deepEqual(sent, [frozen, frozen]);
-  assert.throws(() => command.acknowledgeRevisionConflict(4), /revisão mais recente/i);
+  await assert.rejects(
+    command.submit(async () => 4, send),
+    /connection lost/
+  );
+  assert.deepEqual(command.current(), { revision: 4, key: 'attempt-submit-frozen-key' });
+  assert.deepEqual(await command.submit(async () => 99, send), { receipt: 'receipt-stable' });
+  assert.deepEqual(sent, [
+    { revision: 4, key: 'attempt-submit-frozen-key' },
+    { revision: 4, key: 'attempt-submit-frozen-key' }
+  ]);
+  assert.throws(
+    () => command.acknowledgeRevisionConflict(4),
+    /newer than the frozen submit revision/i
+  );
   command.acknowledgeRevisionConflict(5);
-  assert.deepEqual(command.current(), null);
+  assert.equal(command.current(), null);
 });
 
 test('multi-step assessment save stops before publication when the authenticated session changes', async () => {
@@ -294,28 +396,12 @@ test('staff attempt prompts keep answer keys out of the client response type', (
 
 test('attempt submit retries reuse the frozen POST intent without autosaving again', async () => {
   type FrozenIntent = { revision: number; key: string };
-  type CreateSubmitter = (makeKey: () => string) => {
-    submit: <T>(
-      prepare: () => Promise<number>,
-      send: (intent: FrozenIntent) => Promise<T>
-    ) => Promise<T>;
-    current: () => FrozenIntent | null;
-  };
-  const createSubmitter = (
-    assessmentApiModule as unknown as { createAttemptSubmitCommand?: CreateSubmitter }
-  ).createAttemptSubmitCommand;
-  assert.equal(
-    typeof createSubmitter,
-    'function',
-    'attempt submission needs a frozen retry controller'
-  );
-  if (!createSubmitter) return;
 
   const patchCalls: number[] = [];
   const postCalls: FrozenIntent[] = [];
   let committedReceipt: { id: string } | null = null;
   let loseFirstResponse = true;
-  const submitter = createSubmitter(() => 'frozen-intent-1');
+  const submitter = createAttemptSubmitCommand(() => 'frozen-intent-1');
   const send = (intent: FrozenIntent) => {
     postCalls.push(intent);
     if (!committedReceipt) committedReceipt = { id: 'receipt-1' };
@@ -341,27 +427,11 @@ test('attempt submit retries reuse the frozen POST intent without autosaving aga
 
 test('attempt submit retries after a pre-commit network failure with the same POST body and key', async () => {
   type FrozenIntent = { revision: number; key: string };
-  type CreateSubmitter = (makeKey: () => string) => {
-    submit: <T>(
-      prepare: () => Promise<number>,
-      send: (intent: FrozenIntent) => Promise<T>
-    ) => Promise<T>;
-    current: () => FrozenIntent | null;
-  };
-  const createSubmitter = (
-    assessmentApiModule as unknown as { createAttemptSubmitCommand?: CreateSubmitter }
-  ).createAttemptSubmitCommand;
-  assert.equal(
-    typeof createSubmitter,
-    'function',
-    'attempt submission needs a frozen retry controller'
-  );
-  if (!createSubmitter) return;
 
   let saves = 0;
   const posts: FrozenIntent[] = [];
   let requestReachedServer = false;
-  const submitter = createSubmitter(() => 'frozen-intent-before-commit');
+  const submitter = createAttemptSubmitCommand(() => 'frozen-intent-before-commit');
   const prepare = async () => {
     saves++;
     return 3;
@@ -386,25 +456,12 @@ test('attempt submit retries after a pre-commit network failure with the same PO
 
 test('quiz submit controller replaces a rejected revision only after latest answers are reviewed', async () => {
   type FrozenIntent = { revision: number; key: string };
-  type CreateSubmitter = (makeKey: () => string) => {
-    submit: <T>(
-      prepare: () => Promise<number>,
-      send: (intent: FrozenIntent) => Promise<T>
-    ) => Promise<T>;
-    current: () => FrozenIntent | null;
-    acknowledgeRevisionConflict: (reviewedRevision: number) => void;
-  };
-  const createSubmitter = (
-    assessmentApiModule as unknown as { createAttemptSubmitCommand?: CreateSubmitter }
-  ).createAttemptSubmitCommand;
-  assert.equal(typeof createSubmitter, 'function', 'QuizSession uses the frozen submit controller');
-  if (!createSubmitter) return;
 
   let currentRevision = 2;
   let saveCalls = 0;
   let keyNumber = 0;
   const posts: FrozenIntent[] = [];
-  const submitter = createSubmitter(() => `intent-${++keyNumber}`);
+  const submitter = createAttemptSubmitCommand(() => `intent-${++keyNumber}`);
   const prepare = async () => {
     saveCalls++;
     return currentRevision;

@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import type {
-  AssessmentRead,
-  SubmissionAttachment,
-  SubmissionRead,
-  SubmissionStaff,
-  SubmissionStudent,
-  WorkFeedback,
-  WorkFileMetadata
+import {
+  isStaffSubmission,
+  isStudentSubmission,
+  type AssessmentRead,
+  type SubmissionAttachment,
+  type SubmissionStaff,
+  type SubmissionStudent,
+  type WorkFeedback,
+  type WorkFileMetadata
 } from '../api';
 import { useAssessmentsApi } from '../hooks/use-assessments';
 import { useHttpQuery } from '@/hooks/use-http-query';
@@ -56,12 +57,6 @@ type SaveCommand = { key: string; attachments: SubmissionAttachment[] };
 type PatchCommand = { revision: number; attachments: SubmissionAttachment[] };
 const MAX_BYTES = 10 * 1024 * 1024;
 
-function isStaffSubmission(value: SubmissionRead): value is SubmissionStaff {
-  return 'feedbackHistory' in value;
-}
-function isStudentSubmission(value: SubmissionRead): value is SubmissionStudent {
-  return !('feedbackHistory' in value);
-}
 function sameAttachments(left: SubmissionAttachment[], right: SubmissionAttachment[]) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -193,9 +188,9 @@ export function WorkActivity({ activity }: { activity: AssessmentRead }) {
     );
   }
 
-  const selected = rows.find((row) => row.id === selectedId && isStaffSubmission(row)) as
-    | SubmissionStaff
-    | undefined;
+  const selected = rows.find(
+    (row): row is SubmissionStaff => row.id === selectedId && isStaffSubmission(row)
+  );
   const filtered = rows.filter(isStaffSubmission);
   const submittedUserIds = new Set(filtered.map((item) => item.userId));
   const pendingStudents = (roster.data ?? []).filter(
@@ -532,8 +527,8 @@ function WorkStudent({
     const id = submission?.id ?? submissionId.current;
     if (!id) return null;
     const latest = await api.readSubmission(id, sessionKey);
-    if (!current()) return null;
-    const student = latest as SubmissionStudent;
+    if (!current() || !isStudentSubmission(latest)) return null;
+    const student = latest;
     if (student.submittedAt) {
       submissionId.current = student.id;
       setSubmission(student);
@@ -567,22 +562,22 @@ function WorkStudent({
       let saved: SubmissionStudent;
       if (!submission) {
         if (prepareCommand.current && ambiguousPrepare.current) {
-          saved = (await api.prepareSubmission(
+          saved = await api.prepareSubmission(
             activity.id,
             prepareCommand.current.attachments,
             prepareCommand.current.key,
             sessionKey
-          )) as SubmissionStudent;
+          );
         } else {
           const command = { key: crypto.randomUUID(), attachments: structuredClone(resolved) };
           prepareCommand.current = command;
           ambiguousPrepare.current = false;
-          saved = (await api.prepareSubmission(
+          saved = await api.prepareSubmission(
             activity.id,
             command.attachments,
             command.key,
             sessionKey
-          )) as SubmissionStudent;
+          );
         }
         ambiguousPrepare.current = false;
       } else {
@@ -592,12 +587,12 @@ function WorkStudent({
             : { revision: submission.revision, attachments: structuredClone(resolved) };
         patchCommand.current = command;
         try {
-          saved = (await api.updateSubmission(
+          saved = await api.updateSubmission(
             submission.id,
             command.revision,
             command.attachments,
             sessionKey
-          )) as SubmissionStudent;
+          );
         } catch (cause: unknown) {
           if (cause instanceof HttpError && cause.kind === 'conflict') {
             const latest = await inspectLatest(command.attachments);
@@ -694,12 +689,7 @@ function WorkStudent({
     setBusy(true);
     setError('');
     try {
-      const result = (await api.submitWork(
-        id,
-        frozen.revision,
-        frozen.key,
-        sessionKey
-      )) as SubmissionStudent;
+      const result = await api.submitWork(id, frozen.revision, frozen.key, sessionKey);
       if (!current()) return;
       submissionId.current = result.id;
       setSubmission(result);
@@ -712,8 +702,8 @@ function WorkStudent({
       if (!current()) return;
       if (cause instanceof HttpError && cause.kind === 'conflict') {
         try {
-          const latest = (await api.readSubmission(id, sessionKey)) as SubmissionStudent;
-          if (!current()) return;
+          const latest = await api.readSubmission(id, sessionKey);
+          if (!current() || !isStudentSubmission(latest)) return;
           if (latest.submittedAt) {
             submissionId.current = latest.id;
             setSubmission(latest);

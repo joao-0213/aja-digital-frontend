@@ -13,7 +13,7 @@ import { SubjectCard } from '@/features/subjects';
 import { EnrollmentStatus } from '@/features/students';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import type { StudentDashboardDto } from '../api';
+import { isStudentDashboard } from '../api';
 import { useDashboardApi } from '../hooks/use-dashboard';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
@@ -44,8 +44,7 @@ export function StudentDashboard() {
     ),
     isStudent
   );
-  const data =
-    dashboard.data?.role === 'student' ? (dashboard.data as StudentDashboardDto) : undefined;
+  const data = isStudentDashboard(dashboard.data) ? dashboard.data : undefined;
   const subjectIdsKey = (data?.subjects ?? []).map((item) => item.id).join(',');
   const subjectMaterials = useHttpQuery(
     { sessionKey, key: ['dashboard', 'subject-materials', subjectIdsKey] },

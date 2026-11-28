@@ -1,243 +1,75 @@
 import type { SessionClient } from '@/providers/session-client';
-import type { PaginatedResponse } from '@/models';
-import type { Question } from '@/models/questions';
-import type { Subject, TrailModule } from '@/models/academic';
+import type { TrailModule } from '@/models/academic';
 import { HttpError, type HttpRequestOptions } from '@/lib/http-client';
 import { collectAllPages } from '@/lib/http-pagination';
+import {
+  toAssessmentCreate,
+  type AssessmentContext,
+  type AssessmentCreate,
+  type AssessmentFields,
+  type AssessmentOverview,
+  type AssessmentPage,
+  type AssessmentRead,
+  type AssessmentStaff,
+  type AssessmentSubject
+} from './lib/assessment-contracts';
+import type {
+  AttemptPage,
+  AttemptRead,
+  AttemptResult,
+  AttemptStudent
+} from './lib/attempt-contracts';
+import type {
+  SubmissionAttachment,
+  SubmissionPage,
+  SubmissionRead,
+  SubmissionStaff,
+  SubmissionStudent,
+  WorkFileMetadata
+} from './lib/submission-contracts';
 
-export interface AssessmentSnapshot extends Omit<Question, 'image'> {
-  origin: 'bank' | 'author';
-  image?: { src: string; alt: string } | null;
-}
-export interface AssessmentBase {
-  id: string;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  updatedBy: string;
-  moduleId: string;
-  title: string;
-  description: string;
-  kind: 'quiz' | 'work';
-  maxGrade: number | null;
-  deadline: string | null;
-  required: boolean;
-  allowLate: boolean;
-  status: 'draft' | 'published';
-  publishedAt: string | null;
-}
-export interface AssessmentStaff extends AssessmentBase {
-  questionIds: string[];
-  questions: AssessmentSnapshot[];
-  hasSubmissions: boolean;
-}
-export interface AssessmentStudent extends Omit<AssessmentBase, 'status' | 'publishedAt'> {
-  status: 'published';
-  publishedAt: string;
-  questionCount: number;
-  assigned: boolean;
-}
-export type AssessmentRead = AssessmentStaff | AssessmentStudent;
-export type AssessmentPage = PaginatedResponse<AssessmentRead>;
-export type AttemptQuestionPrompt = Omit<AssessmentSnapshot, 'correct' | 'explanation' | 'origin'>;
-export type AttemptQuestionResult = Omit<AssessmentSnapshot, 'origin'>;
-export interface AttemptStudent {
-  id: string;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  updatedBy: string;
-  assessmentId: string;
-  assessmentTitle: string;
-  userId: string;
-  studentName: string;
-  startedAt: string;
-  submittedAt: string | null;
-  answers: Record<string, number | null>;
-  questionOrder: string[];
-  questions: AttemptQuestionPrompt[];
-  questionsUpdatedAt: string | null;
-}
-export interface AttemptStaff extends Omit<AttemptStudent, 'questions'> {
-  questions: AttemptQuestionPrompt[];
-}
-export type AttemptRead = AttemptStudent | AttemptStaff;
-export type AttemptPage = PaginatedResponse<AttemptRead>;
-export interface AttemptResult {
-  attempt: AttemptStudent;
-  receipt: { id: string; resourceId: string; submittedAt: string };
-  score: number;
-  maxScore: number;
-  questions: AttemptQuestionResult[];
-}
-export type SubmissionAttachment =
-  | { kind: 'file'; fileId: string; name: string }
-  | { kind: 'link'; name: string; url: string };
-export interface WorkFeedback {
-  comment: string;
-  grade: number | null;
-  author: { id: string; name: string };
-  createdAt: string;
-}
-export interface SubmissionReceipt {
-  id: string;
-  resourceId: string;
-  submittedAt: string;
-}
-interface SubmissionBase {
-  id: string;
-  revision: number;
-  createdAt: string;
-  updatedAt: string;
-  updatedBy: string;
-  assessmentId: string;
-  userId: string;
-  attachments: SubmissionAttachment[];
-  submittedAt: string | null;
-  receipt: SubmissionReceipt | null;
-  feedbackPublished: WorkFeedback | null;
-  feedbackUpdated: boolean;
-}
-export interface SubmissionStudent extends SubmissionBase {}
-export interface SubmissionStaff extends SubmissionBase {
-  studentName: string;
-  feedbackDraft: WorkFeedback | null;
-  feedbackHistory: WorkFeedback[];
-}
-export type SubmissionRead = SubmissionStudent | SubmissionStaff;
-export type SubmissionPage = PaginatedResponse<SubmissionRead>;
-export interface WorkFileMetadata {
-  id: string;
-  name: string;
-  size: number;
-  mime: string;
-  purpose: 'work';
-  parentId: string;
-  status: 'staged' | 'attached';
-  downloadUrl: string;
-}
+export {
+  isStaffAssessment,
+  toAssessmentCreate,
+  type AssessmentBase,
+  type AssessmentContext,
+  type AssessmentCreate,
+  type AssessmentEdit,
+  type AssessmentFields,
+  type AssessmentOverview,
+  type AssessmentPage,
+  type AssessmentQuestionEntry,
+  type AssessmentRead,
+  type AssessmentSnapshot,
+  type AssessmentStaff,
+  type AssessmentStudent,
+  type AssessmentSubject
+} from './lib/assessment-contracts';
+export {
+  isStudentAttempt,
+  type AttemptPage,
+  type AttemptQuestionPrompt,
+  type AttemptQuestionResult,
+  type AttemptRead,
+  type AttemptResult,
+  type AttemptStaff,
+  type AttemptStudent
+} from './lib/attempt-contracts';
+export {
+  isStaffSubmission,
+  isStudentSubmission,
+  type SubmissionAttachment,
+  type SubmissionPage,
+  type SubmissionRead,
+  type SubmissionReceipt,
+  type SubmissionStaff,
+  type SubmissionStudent,
+  type WorkFeedback,
+  type WorkFileMetadata
+} from './lib/submission-contracts';
+
 type SubmissionFilters = { assessmentId?: string; studentId?: string };
-export interface FrozenWorkSubmitIntent {
-  revision: number;
-  key: string;
-}
-
-/** Keeps an ambiguous work submission bound to the exact revision and key. */
-export function createWorkSubmitCommand(makeKey: () => string = () => crypto.randomUUID()) {
-  let intent: FrozenWorkSubmitIntent | null = null;
-  let sending = 0;
-  return {
-    current: () => (intent ? { ...intent } : null),
-    freeze(revision: number) {
-      if (intent) return { ...intent };
-      if (!Number.isSafeInteger(revision) || revision < 1)
-        throw new TypeError('A revisão do rascunho salvo é inválida.');
-      intent = { revision, key: makeKey() };
-      return { ...intent };
-    },
-    acknowledgeRevisionConflict(revision: number) {
-      if (!intent) return;
-      if (sending)
-        throw new Error('Aguarde a confirmação do envio atual antes de conferir a revisão.');
-      if (!Number.isSafeInteger(revision) || revision <= intent.revision)
-        throw new RangeError('Confira uma revisão mais recente antes de iniciar outra intenção.');
-      intent = null;
-    },
-    async send<T>(run: (frozen: FrozenWorkSubmitIntent) => Promise<T>) {
-      if (!intent) throw new Error('Congele a revisão salva antes de enviar.');
-      sending++;
-      try {
-        return await run({ ...intent });
-      } finally {
-        sending--;
-      }
-    }
-  };
-}
-export interface FrozenAttemptSubmitIntent {
-  revision: number;
-  key: string;
-}
-
-/** Freeze the submit body and key after the final autosave; retries replay only that POST. */
-export function createAttemptSubmitCommand(makeKey: () => string = () => crypto.randomUUID()) {
-  let intent: FrozenAttemptSubmitIntent | null = null;
-  let preparing: Promise<FrozenAttemptSubmitIntent> | null = null;
-  let pendingSends = 0;
-  return {
-    current: () => (intent ? { ...intent } : null),
-    acknowledgeRevisionConflict(reviewedRevision: number) {
-      if (!intent) return;
-      if (preparing || pendingSends > 0)
-        throw new Error('Wait for the current submit request before reviewing its revision.');
-      if (!Number.isSafeInteger(reviewedRevision) || reviewedRevision <= intent.revision)
-        throw new RangeError(
-          'The reviewed revision must be newer than the frozen submit revision.'
-        );
-      intent = null;
-    },
-    async submit<T>(
-      prepare: () => Promise<number>,
-      send: (frozen: FrozenAttemptSubmitIntent) => Promise<T>
-    ) {
-      if (!intent) {
-        preparing ??= (async () => {
-          const revision = await prepare();
-          if (!Number.isSafeInteger(revision) || revision < 1)
-            throw new TypeError('A revisão salva da tentativa é inválida.');
-          intent = { revision, key: makeKey() };
-          return intent;
-        })().finally(() => {
-          preparing = null;
-        });
-        await preparing;
-      }
-      pendingSends++;
-      try {
-        return await send({ ...intent! });
-      } finally {
-        pendingSends--;
-      }
-    }
-  };
-}
 type AttemptFilters = { assessmentId?: string; studentId?: string };
-export type AssessmentQuestionEntry =
-  | { source: 'bank'; questionId: string }
-  | {
-      source: 'authored';
-      clientKey: string;
-      questionId: string | null;
-      question: Omit<AssessmentSnapshot, 'id' | 'origin'>;
-    };
-export interface AssessmentFields {
-  moduleId: string;
-  title: string;
-  description: string;
-  kind: 'quiz' | 'work';
-  maxGrade: number | null;
-  deadline: string | null;
-  required: boolean;
-  allowLate: boolean;
-  questions: AssessmentQuestionEntry[];
-  confirmResetDrafts?: boolean;
-}
-export type AssessmentCreate = Omit<AssessmentFields, 'confirmResetDrafts'>;
-export type AssessmentEdit = Partial<AssessmentFields> & { expectedRevision: number };
-export interface AssessmentSubject extends Subject {
-  className: string;
-  teachers: { id: string; name: string }[];
-  canManageContent: boolean;
-  hasUpdates: boolean;
-  publicationIds: string[];
-}
-export interface AssessmentContext {
-  modules: TrailModule[];
-  subjects: AssessmentSubject[];
-}
-export interface AssessmentOverview extends AssessmentContext {
-  assessments: AssessmentRead[];
-}
 
 type Filters = {
   subjectId?: string;
@@ -375,7 +207,7 @@ export function createAssessmentsApi(client: AssessmentClient) {
     revision: number,
     signal?: AbortSignal
   ) =>
-    client.request<AssessmentRead>(`/assessments/${encodeURIComponent(id)}`, {
+    client.request<AssessmentStaff>(`/assessments/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       json: { ...fields, expectedRevision: revision },
       ...(signal ? { signal } : {})
@@ -386,7 +218,7 @@ export function createAssessmentsApi(client: AssessmentClient) {
     intent = crypto.randomUUID(),
     signal?: AbortSignal
   ) =>
-    client.request<AssessmentRead>(`/assessments/${encodeURIComponent(id)}/publish`, {
+    client.request<AssessmentStaff>(`/assessments/${encodeURIComponent(id)}/publish`, {
       method: 'POST',
       json: { expectedRevision: revision },
       headers: { 'Idempotency-Key': intent },
@@ -403,10 +235,6 @@ export function createAssessmentsApi(client: AssessmentClient) {
     guard();
     return assessment;
   };
-  const createFields = (fields: AssessmentFields): AssessmentCreate =>
-    Object.fromEntries(
-      Object.entries(fields).filter(([key]) => key !== 'confirmResetDrafts')
-    ) as AssessmentCreate;
 
   function all(filters: Filters = {}, signal?: AbortSignal, sessionKey = currentSessionKey()) {
     return collectAllPages((page, pageSignal) => list(filters, page, pageSignal), {
@@ -461,7 +289,7 @@ export function createAssessmentsApi(client: AssessmentClient) {
     sessionKey = currentSessionKey(),
     signal?: AbortSignal
   ) =>
-    requestForSession<SubmissionRead>(
+    requestForSession<SubmissionStudent>(
       '/submissions',
       {
         method: 'POST',
@@ -478,7 +306,7 @@ export function createAssessmentsApi(client: AssessmentClient) {
     sessionKey = currentSessionKey(),
     signal?: AbortSignal
   ) =>
-    requestForSession<SubmissionRead>(
+    requestForSession<SubmissionStudent>(
       `/submissions/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
@@ -494,7 +322,7 @@ export function createAssessmentsApi(client: AssessmentClient) {
     sessionKey = currentSessionKey(),
     signal?: AbortSignal
   ) =>
-    requestForSession<SubmissionStudent | SubmissionStaff>(
+    requestForSession<SubmissionStudent>(
       `/submissions/${encodeURIComponent(id)}/submit`,
       {
         method: 'POST',
@@ -648,14 +476,14 @@ export function createAssessmentsApi(client: AssessmentClient) {
   ) {
     const guard = sessionFence(sessionKey);
     guard();
-    let assessment: AssessmentRead;
+    let assessment: AssessmentStaff;
     if (input.id) {
       assessment = await edit(input.id, input.fields, input.revision);
       guard();
     } else {
-      assessment = await create(createFields(input.fields), intent);
+      assessment = await create(toAssessmentCreate(input.fields), intent);
       guard();
-      await onCreated?.(assessment as AssessmentStaff);
+      await onCreated?.(assessment);
       guard();
     }
     if (assessment.status === 'draft') {
@@ -673,12 +501,12 @@ export function createAssessmentsApi(client: AssessmentClient) {
   ) {
     const guard = sessionFence(sessionKey);
     guard();
-    let assessment: AssessmentRead;
-    if (input.id) assessment = await edit(input.id, input.fields, input.revision);
-    else assessment = await create(createFields(input.fields), intent);
+    const assessment = input.id
+      ? await edit(input.id, input.fields, input.revision)
+      : await create(toAssessmentCreate(input.fields), intent);
     guard();
     if (!input.id) {
-      await onCreated?.(assessment as AssessmentStaff);
+      await onCreated?.(assessment);
       guard();
     }
     return assessment;

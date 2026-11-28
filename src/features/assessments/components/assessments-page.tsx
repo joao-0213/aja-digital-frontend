@@ -22,16 +22,18 @@ import {
   sortByDeadlineAsc
 } from '@/lib/academic-format';
 import { useSession } from '@/providers/app-context';
-import type { AssessmentRead, AssessmentStaff, AttemptRead, SubmissionRead } from '../api';
+import {
+  isStaffAssessment,
+  type AssessmentRead,
+  type AssessmentStaff,
+  type AttemptRead,
+  type SubmissionRead
+} from '../api';
 import { assessmentKeys, useAssessmentsApi } from '../hooks/use-assessments';
 import { deadlineParts, groupStudentActivities } from '../lib/activity-list';
 
 type StaffFilter = 'all' | 'draft' | 'published';
 type StudentFilter = 'all' | 'pending' | 'completed';
-
-function isStaffAssessment(activity: AssessmentRead): activity is AssessmentStaff {
-  return 'questionIds' in activity;
-}
 
 function dateLabel(value: string | null) {
   if (!value) return 'Sem prazo';
