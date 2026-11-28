@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, ThumbsUp } from 'lucide-react';
-import { useSession } from '@/providers/app-context';
+import { useApp, useSession } from '@/providers/app-context';
+import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import {
   Avatar,
@@ -32,7 +33,9 @@ export function ForumThread() {
 }
 
 function ForumThreadContent() {
+  const { notify } = useApp();
   const { client, sessionKey, user } = useSession();
+  const router = useRouter();
   const id = useSearchParams().get('id') ?? '';
   const api = useForumApi();
   const query = useHttpQuery(
@@ -81,7 +84,16 @@ function ForumThreadContent() {
   }, [api, client, id, hasTopic, topicRead, queryLoading, replyState.setError]);
 
   if (query.loading) return <Skeleton />;
-  if (query.error)
+  if (query.error) {
+    if (query.error instanceof HttpError && query.error.status === 404) {
+      return (
+        <Empty
+          title="Pergunta indisponível"
+          description="A pergunta foi retirada ou seu acesso à turma/disciplina foi encerrado."
+          action={<LinkButton href="/forum">Voltar ao fórum</LinkButton>}
+        />
+      );
+    }
     return (
       <>
         <LinkButton secondary href="/forum" className="mb-5">
@@ -91,6 +103,7 @@ function ForumThreadContent() {
         <ErrorState message={query.error.message} retry={query.retry} />
       </>
     );
+  }
   if (!topic)
     return (
       <Empty
@@ -331,12 +344,16 @@ function ForumThreadContent() {
                 onClick={async () => {
                   const target = replyState.withdrawTarget;
                   if (!target) return;
-                  await replyState.updateTopic(() =>
+                  const ok = await replyState.updateTopic(() =>
                     target.kind === 'topic'
                       ? api.withdrawTopic(id, topic.revision)
                       : api.withdrawReply(id, target.replyId, topic.revision)
                   );
                   replyState.setWithdrawTarget(null);
+                  if (ok && target.kind === 'topic') {
+                    notify('Pergunta retirada.');
+                    router.replace('/forum');
+                  }
                 }}
               >
                 {replyState.withdrawTarget.kind === 'topic'
