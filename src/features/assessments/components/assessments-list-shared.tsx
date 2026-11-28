@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { deadlineParts } from '../lib/activity-list';
 
 export type StaffFilter = 'all' | 'draft' | 'published';
-export type StudentFilter = 'all' | 'pending' | 'completed';
+export type StudentFilter = 'pending' | 'completed';
 
 export function DeadlineColumn({
   deadline,

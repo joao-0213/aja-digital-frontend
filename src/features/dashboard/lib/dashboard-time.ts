@@ -15,3 +15,25 @@ export function dashboardDeadlineLabel(value: string) {
   }).format(date);
   return `${localDate} · ${localTime}`;
 }
+
+export function dashboardDeadlineParts(
+  value: string | null
+): { date: string; time: string } | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const date = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: DASHBOARD_TIME_ZONE,
+    day: '2-digit',
+    month: 'short'
+  })
+    .format(parsed)
+    .replace(/\.$/, '');
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: DASHBOARD_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).format(parsed);
+  return { date, time };
+}

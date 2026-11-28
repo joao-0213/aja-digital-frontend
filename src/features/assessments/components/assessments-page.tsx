@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Empty, ErrorState, LinkButton, Skeleton } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { moduleDisplayNumber } from '@/lib/academic-format';
 import { useSession } from '@/providers/app-context';
 import { assessmentKeys, useAssessmentsApi } from '../hooks/use-assessments';
 import { ActivityDetails } from './activity-details';
@@ -16,7 +17,7 @@ export function AssessmentsPage() {
   const params = useSearchParams();
   const detailId = params.get('id');
   const [staffFilter, setStaffFilter] = useState<StaffFilter>('all');
-  const [studentFilter, setStudentFilter] = useState<StudentFilter>('all');
+  const [studentFilter, setStudentFilter] = useState<StudentFilter>('pending');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const api = useAssessmentsApi();
 
@@ -73,6 +74,14 @@ export function AssessmentsPage() {
     if (attempts.loading) return <Skeleton />;
     if (attempts.error)
       return <ErrorState message={attempts.error.message} retry={() => void attempts.retry()} />;
+    const detailModule = query.data?.modules.find((mod) => mod.id === detail.data?.moduleId);
+    const detailSubject = detailModule
+      ? query.data?.subjects.find((sub) => sub.id === detailModule.subjectId)
+      : undefined;
+    const detailModuleNumber =
+      detailModule && query.data?.modules
+        ? moduleDisplayNumber(query.data.modules, detailModule)
+        : undefined;
     return (
       <ActivityDetails
         activity={detail.data}
@@ -80,6 +89,8 @@ export function AssessmentsPage() {
         userId={user.id}
         attempts={attempts.data ?? []}
         submissions={submissions.data ?? []}
+        subjectName={detailSubject?.name}
+        moduleNumber={detailModuleNumber}
       />
     );
   }

@@ -26,6 +26,9 @@ export function SubjectCard({
   const { Icon, value: icon } = resolveSubjectIcon(subject);
   const cover = subjectCovers[subject.color] ?? subjectCovers.violet;
   const pct = progress && progress.total > 0 ? percent(progress.completed, progress.total) : null;
+  const teachersLabel =
+    subject.teachers?.map((teacher) => teacher.name).join(', ') || 'Aguardando atribuição';
+
   return (
     <article
       className={cn(
@@ -48,10 +51,13 @@ export function SubjectCard({
           {archived && <Badge tone="neutral">Encerrada</Badge>}
         </div>
         <div
-          className={`flex flex-1 flex-col items-start gap-2 rounded-b-xl bg-white p-5 ${onEdit ? 'pr-14' : ''}`}
+          className={cn(
+            'flex flex-1 flex-col rounded-b-xl bg-white p-5',
+            onEdit && 'pr-14'
+          )}
         >
-          <div className="flex w-full items-center gap-2.5">
-            <h3 className="min-w-0 text-xl font-semibold leading-6 tracking-tight text-slate-900 [overflow-wrap:anywhere]">
+          <div className="flex w-full items-center gap-2">
+            <h3 className="min-w-0 text-lg font-semibold leading-snug tracking-tight text-slate-900 [overflow-wrap:anywhere]">
               {subject.name}
             </h3>
             {hasUpdates && !archived && (
@@ -63,33 +69,38 @@ export function SubjectCard({
             )}
             <ChevronRight
               aria-hidden="true"
-              className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-500"
+              className="subject-card-arrow ml-auto size-4 shrink-0 text-slate-400"
             />
           </div>
-          <p className="text-sm text-slate-500 [overflow-wrap:anywhere]">
-            {className ?? subject.className}
-          </p>
-          <p className="text-xs leading-5 text-slate-500 [overflow-wrap:anywhere]">
-            Equipe docente:{' '}
-            {subject.teachers?.map((teacher) => teacher.name).join(', ') || 'Aguardando atribuição'}
-          </p>
+
+          <div className="mt-1.5 space-y-1 text-xs leading-5">
+            <p className="font-medium text-slate-600 [overflow-wrap:anywhere]">
+              {className ?? subject.className}
+            </p>
+            <p className="text-slate-500 [overflow-wrap:anywhere]">
+              Equipe docente: {teachersLabel}
+            </p>
+          </div>
+
           {progress && pct !== null && (
-            <div className="mt-auto w-full pt-3">
-              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-slate-500">
-                <span>
-                  {progress.completed} de{' '}
-                  {countLabel(progress.total, 'material concluído', 'materiais concluídos')}
-                </span>
-                <span className="font-semibold tabular-nums text-slate-700">{pct}%</span>
-              </div>
-              <div
-                className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
-                aria-hidden="true"
-              >
+            <div className="mt-auto w-full pt-4">
+              <div className="border-t border-slate-100 pt-3.5">
+                <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <span>
+                    {progress.completed} de{' '}
+                    {countLabel(progress.total, 'material concluído', 'materiais concluídos')}
+                  </span>
+                  <span className="font-semibold tabular-nums text-slate-700">{pct}%</span>
+                </div>
                 <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: cover.color }}
-                />
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+                  aria-hidden="true"
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${pct}%`, background: cover.color }}
+                  />
+                </div>
               </div>
             </div>
           )}

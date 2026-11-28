@@ -1,12 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import {
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  Image as ImageIcon,
+  Link2,
+  Paperclip,
+  Trash2
+} from 'lucide-react';
 import { Button, Dialog } from '@/components/ui';
+import { toErrorMessage } from '@/lib/errors';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
 import type { SubmissionAttachment } from '../api';
 import { useAssessmentsApi } from '../hooks/use-assessments';
-import { toErrorMessage } from '@/lib/errors';
 
 const SAFE_PREVIEW = /^(application\/pdf|image\/(png|jpeg|webp))$/;
 
@@ -120,68 +130,99 @@ export function WorkAttachments({
     }
   };
 
+  if (!items.length) return null;
+
   return (
     <>
-      <ul className="divide-y divide-slate-200">
-        {items.map((item) => (
-          <li
-            key={item.kind === 'file' ? item.fileId : item.url}
-            className="space-y-2 py-4 text-sm"
-          >
-            <p className="break-words font-semibold">{item.name}</p>
-            {item.kind === 'link' ? (
-              <a
-                className="inline-flex min-h-11 max-w-full items-center break-all font-bold text-brand-700 underline underline-offset-4 hover:text-brand-900"
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {item.url}
-              </a>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {SAFE_PREVIEW.test(
-                  files?.[item.fileId]?.type ??
-                    (remotePreviewTypes[item.fileId]?.sessionKey === sessionKey &&
-                    status === 'authenticated'
-                      ? remotePreviewTypes[item.fileId].mime
-                      : '')
-                ) ? (
-                  <Button
-                    variant="secondary"
-                    aria-label={`Prévia de ${item.name}`}
-                    onClick={() => void open(item, true)}
-                  >
-                    Prévia
-                  </Button>
-                ) : (
-                  <span className="self-center text-xs text-slate-500">
-                    Formato aceito; consulta por download.
-                  </span>
-                )}
-                <Button
-                  variant="secondary"
-                  aria-label={`Baixar ${item.name}`}
-                  onClick={() => void open(item, false)}
-                >
-                  Baixar
-                </Button>
+      <ul className="space-y-2.5">
+        {items.map((item) => {
+          const mime =
+            item.kind === 'file'
+              ? (files?.[item.fileId]?.type ??
+                (remotePreviewTypes[item.fileId]?.sessionKey === sessionKey &&
+                status === 'authenticated'
+                  ? remotePreviewTypes[item.fileId].mime
+                  : ''))
+              : '';
+          const canPreview = item.kind === 'file' && SAFE_PREVIEW.test(mime);
+          const ItemIcon =
+            item.kind === 'link'
+              ? Link2
+              : mime.startsWith('image/')
+                ? ImageIcon
+                : mime === 'application/pdf'
+                  ? FileText
+                  : Paperclip;
+
+          return (
+            <li
+              key={item.kind === 'file' ? item.fileId : item.url}
+              className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm transition-colors hover:border-slate-300 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <ItemIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-600" />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-semibold text-slate-900">{item.name}</p>
+                  {item.kind === 'link' ? (
+                    <a
+                      className="mt-0.5 inline-flex max-w-full items-center gap-1 break-all text-xs font-medium text-brand-700 underline underline-offset-4 hover:text-brand-900"
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span>{item.url}</span>
+                      <ExternalLink aria-hidden="true" className="size-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {canPreview
+                        ? 'Visualização disponível no navegador ou por download.'
+                        : 'Formato aceito; consulta por download.'}
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
-            {onRemove && (
-              <Button
-                variant="ghost"
-                aria-label={`Remover ${item.name}`}
-                onClick={() => onRemove(item.kind === 'file' ? item.fileId : item.url)}
-              >
-                Remover
-              </Button>
-            )}
-          </li>
-        ))}
+
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {item.kind === 'file' && (
+                  <>
+                    {canPreview && (
+                      <Button
+                        variant="secondary"
+                        aria-label={`Prévia de ${item.name}`}
+                        onClick={() => void open(item, true)}
+                      >
+                        <Eye aria-hidden="true" className="size-4" />
+                        Prévia
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      aria-label={`Baixar ${item.name}`}
+                      onClick={() => void open(item, false)}
+                    >
+                      <Download aria-hidden="true" className="size-4" />
+                      Baixar
+                    </Button>
+                  </>
+                )}
+                {onRemove && (
+                  <Button
+                    variant="ghost"
+                    aria-label={`Remover ${item.name}`}
+                    onClick={() => onRemove(item.kind === 'file' ? item.fileId : item.url)}
+                  >
+                    <Trash2 aria-hidden="true" className="size-4" />
+                    Remover
+                  </Button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
       {error && (
-        <p role="alert" className="mt-3 text-sm text-rose-700">
+        <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3.5 py-2.5 text-sm text-rose-700">
           {error}
         </p>
       )}
@@ -192,9 +233,18 @@ export function WorkAttachments({
       >
         {preview &&
           (preview.image ? (
-            <img src={preview.url} alt={preview.name} className="max-h-[60vh] max-w-full" />
+            <img
+              src={preview.url}
+              alt={preview.name}
+              className="mx-auto max-h-[60vh] max-w-full rounded-lg"
+            />
           ) : (
-            <iframe title={preview.name} src={preview.url} sandbox="" className="h-[60vh] w-full" />
+            <iframe
+              title={preview.name}
+              src={preview.url}
+              sandbox=""
+              className="h-[60vh] w-full rounded-lg border border-slate-200"
+            />
           ))}
         <p className="mt-4 text-sm text-slate-500">Se a prévia não abrir, feche e use Baixar.</p>
       </Dialog>

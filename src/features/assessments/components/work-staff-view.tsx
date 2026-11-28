@@ -119,7 +119,9 @@ export function WorkStaffView({
                     : 'Entrega registrada'}{' '}
                   · {countLabel(selected.attachments.length, 'anexo', 'anexos')}
                 </p>
-                <WorkAttachments items={selected.attachments} />
+                <div className="mt-4">
+                  <WorkAttachments items={selected.attachments} />
+                </div>
               </Card>
               <FeedbackEditor
                 key={selected.id}

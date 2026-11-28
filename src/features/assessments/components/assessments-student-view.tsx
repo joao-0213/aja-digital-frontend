@@ -48,12 +48,11 @@ export function AssessmentsStudentView({
   const completedCount =
     (allGroups.find((group) => group.key === 'completed')?.entries.length ?? 0) +
     (allGroups.find((group) => group.key === 'awaiting_feedback')?.entries.length ?? 0);
-  const visibleGroups = allGroups.filter((group) => {
-    if (studentFilter === 'pending') return group.key === 'pending';
-    if (studentFilter === 'completed')
-      return group.key === 'completed' || group.key === 'awaiting_feedback';
-    return true;
-  });
+  const visibleGroups = allGroups.filter((group) =>
+    studentFilter === 'pending'
+      ? group.key === 'pending'
+      : group.key === 'completed' || group.key === 'awaiting_feedback'
+  );
 
   return (
     <>
@@ -66,7 +65,6 @@ export function AssessmentsStudentView({
         ariaLabel="Filtrar atividades por situação"
         tabs={
           [
-            { value: 'all', label: 'Todas', count: scopedAssessments.length },
             { value: 'pending', label: 'Pendentes', count: pendingCount },
             { value: 'completed', label: 'Concluídas', count: completedCount }
           ] as const
@@ -167,8 +165,16 @@ export function AssessmentsStudentView({
         </div>
       ) : (
         <Empty
-          title="Nenhuma atividade nesta seleção"
-          description="As atividades aparecerão aqui quando forem publicadas."
+          title={
+            studentFilter === 'pending'
+              ? 'Nenhuma atividade pendente'
+              : 'Nenhuma atividade concluída'
+          }
+          description={
+            studentFilter === 'pending'
+              ? 'Você está em dia com as atividades publicadas.'
+              : 'As atividades entregues ou avaliadas aparecerão aqui.'
+          }
         />
       )}
     </>
