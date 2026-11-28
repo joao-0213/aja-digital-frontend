@@ -6,7 +6,7 @@ import { useApp, useSession } from '@/providers/app-context';
 import { Badge, Button, Check, Dialog, ProgressBar, Textarea } from '@/components/ui';
 import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { countLabel, percent } from '@/lib/utils';
-import { createStudentsApi } from '../api';
+import { useStudentsApi } from '../hooks/use-students';
 import {
   createBatchItems,
   describePreviewOutcome,
@@ -42,7 +42,7 @@ export function BatchEnrollmentDialog({
 }) {
   const { client, sessionKey } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createStudentsApi(client), [client]);
+  const api = useStudentsApi();
 
   const [rawEmails, setRawEmails] = useState(() => {
     const draft = client.readDraft<SavedDraft>('students-fields');

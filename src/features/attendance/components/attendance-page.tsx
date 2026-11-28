@@ -21,10 +21,12 @@ import {
 } from '@/components/ui';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { HttpError } from '@/lib/http-client';
 import { compareAttendanceRecords } from '../lib/attendance-comparison';
-import { createAttendanceApi, type AttendanceLesson, type AttendanceRoster } from '../api';
+import type { AttendanceLesson, AttendanceRoster } from '../api';
+import { attendanceKeys, useAttendanceApi } from '../hooks/use-attendance';
 import { toErrorMessage } from '@/lib/errors';
 
 function todayInBrasilia() {
@@ -37,16 +39,23 @@ function todayInBrasilia() {
 }
 
 export function AttendancePage() {
-  const { client, user, sessionKey } = useSession();
+  const { user, sessionKey } = useSession();
   const { notify } = useApp();
   const params = useSearchParams();
-  const api = useMemo(() => createAttendanceApi(client), [client]);
+  const api = useAttendanceApi();
   const subjects = useHttpQuery(
-    { sessionKey, key: ['attendance', 'subjects'] },
+    { sessionKey, key: attendanceKeys.subjects },
     useCallback((signal) => api.subjects(signal), [api]),
     user?.role !== 'student'
   );
-  const [subjectId, setSubjectId] = useState('');
+  const requestedSubject = params.get('disciplina') ?? '';
+  const [selectedSubjectParam, setSelectedSubjectParam] = useUrlFilterParam(requestedSubject);
+  const available = subjects.data ?? [];
+  const subjectId =
+    (available.some((item) => item.id === selectedSubjectParam) ? selectedSubjectParam : '') ||
+    available.find((item) => item.canManageContent)?.id ||
+    available[0]?.id ||
+    '';
   const [date, setDate] = useState('');
   const [time, setTime] = useState('19:00');
   const [roster, setRoster] = useState<AttendanceRoster>();
@@ -64,11 +73,9 @@ export function AttendancePage() {
   selectionRef.current = selection;
   const requestVersion = useRef(0);
   const loadedSelection = useRef('');
-  const requestedSubject = params.get('disciplina') ?? '';
-  const available = subjects.data ?? [];
   const selectedSubject = available.find((item) => item.id === subjectId);
   const recentLessons = useHttpQuery(
-    { sessionKey, key: ['attendance', 'recent', subjectId] },
+    { sessionKey, key: attendanceKeys.recent(subjectId) },
     useCallback((signal) => api.subjectLessons(subjectId, signal), [api, subjectId]),
     user?.role !== 'student' && !!subjectId
   );
@@ -84,16 +91,6 @@ export function AttendancePage() {
   useEffect(() => {
     setDate(todayInBrasilia());
   }, []);
-  useEffect(() => {
-    if (!available.length) return;
-    setSubjectId((current) =>
-      current && available.some((item) => item.id === current)
-        ? current
-        : (available.find((item) => item.id === requestedSubject)?.id ??
-          available.find((item) => item.canManageContent)?.id ??
-          available[0].id)
-    );
-  }, [available, requestedSubject]);
 
   const invalidateSelection = () => {
     requestVersion.current += 1;
@@ -286,7 +283,7 @@ export function AttendancePage() {
             value={subjectId}
             onChange={(event) => {
               invalidateSelection();
-              setSubjectId(event.target.value);
+              setSelectedSubjectParam(event.target.value);
             }}
           >
             {available.map((item) => (

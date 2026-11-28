@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useSession, useApp } from '@/providers/app-context';
 import {
@@ -24,7 +24,8 @@ import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selectio
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import { countLabel } from '@/lib/utils';
 import type { SchoolClass } from '@/models';
-import { createClassesApi, type ClassFields } from '../api';
+import type { ClassFields } from '../api';
+import { classKeys, useClassesApi } from '../hooks/use-classes';
 
 type Selection = { record?: SchoolClass; action: 'edit' | 'close' | 'reopen'; intent: string };
 
@@ -37,9 +38,8 @@ function ClassDialog({
   close: () => void;
   saved: () => void;
 }) {
-  const { client } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createClassesApi(client), [client]);
+  const api = useClassesApi();
   const { record, action, intent } = selection;
   const initial: ClassFields = {
     name: record?.name ?? '',
@@ -231,8 +231,8 @@ function ClassDialog({
 }
 
 export function ClassesPage() {
-  const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createClassesApi(client), [client]);
+  const { sessionKey, user } = useSession();
+  const api = useClassesApi();
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
   const [page, setPage] = useState(1);
@@ -242,7 +242,7 @@ export function ClassesPage() {
     close
   } = useEditableDialogSelection<Selection>('classes-open', 'classes-fields');
   const query = useHttpQuery(
-    { sessionKey, key: ['classes', search, inactive, page] },
+    { sessionKey, key: classKeys.list(search, inactive, page) },
     useCallback(
       (signal) => api.list(search, inactive, page, signal),
       [api, search, inactive, page]

@@ -3,12 +3,13 @@
 import { useCallback, useMemo } from 'react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { createSubjectsApi, type SubjectSummary } from '../api';
+import type { SubjectSummary } from '../api';
+import { useSubjectsApi } from './use-subjects';
 
 /** A visit is only acknowledged after the API commits the observed snapshot. */
 export function useSubjectVisit(subject: SubjectSummary | undefined) {
-  const { client, sessionKey } = useSession();
-  const api = useMemo(() => createSubjectsApi(client), [client]);
+  const { sessionKey } = useSession();
+  const api = useSubjectsApi();
   const id = subject?.id ?? '';
   const signature = JSON.stringify(subject?.publicationIds ?? []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new idempotency intent is intentionally generated for each session, subject and publication set

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import {
@@ -25,7 +25,8 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import type { User, Role } from '@/models';
-import { createUsersApi, type UserFields } from '../api';
+import type { UserFields } from '../api';
+import { userKeys, useUsersApi } from '../hooks/use-users';
 
 type Selection = {
   record?: User;
@@ -43,9 +44,8 @@ function UserDialog({
   close: () => void;
   saved: () => void;
 }) {
-  const { client } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createUsersApi(client), [client]);
+  const api = useUsersApi();
   const { record, action, nextRole, intent } = selection;
   const edit = action === 'edit';
   const initial: UserFields = { name: record?.name ?? '', email: record?.email ?? '' };
@@ -224,7 +224,7 @@ function UserDialog({
 
 export function UsersPage() {
   const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createUsersApi(client), [client]);
+  const api = useUsersApi();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -235,7 +235,7 @@ export function UsersPage() {
     close
   } = useEditableDialogSelection<Selection>('users-open', 'users-fields');
   const query = useHttpQuery(
-    { sessionKey, key: ['users', search, filter, page] },
+    { sessionKey, key: userKeys.list(search, filter, false, page) },
     useCallback((signal) => api.list(search, filter, page, signal), [api, search, filter, page]),
     { enabled: user?.role === 'admin', keepPreviousData: true }
   );

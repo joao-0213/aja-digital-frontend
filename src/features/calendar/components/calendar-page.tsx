@@ -7,15 +7,16 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { cn, dateLabel } from '@/lib/utils';
 import { AnnouncementComposer } from '@/features/announcements';
-import { createCalendarApi, type CalendarDto } from '../api';
+import type { CalendarDto } from '../api';
+import { useCalendarApi } from '../hooks/use-calendar';
 
 const dayKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const MAX_VISIBLE_EVENTS_PER_DAY = 2;
 
 export function CalendarPage() {
-  const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createCalendarApi(client), [client]);
+  const { sessionKey, user } = useSession();
+  const api = useCalendarApi();
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);

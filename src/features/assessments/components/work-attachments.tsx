@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button, Dialog } from '@/components/ui';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
-import { createAssessmentsApi, type SubmissionAttachment } from '../api';
+import type { SubmissionAttachment } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { toErrorMessage } from '@/lib/errors';
 
 const SAFE_PREVIEW = /^(application\/pdf|image\/(png|jpeg|webp))$/;
@@ -19,7 +20,7 @@ export function WorkAttachments({
   onRemove?: (id: string) => void;
 }) {
   const { client, sessionKey, status } = useSession();
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const [preview, setPreview] = useState<{ url: string; name: string; image: boolean }>();
   const [error, setError] = useState('');
   const [remotePreviewTypes, setRemotePreviewTypes] = useState<

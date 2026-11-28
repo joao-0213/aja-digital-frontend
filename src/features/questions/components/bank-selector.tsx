@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { Button, Empty, ErrorState, Input, Skeleton } from '@/components/ui';
 import { countLabel } from '@/lib/utils';
-import { createQuestionsApi, type BankQuestion } from '../api';
+import type { BankQuestion } from '../api';
+import { useQuestionsApi } from '../hooks/use-questions';
 import { emptyQuestionFilters } from '../lib/question-filters';
 import { QuestionPicker } from './question-picker';
 
@@ -18,8 +19,8 @@ export function BankSelector({
   disabled: boolean;
   onSelect: (question: BankQuestion) => void;
 }) {
-  const { client, sessionKey } = useSession();
-  const api = useMemo(() => createQuestionsApi(client), [client]);
+  const { sessionKey } = useSession();
+  const api = useQuestionsApi();
   const [search, setSearch] = useState(''),
     [page, setPage] = useState(1);
   const query = useHttpQuery(

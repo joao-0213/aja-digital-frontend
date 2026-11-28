@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowLeft, Plus, Pencil, Trash2 } from 'lucide-react';
 import {
   Avatar,
@@ -15,19 +15,20 @@ import {
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { brazilDateTimeLabel, dateLabel } from '@/lib/utils';
-import { createAnnouncementsApi, type AnnouncementDto } from '../api';
+import type { AnnouncementDto } from '../api';
+import { announcementKeys, useAnnouncementsApi } from '../hooks/use-announcements';
 import { AnnouncementComposer } from './announcement-composer';
 import { WithdrawAnnouncementDialog } from './withdraw-announcement-dialog';
 
 export function AnnouncementsPage() {
   const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createAnnouncementsApi(client), [client]);
+  const api = useAnnouncementsApi();
   const [filter, setFilter] = useState('all');
   const [composing, setComposing] = useState<AnnouncementDto | 'new' | null>(null);
   const [withdrawing, setWithdrawing] = useState<AnnouncementDto | null>(null);
   const [actionError, setActionError] = useState('');
   const options = useHttpQuery(
-    { sessionKey, key: ['announcements', 'options'] },
+    { sessionKey, key: announcementKeys.options },
     useCallback((signal) => api.options(signal), [api])
   );
   const notices = useHttpQuery(

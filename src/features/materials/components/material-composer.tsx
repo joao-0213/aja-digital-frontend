@@ -19,7 +19,8 @@ import { useHttpEditor } from '@/hooks/use-http-editor';
 import { videoSource } from '@/lib/material-video';
 import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import type { TrailModule } from '@/models';
-import { createMaterialsApi, type MaterialDto, type MaterialEdit } from '../api';
+import type { createMaterialsApi, MaterialDto, MaterialEdit } from '../api';
+import { useMaterialsApi } from '../hooks/use-materials';
 import {
   createMaterialPublication,
   type PublicationInput,
@@ -44,7 +45,7 @@ function ComposerForm({
 }) {
   const { client, sessionKey } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createMaterialsApi(client), [client]);
+  const api = useMaterialsApi();
   const { material, module, subject } = context;
   const draftKey = `material-fields:${module.id}:${material?.id ?? 'new'}`;
   const preparationStore = useMemo(
@@ -491,8 +492,8 @@ export function MaterialComposer({
   onPublished?: () => void;
 }) {
   const closeRef = useRef(onClose);
-  const { client, sessionKey } = useSession();
-  const api = useMemo(() => createMaterialsApi(client), [client]);
+  const { sessionKey } = useSession();
+  const api = useMaterialsApi();
   const query = useHttpQuery(
     { sessionKey, key: ['materials', 'composer', moduleId, materialId ?? 'new'] },
     useCallback(

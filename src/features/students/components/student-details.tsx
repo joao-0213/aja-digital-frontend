@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
@@ -15,17 +15,17 @@ import {
 } from '@/components/ui';
 import { brazilDateTimeLabel, dateLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { createStudentsApi } from '../api';
-import { createAttendanceApi } from '@/features/attendance';
+import { studentKeys, useStudentsApi } from '../hooks/use-students';
+import { useAttendanceApi } from '@/features/attendance';
 
 export function StudentDetails() {
-  const { client, user, sessionKey } = useSession();
+  const { user, sessionKey } = useSession();
   const id = useSearchParams().get('id') ?? '';
-  const api = useMemo(() => createStudentsApi(client), [client]);
-  const attendanceApi = useMemo(() => createAttendanceApi(client), [client]);
+  const api = useStudentsApi();
+  const attendanceApi = useAttendanceApi();
   const allowed = !!user && user.role !== 'student' && !!id;
   const query = useHttpQuery(
-    { sessionKey, key: ['students', 'detail', id] },
+    { sessionKey, key: studentKeys.detail(id) },
     useCallback((signal) => api.read(id, signal), [api, id]),
     allowed
   );

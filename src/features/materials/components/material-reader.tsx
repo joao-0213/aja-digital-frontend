@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -20,7 +20,7 @@ import { brazilDateTimeLabel, cn } from '@/lib/utils';
 import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
-import { createMaterialsApi } from '../api';
+import { materialKeys, useMaterialsApi } from '../hooks/use-materials';
 import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
 import { MaterialLibrary } from './material-library';
@@ -30,9 +30,9 @@ function ReaderContent({ id }: { id: string }) {
   const { client, sessionKey, user } = useSession();
   const { notify } = useApp();
   const isStudent = user?.role === 'student';
-  const api = useMemo(() => createMaterialsApi(client), [client]);
+  const api = useMaterialsApi();
   const query = useHttpQuery(
-    { sessionKey, key: ['materials', 'detail', id] },
+    { sessionKey, key: materialKeys.detail(id) },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!id
   );

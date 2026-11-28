@@ -16,7 +16,8 @@ import {
   isOccurrenceInPast
 } from '../lib/announcement-form';
 import { getOrCreateAnnouncementIntent } from '../lib/announcement-intent';
-import { createAnnouncementsApi, type AnnouncementDto, type AnnouncementFields } from '../api';
+import type { AnnouncementDto, AnnouncementFields } from '../api';
+import { useAnnouncementsApi } from '../hooks/use-announcements';
 
 const ALL_CLASSES = '__all__';
 
@@ -35,7 +36,7 @@ export function AnnouncementComposer({
 }) {
   const { client, sessionKey, user } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createAnnouncementsApi(client), [client]);
+  const api = useAnnouncementsApi();
   const fields = useMemo(() => {
     const base = initialAnnouncementFields(item, subjectId, classId);
     if (!item && defaultCalendar && !base.occurrence)

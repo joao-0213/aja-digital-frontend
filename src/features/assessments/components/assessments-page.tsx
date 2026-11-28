@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CalendarClock, ClipboardCheck, FileUp, Plus } from 'lucide-react';
@@ -22,13 +22,8 @@ import {
   sortByDeadlineAsc
 } from '@/lib/academic-format';
 import { useSession } from '@/providers/app-context';
-import {
-  createAssessmentsApi,
-  type AssessmentRead,
-  type AssessmentStaff,
-  type AttemptRead,
-  type SubmissionRead
-} from '../api';
+import type { AssessmentRead, AssessmentStaff, AttemptRead, SubmissionRead } from '../api';
+import { assessmentKeys, useAssessmentsApi } from '../hooks/use-assessments';
 import { deadlineParts, groupStudentActivities } from '../lib/activity-list';
 
 type StaffFilter = 'all' | 'draft' | 'published';
@@ -340,15 +335,15 @@ function ActivityDetails({
 }
 
 export function AssessmentsPage() {
-  const { client, sessionKey, status, user } = useSession();
+  const { sessionKey, status, user } = useSession();
   const params = useSearchParams();
   const detailId = params.get('id');
   const [staffFilter, setStaffFilter] = useState<StaffFilter>('all');
   const [studentFilter, setStudentFilter] = useState<StudentFilter>('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const query = useHttpQuery(
-    { sessionKey, key: ['assessments', 'list', staffFilter] },
+    { sessionKey, key: assessmentKeys.list(staffFilter) },
     useCallback(
       (signal) =>
         api.overview(staffFilter === 'all' ? {} : { status: staffFilter }, signal, sessionKey),

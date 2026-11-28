@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -17,12 +17,8 @@ import {
 import { brazilDateTimeLabel, countLabel } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import {
-  createAssessmentsApi,
-  type AssessmentRead,
-  type AttemptRead,
-  type AttemptStudent
-} from '../api';
+import type { AssessmentRead, AttemptRead, AttemptStudent } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { QuizSession } from './quiz-session';
 import { WorkActivity } from './work-activity';
 import { toErrorMessage } from '@/lib/errors';
@@ -83,7 +79,7 @@ export function AnswerAssessment() {
   const { client, sessionKey, status, user } = useSession();
   const params = useSearchParams();
   const id = params.get('id') ?? '';
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const assessment = useHttpQuery(
     { sessionKey, key: ['assessments', 'attempt-assessment', id] },
     useCallback((signal) => api.readForSession(id, sessionKey, signal), [api, id, sessionKey]),

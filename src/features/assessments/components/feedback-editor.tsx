@@ -1,18 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { Button, Card, Input, Textarea } from '@/components/ui';
 import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
 import { brazilDateTimeLabel } from '@/lib/utils';
-import {
-  createAssessmentsApi,
-  type AssessmentRead,
-  type SubmissionStaff,
-  type WorkFeedback
-} from '../api';
+import type { AssessmentRead, SubmissionStaff, WorkFeedback } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { toErrorMessage } from '@/lib/errors';
 
 function feedbackMatches(
@@ -60,7 +56,7 @@ export function FeedbackEditor({
   onPublished?: () => void;
 }) {
   const { client, sessionKey, status } = useSession();
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const [submission, setSubmission] = useState(initialSubmission);
   const [comment, setComment] = useState(initialSubmission.feedbackDraft?.comment ?? '');
   const [grade, setGrade] = useState(

@@ -1,15 +1,16 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession, useApp } from '@/providers/app-context';
 import { Button, Dialog, Input, Select, Textarea, ErrorState, Skeleton } from '@/components/ui';
 import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useHttpEditor } from '@/hooks/use-http-editor';
-import { createClassesApi } from '@/features/classes';
+import { useClassesApi } from '@/features/classes';
 import type { Subject } from '@/models';
-import { createSubjectsApi, type SubjectFields, type SubjectSummary } from '../api';
+import type { SubjectFields, SubjectSummary } from '../api';
+import { useSubjectsApi } from '../hooks/use-subjects';
 import { teachingTeamOptions } from '../lib/teaching-team';
 import { resolveSubjectIcon, SubjectIconPicker } from './subject-icons';
 import { subjectColorLabel, SubjectColorPicker } from './subject-colors';
@@ -30,10 +31,10 @@ export function SubjectEditor({
   close: () => void;
   saved: () => void;
 }) {
-  const { client, sessionKey } = useSession();
+  const { sessionKey } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createSubjectsApi(client), [client]);
-  const classApi = useMemo(() => createClassesApi(client), [client]);
+  const api = useSubjectsApi();
+  const classApi = useClassesApi();
   const { record } = selection;
   const initial: SubjectFields = {
     name: record?.name ?? '',

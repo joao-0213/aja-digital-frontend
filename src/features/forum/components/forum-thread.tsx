@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, ThumbsUp } from 'lucide-react';
@@ -13,7 +13,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
 import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '../lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
-import { createForumApi } from '../api';
+import { forumKeys, useForumApi } from '../hooks/use-forum';
 import { ForumAttachments } from './forum-attachments';
 import { toErrorMessage } from '@/lib/errors';
 
@@ -26,9 +26,9 @@ export function ForumThread() {
 function ForumThreadContent() {
   const { client, sessionKey, user } = useSession();
   const id = useSearchParams().get('id') ?? '';
-  const api = useMemo(() => createForumApi(client), [client]);
+  const api = useForumApi();
   const query = useHttpQuery(
-    { sessionKey, key: ['forum', 'topic', id] },
+    { sessionKey, key: forumKeys.detail(id) },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!user && !!id
   );

@@ -25,7 +25,8 @@ import {
 } from '../lib/attempt-recovery';
 import { HttpError } from '@/lib/http-client';
 import { useSession } from '@/providers/app-context';
-import { createAssessmentsApi, createAttemptSubmitCommand, type AttemptStudent } from '../api';
+import { createAttemptSubmitCommand, type AttemptStudent } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { AttemptImage } from './attempt-image';
 import { toErrorMessage } from '@/lib/errors';
 import {
@@ -65,7 +66,7 @@ export function QuizSession({
   allowLate: boolean;
 }) {
   const { client, sessionKey, sessionId, status } = useSession();
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const router = useRouter();
   const [initial] = useState(() => {
     const userId = client.getSnapshot().user?.id ?? '';

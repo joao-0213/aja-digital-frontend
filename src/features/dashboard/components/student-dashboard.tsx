@@ -1,26 +1,27 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import { BookOpenCheck, ChevronRight, ClipboardList, TrendingUp } from 'lucide-react';
 import { Badge, Card, Empty, Skeleton } from '@/components/ui';
 import { countLabel, dateLabel, percent } from '@/lib/utils';
 import { sortByDeadlineAsc } from '@/lib/academic-format';
 import { dashboardDeadlineLabel } from '../lib/dashboard-time';
-import { createAssessmentsApi } from '@/features/assessments';
-import { createMaterialsApi } from '@/features/materials';
+import { useAssessmentsApi } from '@/features/assessments';
+import { useMaterialsApi } from '@/features/materials';
 import { SubjectCard } from '@/features/subjects';
 import { EnrollmentStatus } from '@/features/students';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import { createDashboardApi, type StudentDashboardDto } from '../api';
+import type { StudentDashboardDto } from '../api';
+import { useDashboardApi } from '../hooks/use-dashboard';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StudentDashboard() {
-  const { client, user, sessionKey } = useSession();
-  const api = useMemo(() => createDashboardApi(client), [client]);
-  const assessmentsApi = useMemo(() => createAssessmentsApi(client), [client]);
-  const materialsApi = useMemo(() => createMaterialsApi(client), [client]);
+  const { user, sessionKey } = useSession();
+  const api = useDashboardApi();
+  const assessmentsApi = useAssessmentsApi();
+  const materialsApi = useMaterialsApi();
   const isStudent = user?.role === 'student';
   const dashboard = useHttpQuery(
     { sessionKey, key: ['dashboard', 'student'] },

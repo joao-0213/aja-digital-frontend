@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import {
   BookOpen,
@@ -21,12 +21,13 @@ import { dashboardDeadlineLabel } from '../lib/dashboard-time';
 import { SubjectCard } from '@/features/subjects';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
-import { createDashboardApi, type StaffDashboardDto } from '../api';
+import type { StaffDashboardDto } from '../api';
+import { useDashboardApi } from '../hooks/use-dashboard';
 import { upcomingMeetings } from '../lib/upcoming-meetings';
 
 export function StaffDashboard() {
-  const { client, user, sessionKey } = useSession();
-  const api = useMemo(() => createDashboardApi(client), [client]);
+  const { user, sessionKey } = useSession();
+  const api = useDashboardApi();
   const dashboard = useHttpQuery(
     { sessionKey, key: ['dashboard', user?.role ?? 'staff'] },
     useCallback((signal) => api.read(signal), [api]),

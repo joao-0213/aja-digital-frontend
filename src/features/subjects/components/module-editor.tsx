@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useSession, useApp } from '@/providers/app-context';
+import { useState } from 'react';
+import { useApp } from '@/providers/app-context';
 import { Button, Dialog, Input, Textarea } from '@/components/ui';
 import { ConfirmAlert } from '@/components/shared/confirm-alert';
 import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpEditor } from '@/hooks/use-http-editor';
 import type { TrailModule } from '@/models';
-import { createSubjectsApi, type ModuleFields } from '../api';
+import type { ModuleFields } from '../api';
+import { useSubjectsApi } from '../hooks/use-subjects';
 
 export interface ModuleSelection {
   record?: TrailModule;
@@ -25,9 +26,8 @@ export function ModuleEditor({
   close: () => void;
   saved: () => void;
 }) {
-  const { client } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createSubjectsApi(client), [client]);
+  const api = useSubjectsApi();
   const { record, intent } = selection;
   const initial: ModuleFields = {
     title: record?.title ?? '',

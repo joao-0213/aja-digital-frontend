@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
+import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
 import { HttpError } from '@/lib/http-client';
 import { defaultSessionStorage, removeSessionDraft } from '@/lib/session-draft-storage';
 import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
@@ -17,12 +18,8 @@ import {
 } from '../lib/forum-draft';
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
-import {
-  createForumApi,
-  type ForumAttachmentDto,
-  type ForumFilter,
-  type ForumTopicFields
-} from '../api';
+import { forumKeys, useForumApi } from '../hooks/use-forum';
+import type { ForumAttachmentDto, ForumFilter, ForumTopicFields } from '../api';
 import { toErrorMessage } from '@/lib/errors';
 
 type LegacyForumAttachment = { id: string; name: string; mime: string; size: number };
@@ -52,14 +49,14 @@ export function ForumPage() {
 function ForumPageContent() {
   const { client, sessionKey, user } = useSession();
   const params = useSearchParams();
-  const api = useMemo(() => createForumApi(client), [client]);
+  const api = useForumApi();
   const options = useHttpQuery(
-    { sessionKey, key: ['forum', 'options'] },
+    { sessionKey, key: forumKeys.options },
     useCallback((signal) => api.options(signal), [api]),
     !!user
   );
   const [search, setSearch] = useState('');
-  const [subjectId, setSubjectId] = useState(params.get('disciplina') ?? 'all');
+  const [subjectId, setSubjectId] = useUrlFilterParam(params.get('disciplina') ?? 'all');
   const [classId, setClassId] = useState('all');
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(!!params.get('questao') || !!params.get('material'));
@@ -73,7 +70,7 @@ function ForumPageContent() {
         ? `question:${params.get('questao')}`
         : ''
   );
-  const [targetSubject, setTargetSubject] = useState(params.get('disciplina') ?? '');
+  const [targetSubject, setTargetSubject] = useUrlFilterParam(params.get('disciplina') ?? '');
   const [attachment, setAttachment] = useState<ForumAttachmentDto>();
   const [legacyAttachment, setLegacyAttachment] = useState<LegacyForumAttachment>();
   const [draftKey, setDraftKey] = useState('');
@@ -132,7 +129,7 @@ function ForumPageContent() {
 
   useEffect(() => {
     if (!targetSubject && activeSubjects[0]) setTargetSubject(activeSubjects[0].id);
-  }, [targetSubject, activeSubjects]);
+  }, [targetSubject, activeSubjects, setTargetSubject]);
 
   // Drafts contain text and a staged-file ID only; the server remains the source of attachment bytes.
   useEffect(() => {
@@ -170,7 +167,7 @@ function ForumPageContent() {
       }
     }
     setDraftKey(composeKey);
-  }, [api, composeKey, draftKey, targetSubject]);
+  }, [api, composeKey, draftKey, targetSubject, setTargetSubject]);
   useEffect(() => {
     if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
     const failure = saveForumComposeDraft(defaultSessionStorage(), composeKey, {

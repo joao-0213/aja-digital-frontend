@@ -5,3 +5,4 @@ export { createMaterialsApi } from './api';
 export { createStudyTools } from './lib/study-tools';
 export type { StudyTool } from './lib/study-tools';
 export { useStudyTools } from './hooks/use-study-tools';
+export { useMaterialsApi } from './hooks/use-materials';

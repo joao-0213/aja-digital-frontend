@@ -27,7 +27,8 @@ import { countLabel, textMatch } from '@/lib/utils';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import type { MaterialKind } from '@/models';
-import { createMaterialsApi, type MaterialDto } from '../api';
+import type { MaterialDto } from '../api';
+import { useMaterialsApi } from '../hooks/use-materials';
 
 type MaterialEntry = MaterialDto & { subjectId: string; subjectName: string; className: string };
 
@@ -44,8 +45,8 @@ function KindIcon({ kind }: { kind: MaterialKind }) {
 }
 
 export function MaterialLibrary() {
-  const { client, user, sessionKey } = useSession();
-  const api = useMemo(() => createMaterialsApi(client), [client]);
+  const { user, sessionKey } = useSession();
+  const api = useMaterialsApi();
   const [search, setSearch] = useState('');
   const [subjectId, setSubjectId] = useState('all');
   const [kind, setKind] = useState<'all' | MaterialKind>('all');

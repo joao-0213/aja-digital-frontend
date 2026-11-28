@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '@/providers/app-context';
-import { createFilesApi } from '@/lib/http-files';
 import { isCancelledError, toErrorMessage } from '@/lib/errors';
+import { useAssessmentFilesApi } from '../hooks/use-assessments';
 
 export function AttemptImage({ image }: { image: { src: string; alt: string } }) {
   const { client, sessionKey, resourceEpoch, status } = useSession();
-  const files = useMemo(() => createFilesApi(client), [client]);
+  const files = useAssessmentFilesApi();
   const fileId = /^\/api\/v1\/files\/([^/]+)\/content$/.exec(image.src)?.[1];
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState('');

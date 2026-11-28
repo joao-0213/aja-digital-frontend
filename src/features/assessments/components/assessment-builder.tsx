@@ -26,15 +26,14 @@ import { useHttpEditor } from '@/hooks/use-http-editor';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useSession } from '@/providers/app-context';
 import { HttpError } from '@/lib/http-client';
-import { createFilesApi } from '@/lib/http-files';
-import {
-  createAssessmentsApi,
-  type AssessmentCreate,
-  type AssessmentFields,
-  type AssessmentQuestionEntry,
-  type AssessmentRead,
-  type AssessmentSnapshot,
-  type AssessmentStaff
+import { useAssessmentFilesApi, useAssessmentsApi } from '../hooks/use-assessments';
+import type {
+  AssessmentCreate,
+  AssessmentFields,
+  AssessmentQuestionEntry,
+  AssessmentRead,
+  AssessmentSnapshot,
+  AssessmentStaff
 } from '../api';
 import {
   fromBrazilDateTimeLocal,
@@ -93,7 +92,7 @@ function defaultDeadline() {
 }
 
 function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string } | null }) {
-  const { client, sessionKey } = useSession();
+  const { sessionKey } = useSession();
   const match = image?.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
   let fileId = '';
   try {
@@ -101,7 +100,7 @@ function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string
   } catch {
     fileId = '';
   }
-  const files = useMemo(() => createFilesApi(client), [client]);
+  const files = useAssessmentFilesApi();
   const query = useHttpQuery(
     { sessionKey, key: ['assessments', 'question-image', fileId] },
     useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),
@@ -153,7 +152,7 @@ function AssessmentEditor({
   record,
   requestedModule
 }: {
-  api: ReturnType<typeof createAssessmentsApi>;
+  api: ReturnType<typeof useAssessmentsApi>;
   sessionKey: string;
   client: ReturnType<typeof useSession>['client'];
   modules: import('@/models').TrailModule[];
@@ -1236,7 +1235,7 @@ export function AssessmentBuilder() {
   const { client, sessionKey, status, user } = useSession();
   const id = params.get('id') ?? undefined;
   const requestedModule = params.get('modulo') ?? '';
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const query = useHttpQuery(
     { sessionKey, key: ['assessments', 'builder', id ?? 'new', requestedModule] },
     useCallback((signal) => api.builder(id, signal, sessionKey), [api, id, sessionKey]),

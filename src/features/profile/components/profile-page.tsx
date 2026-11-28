@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, KeyRound, LogOut } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
@@ -15,37 +15,20 @@ import {
   Skeleton
 } from '@/components/ui';
 import { roleLabels } from '@/lib/labels';
-import { useHttpQuery } from '@/hooks/use-http-query';
 import { PrivacyNotice } from '@/features/privacy';
-import { createSubjectsApi } from '@/features/subjects';
+import { useProfileEnrollments, useProfileSubjects } from '../hooks/use-profile';
 import { toErrorMessage } from '@/lib/errors';
-import { collectAllPages } from '@/lib/http-pagination';
 
 export function ProfilePage() {
-  const { user, client, sessionKey } = useSession();
+  const { user, client } = useSession();
   const { notify } = useApp();
   const router = useRouter();
-  const subjectsApi = useMemo(() => createSubjectsApi(client), [client]);
   const [busy, setBusy] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [passwordRequested, setPasswordRequested] = useState(false);
   const [error, setError] = useState('');
-  const enrollments = useHttpQuery(
-    { sessionKey, key: ['profile', 'enrollments', user?.emailConfirmedAt ?? ''] },
-    useCallback((signal) => client.readEnrollments(signal), [client]),
-    user?.role === 'student'
-  );
-  const assignedSubjects = useHttpQuery(
-    { sessionKey, key: ['profile', 'subjects'] },
-    useCallback(
-      (signal) =>
-        collectAllPages((page, pageSignal) => subjectsApi.list('', 'all', page, pageSignal), {
-          signal
-        }),
-      [subjectsApi]
-    ),
-    user?.role === 'teacher'
-  );
+  const enrollments = useProfileEnrollments(user?.emailConfirmedAt, user?.role === 'student');
+  const assignedSubjects = useProfileSubjects(user?.role === 'teacher');
   if (!user) return null;
 
   const logout = async () => {

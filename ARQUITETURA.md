@@ -29,6 +29,8 @@ Rotas importam entradas públicas de features. Dentro de uma feature, imports s�
 
 Diálogos de edição padronizam abertura, limpeza de rascunho e fechamento com `useEditableDialogSelection` (`src/hooks/use-editable-dialog-selection.ts`) combinado a `useHttpEditor` (`src/hooks/use-http-editor.ts`) e `useUnsavedChanges`.
 
+Cada domínio encapsula instanciação de API, chaves tipadas de consulta e helpers de consulta em `src/features/<domínio>/hooks/` (ex.: `useProfileEnrollments`, `useProfileSubjects`, `useSubjectsApi`, `useClassesApi`, `useAssessmentsApi`), evitando chamadas HTTP soltas em componentes de tela (`src/features/profile/api.ts`, `src/features/questions/api.ts`). Telas com filtros em query string (`forum`, `students`, `subjects`, `questions`, `assessments`, `attendance`) sincronizam `useSearchParams()` de forma determinística via `useUrlFilterParam` (`src/hooks/use-url-filter-param.ts`) ou leitura direta da URL sem loops de efeito.
+
 O cliente não importa seed, banco institucional completo, transporte mock, callbacks genéricos de mutação, coordenadores Web Locks ou repositório de anexos IndexedDB. As mensagens de erro e sucesso de uma ação dependem da resposta do serviço. Consultas com `useHttpQuery` (`src/hooks/use-http-query.ts` + `HttpQueryCache` em `src/lib/http-query.ts`) usam chaves estruturadas canônicas escopadas em memória ao `sessionKey`: deduplicam montagens simultâneas, revalidam silenciosamente em retorno de foco sem piscar a tela (`revalidating`) e suportam invalidação declarativa por prefixo (`invalidateQueries`) após mutações, descartando todo o cache e abortando requisições em voo imediatamente quando a sessão muda.
 
 ## Dados e armazenamento

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
@@ -17,18 +17,19 @@ import {
 } from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
+import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
 import { countLabel } from '@/lib/utils';
-import { createClassesApi } from '@/features/classes';
-import { createSubjectsApi, type SubjectSummary } from '../api';
+import { useClassesApi } from '@/features/classes';
+import type { SubjectSummary } from '../api';
+import { subjectKeys, useSubjectsApi } from '../hooks/use-subjects';
 import { SubjectCard } from './subject-card';
 import { SubjectEditor, type SubjectSelection } from './subject-editor';
 
 export function SubjectsPage() {
-  const { client, user, sessionKey } = useSession();
+  const { user, sessionKey } = useSession();
   const params = useSearchParams();
   const requestedClass = params.get('turma') ?? 'all';
-  const [filter, setFilter] = useState({ source: requestedClass, value: requestedClass });
-  const classId = filter.source === requestedClass ? filter.value : requestedClass;
+  const [classId, setClassId] = useUrlFilterParam(requestedClass);
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
@@ -37,15 +38,15 @@ export function SubjectsPage() {
     open: openSelection,
     close
   } = useEditableDialogSelection<SubjectSelection>('subjects-open', 'subjects-fields');
-  const api = useMemo(() => createSubjectsApi(client), [client]);
-  const classApi = useMemo(() => createClassesApi(client), [client]);
+  const api = useSubjectsApi();
+  const classApi = useClassesApi();
   const query = useHttpQuery(
-    { sessionKey, key: ['subjects', 'list', classId, search, page] },
+    { sessionKey, key: subjectKeys.list(classId, search, page) },
     useCallback((signal) => api.list(search, classId, page, signal), [api, search, classId, page]),
     { keepPreviousData: true }
   );
   const classes = useHttpQuery(
-    { sessionKey, key: ['subjects', 'class-options'] },
+    { sessionKey, key: subjectKeys.classOptions },
     useCallback((signal) => classApi.options(signal), [classApi])
   );
   const canAdmin = user?.role === 'admin';
@@ -113,7 +114,7 @@ export function SubjectsPage() {
             label="Turma"
             value={classId}
             onChange={(event) => {
-              setFilter({ source: requestedClass, value: event.target.value });
+              setClassId(event.target.value);
               setPage(1);
             }}
           >

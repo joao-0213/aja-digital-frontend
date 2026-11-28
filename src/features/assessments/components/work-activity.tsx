@@ -13,7 +13,7 @@ import type {
   WorkFeedback,
   WorkFileMetadata
 } from '../api';
-import { createAssessmentsApi } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useSession } from '@/providers/app-context';
@@ -111,10 +111,10 @@ function FeedbackPublication({
 }
 
 export function WorkActivity({ activity }: { activity: AssessmentRead }) {
-  const { client, sessionKey, status, user, sessionId } = useSession();
+  const { sessionKey, status, user, sessionId } = useSession();
   const params = useSearchParams();
   const selectedId = params.get('entrega');
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const submissions = useHttpQuery(
     { sessionKey, key: ['assessments', 'work-submissions', activity.id] },
     useCallback(
@@ -340,7 +340,7 @@ function WorkStudent({
   sessionId: string;
 }) {
   const { client, sessionKey, status } = useSession();
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const ownerKey = `aja-work-v1:${encodeURIComponent(userId)}:${encodeURIComponent(sessionId)}:${encodeURIComponent(activity.id)}`;
   const serverRevision = initialSubmission?.revision ?? 0;
   const [recoveryBundle] = useState(() => {

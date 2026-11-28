@@ -2,6 +2,7 @@ export { AssessmentsPage } from './components/assessments-page';
 export { AssessmentBuilder } from './components/assessment-builder';
 export { AssessmentSummaries } from './components/assessment-summaries';
 export { createAssessmentsApi } from './api';
+export { useAssessmentsApi } from './hooks/use-assessments';
 export type {
   AssessmentRead,
   AssessmentStaff,

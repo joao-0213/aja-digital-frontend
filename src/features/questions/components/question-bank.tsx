@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, PanelLeftOpen, X } from 'lucide-react';
 import { useApp, useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { createFilesApi } from '@/lib/http-files';
 import { HttpError } from '@/lib/http-client';
 import {
   Badge,
@@ -19,12 +18,12 @@ import {
 } from '@/components/ui';
 import { cn, countLabel } from '@/lib/utils';
 import { difficultyLabels } from '@/lib/labels';
-import { createQuestionsApi, type BankQuestion, type PracticeResult } from '../api';
+import type { BankQuestion, PracticeResult } from '../api';
+import { questionKeys, useQuestionFilesApi, useQuestionsApi } from '../hooks/use-questions';
 import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-filters';
 import { countActiveQuestionFilters, QuestionFilters } from './question-filters';
 import { QuestionPicker } from './question-picker';
 import { toErrorMessage } from '@/lib/errors';
-import { collectAllPages } from '@/lib/http-pagination';
 
 const fields = {
   search: 'busca',
@@ -40,7 +39,7 @@ export function QuestionBank() {
   const { notify } = useApp();
   const router = useRouter(),
     params = useSearchParams();
-  const api = useMemo(() => createQuestionsApi(client), [client]);
+  const api = useQuestionsApi();
   const filters: Required<QuestionFilterValue> = {
     search: params.get('busca') ?? emptyQuestionFilters.search,
     subject: params.get('subject') ?? emptyQuestionFilters.subject,
@@ -82,7 +81,7 @@ export function QuestionBank() {
     );
   };
   const list = useHttpQuery(
-    { sessionKey, key: ['questions', 'list', filters, page] },
+    { sessionKey, key: questionKeys.list(filters, page) },
     useCallback(
       (signal) => api.list(JSON.parse(filterKey) as QuestionFilterValue, page, signal),
       [api, filterKey, page]
@@ -90,21 +89,14 @@ export function QuestionBank() {
     { keepPreviousData: true }
   );
   const options = useHttpQuery(
-    { sessionKey, key: ['questions', 'options'] },
+    { sessionKey, key: questionKeys.options },
     useCallback(
-      (signal) =>
-        collectAllPages(
-          (number, pageSignal) => api.list(emptyQuestionFilters, number, pageSignal, 100),
-          {
-            signal,
-            isCurrent: () => client.getSnapshot().sessionKey === sessionKey
-          }
-        ),
+      (signal) => api.listOptions(signal, () => client.getSnapshot().sessionKey === sessionKey),
       [api, client, sessionKey]
     )
   );
   const detail = useHttpQuery(
-    { sessionKey, key: ['questions', 'detail', id] },
+    { sessionKey, key: questionKeys.detail(id) },
     useCallback((signal) => api.read(id ?? '', signal), [api, id]),
     !!id
   );
@@ -421,10 +413,10 @@ export function QuestionBank() {
 }
 
 function QuestionImage({ image }: { image: { src: string; alt: string } }) {
-  const { client, sessionKey } = useSession();
+  const { sessionKey } = useSession();
   const match = image.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
   const fileId = match ? decodeURIComponent(match[1]) : '';
-  const files = useMemo(() => createFilesApi(client), [client]);
+  const files = useQuestionFilesApi();
   const imageQuery = useHttpQuery(
     { sessionKey, key: ['questions', 'image', fileId] },
     useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),

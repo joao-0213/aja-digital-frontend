@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Trophy } from 'lucide-react';
@@ -9,7 +9,8 @@ import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import { brazilDateTimeLabel, countLabel, formatScore } from '@/lib/utils';
 import { useSession } from '@/providers/app-context';
-import { createAssessmentsApi, type AttemptRead, type AttemptResult } from '../api';
+import type { AttemptRead, AttemptResult } from '../api';
+import { useAssessmentsApi } from '../hooks/use-assessments';
 import { summarizeQuizResult } from '../lib/result-summary';
 import { AttemptImage } from './attempt-image';
 
@@ -150,9 +151,9 @@ function ResultContent({ result, isStudent }: { result: AttemptResult; isStudent
 }
 
 export function AssessmentResult() {
-  const { client, sessionKey, status, user } = useSession();
+  const { sessionKey, status, user } = useSession();
   const id = useSearchParams().get('id') ?? '';
-  const api = useMemo(() => createAssessmentsApi(client), [client]);
+  const api = useAssessmentsApi();
   const direct = useHttpQuery(
     { sessionKey, key: ['assessments', 'attempt-result', id] },
     useCallback((signal) => api.readAttemptResult(id, signal, sessionKey), [api, id, sessionKey]),

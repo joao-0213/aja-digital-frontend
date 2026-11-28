@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, CheckCircle2, ChevronUp, FileText, Play, Upload } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
@@ -10,7 +10,8 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
 import type { TrailModule } from '@/models';
-import { createMaterialsApi, type MaterialDto } from '../api';
+import type { MaterialDto } from '../api';
+import { useMaterialsApi } from '../hooks/use-materials';
 import { MaterialComposer } from './material-composer';
 import { toErrorMessage } from '@/lib/errors';
 
@@ -26,7 +27,7 @@ export function ModuleMaterials({
   onChanged?: () => void;
 }) {
   const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createMaterialsApi(client), [client]);
+  const api = useMaterialsApi();
   const query = useHttpQuery(
     { sessionKey, key: ['materials', 'module', module.id, module.revision ?? 1] },
     useCallback((signal) => api.all({ moduleId: module.id }, signal), [api, module.id])

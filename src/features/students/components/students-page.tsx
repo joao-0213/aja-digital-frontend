@@ -24,11 +24,13 @@ import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { useHttpEditor } from '@/hooks/use-http-editor';
+import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
 import { brazilDateTimeLabel } from '@/lib/utils';
 import { aggregateAttendanceByStudent } from '../lib/attendance-summary';
-import { createAttendanceApi } from '@/features/attendance';
-import { createClassesApi } from '@/features/classes';
-import { createStudentsApi, type EnrollmentDto } from '../api';
+import { useAttendanceApi } from '@/features/attendance';
+import { useClassesApi } from '@/features/classes';
+import type { EnrollmentDto } from '../api';
+import { studentKeys, useStudentsApi } from '../hooks/use-students';
 import { BatchEnrollmentDialog } from './batch-enrollment-dialog';
 
 type Selection = {
@@ -54,9 +56,8 @@ function EnrollmentDialog({
   close: () => void;
   saved: () => void;
 }) {
-  const { client } = useSession();
   const { notify } = useApp();
-  const api = useMemo(() => createStudentsApi(client), [client]);
+  const api = useStudentsApi();
   const state = useHttpEditor<{ email: string }, EnrollmentDto>(
     { email: selection.record?.email ?? '' },
     selection.record?.revision ?? 0,
@@ -161,16 +162,13 @@ function EnrollmentDialog({
 }
 
 export function StudentsPage() {
-  const { client, sessionKey, user } = useSession();
+  const { sessionKey, user } = useSession();
   const params = useSearchParams();
-  const api = useMemo(() => createStudentsApi(client), [client]);
-  const attendanceApi = useMemo(() => createAttendanceApi(client), [client]);
-  const classApi = useMemo(() => createClassesApi(client), [client]);
+  const api = useStudentsApi();
+  const attendanceApi = useAttendanceApi();
+  const classApi = useClassesApi();
   const requestedClassId = params.get('turma') ?? '';
-  const [classSelection, setClassSelection] = useState({
-    source: requestedClassId,
-    id: requestedClassId
-  });
+  const [selectedClassId, setSelectedClassId] = useUrlFilterParam(requestedClassId);
   const [search, setSearch] = useState('');
   const [history, setHistory] = useState(false);
   const [page, setPage] = useState(1);
@@ -182,12 +180,10 @@ export function StudentsPage() {
   } = useEditableDialogSelection<Selection>('students-open', 'students-fields');
   const allowed = !!user && user.role !== 'student';
   const classes = useHttpQuery(
-    { sessionKey, key: ['students', 'class-options'] },
+    { sessionKey, key: studentKeys.classOptions },
     useCallback((signal) => classApi.options(signal), [classApi]),
     allowed
   );
-  const selectedClassId =
-    classSelection.source === requestedClassId ? classSelection.id : requestedClassId;
   const classId = selectedClassId || classes.data?.[0]?.id || '';
   const schoolClass = classes.data?.find((item) => item.id === classId);
   const students = useHttpQuery(
@@ -288,7 +284,7 @@ export function StudentsPage() {
           aria-label="Turma"
           value={classId}
           onChange={(event) => {
-            setClassSelection({ source: requestedClassId, id: event.target.value });
+            setSelectedClassId(event.target.value);
             setPage(1);
             setEnrollmentPage(1);
           }}

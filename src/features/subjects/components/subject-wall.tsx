@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, Button, Card, Empty } from '@/components/ui';
@@ -12,14 +12,14 @@ import {
   WithdrawAnnouncementDialog,
   announcementsPath,
   canManageAnnouncementItem,
-  createAnnouncementsApi,
+  useAnnouncementsApi,
   type AnnouncementDto
 } from '@/features/announcements';
 import type { SubjectSummary } from '../api';
 
 export function SubjectWall({ subject }: { subject: SubjectSummary }) {
-  const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createAnnouncementsApi(client), [client]);
+  const { sessionKey, user } = useSession();
+  const api = useAnnouncementsApi();
   const query = useHttpQuery(
     { sessionKey, key: ['announcements', 'subject', subject.id] },
     useCallback((signal) => api.all({ subjectId: subject.id }, signal), [api, subject.id])

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -21,34 +21,35 @@ import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selectio
 import { HttpError } from '@/lib/http-client';
 import { countLabel } from '@/lib/utils';
 import type { TrailModule } from '@/models';
-import { createSubjectsApi, type SubjectDetail } from '../api';
+import type { SubjectDetail } from '../api';
+import { subjectKeys, useSubjectsApi } from '../hooks/use-subjects';
 import { moduleOrderCommand } from '../lib/module-order';
 import { useSubjectVisit } from '../hooks/use-subject-updates';
 import { ModuleEditor, type ModuleSelection } from './module-editor';
-import { createMaterialsApi, ModuleMaterials } from '@/features/materials';
-import { AssessmentSummaries, createAssessmentsApi } from '@/features/assessments';
+import { ModuleMaterials, useMaterialsApi } from '@/features/materials';
+import { AssessmentSummaries, useAssessmentsApi } from '@/features/assessments';
 import { SubjectWall } from './subject-wall';
 import { resolveSubjectIcon } from './subject-icons';
 import { subjectCovers } from './subject-colors';
 import { toErrorMessage } from '@/lib/errors';
 
 function SubjectContent({ id, materialsView }: { id: string; materialsView: boolean }) {
-  const { client, sessionKey, user } = useSession();
-  const api = useMemo(() => createSubjectsApi(client), [client]);
+  const { sessionKey, user } = useSession();
+  const api = useSubjectsApi();
   const query = useHttpQuery(
-    { sessionKey, key: ['subjects', 'detail', id] },
+    { sessionKey, key: subjectKeys.detail(id) },
     useCallback((signal) => api.read(id, signal), [api, id]),
     !!id
   );
-  const materialsApi = useMemo(() => createMaterialsApi(client), [client]);
+  const materialsApi = useMaterialsApi();
   const subjectMaterials = useHttpQuery(
-    { sessionKey, key: ['subjects', 'materials', id] },
+    { sessionKey, key: subjectKeys.materials(id) },
     useCallback((signal) => materialsApi.all({ subjectId: id }, signal), [materialsApi, id]),
     !!id && materialsView
   );
-  const assessmentsApi = useMemo(() => createAssessmentsApi(client), [client]);
+  const assessmentsApi = useAssessmentsApi();
   const activities = useHttpQuery(
-    { sessionKey, key: ['subjects', 'assessments', id] },
+    { sessionKey, key: subjectKeys.assessments(id) },
     useCallback(
       (signal) => assessmentsApi.all({ subjectId: id }, signal, sessionKey),
       [assessmentsApi, id, sessionKey]
@@ -56,7 +57,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
     !!id && materialsView
   );
   const attempts = useHttpQuery(
-    { sessionKey, key: ['subjects', 'attempts', id] },
+    { sessionKey, key: subjectKeys.attempts(id) },
     useCallback(
       (signal) => assessmentsApi.allAttempts({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
@@ -64,7 +65,7 @@ function SubjectContent({ id, materialsView }: { id: string; materialsView: bool
     !!id && materialsView
   );
   const submissions = useHttpQuery(
-    { sessionKey, key: ['subjects', 'submissions', id] },
+    { sessionKey, key: subjectKeys.submissions(id) },
     useCallback(
       (signal) => assessmentsApi.allSubmissions({}, signal, sessionKey),
       [assessmentsApi, sessionKey]
