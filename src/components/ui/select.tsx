@@ -1,9 +1,6 @@
 'use client';
 
 import {
-  Children,
-  Fragment,
-  isValidElement,
   useCallback,
   useEffect,
   useId,
@@ -13,65 +10,18 @@ import {
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
-  type ReactNode,
   type SelectHTMLAttributes
 } from 'react';
-import { createPortal } from 'react-dom';
-import { AlertCircle, Check, ChevronDown, Search, X } from 'lucide-react';
-import { cn, textMatch } from '@/lib/utils';
+import { AlertCircle, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { fieldInvalid } from './field-styles';
 import { friendlyValidationMessage, isFirstInvalidInForm } from './field-validation';
-
-interface ParsedOption {
-  value: string;
-  label: string;
-  disabled: boolean;
-  group?: string;
-}
-
-function extractText(node: ReactNode): string {
-  if (typeof node === 'string' || typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(extractText).join('');
-  if (isValidElement<{ children?: ReactNode }>(node)) return extractText(node.props.children);
-  return '';
-}
-
-function parseOptions(children: ReactNode, group?: string): ParsedOption[] {
-  const result: ParsedOption[] = [];
-  Children.forEach(children, (child) => {
-    if (
-      !isValidElement<{
-        value?: string | number;
-        disabled?: boolean;
-        label?: string;
-        children?: ReactNode;
-      }>(child)
-    )
-      return;
-    if (child.type === Fragment) {
-      result.push(...parseOptions(child.props.children, group));
-      return;
-    }
-    if (child.type === 'optgroup') {
-      result.push(...parseOptions(child.props.children, child.props.label));
-      return;
-    }
-    if (child.type === 'option') {
-      const label = extractText(child.props.children).trim();
-      const value = child.props.value !== undefined ? String(child.props.value) : label;
-      result.push({ value, label, disabled: Boolean(child.props.disabled), group });
-    }
-  });
-  return result;
-}
-
-type PopoverPosition = {
-  top?: number;
-  bottom?: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
+import { filterSelectOptions, parseSelectOptions, type ParsedSelectOption } from './select-options';
+import {
+  computeSelectPopoverPosition,
+  SelectPopover,
+  type SelectPopoverPosition
+} from './select-popover';
 
 export function Select({
   label,
@@ -94,7 +44,7 @@ export function Select({
 }) {
   const id = useId();
   const listboxId = useId();
-  const options = useMemo(() => parseOptions(children), [children]);
+  const options = useMemo(() => parseSelectOptions(children), [children]);
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState<string>(() => {
     if (defaultValue !== undefined) return String(defaultValue);
@@ -106,7 +56,7 @@ export function Select({
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [validationError, setValidationError] = useState('');
-  const [position, setPosition] = useState<PopoverPosition | null>(null);
+  const [position, setPosition] = useState<SelectPopoverPosition | null>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -120,30 +70,12 @@ export function Select({
   const showSearch = options.length >= 6;
   const displayedError = error || validationError;
 
-  const filtered = useMemo(() => {
-    const trimmed = query.trim();
-    if (!trimmed) return options;
-    return options.filter((item) => textMatch(`${item.label} ${item.group ?? ''}`, trimmed));
-  }, [options, query]);
+  const filtered = useMemo(() => filterSelectOptions(options, query), [options, query]);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom - 12;
-    const spaceAbove = rect.top - 12;
-    const flipUp = spaceBelow < 220 && spaceAbove > spaceBelow;
-    const width = Math.min(Math.max(rect.width, 200), window.innerWidth - 16);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    const maxHeight = Math.max(
-      140,
-      Math.min(260, (flipUp ? spaceAbove : spaceBelow) - (showSearch ? 52 : 8))
-    );
-    setPosition(
-      flipUp
-        ? { bottom: window.innerHeight - rect.top + 6, left, width, maxHeight }
-        : { top: rect.bottom + 6, left, width, maxHeight }
-    );
+    setPosition(computeSelectPopoverPosition(trigger, showSearch));
   }, [showSearch]);
 
   const openMenu = () => {
@@ -204,7 +136,7 @@ export function Select({
     if (nativeRef.current?.validity.valid) setValidationError('');
   }, [currentValue, validationError]);
 
-  const selectOption = (option: ParsedOption) => {
+  const selectOption = (option: ParsedSelectOption) => {
     if (option.disabled) return;
     setValidationError('');
     if (!isControlled) setInternalValue(option.value);
@@ -361,118 +293,28 @@ export function Select({
         </p>
       )}
 
-      {open &&
-        position &&
-        portalTarget &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            onKeyDown={handlePopoverKeyDown}
-            style={{
-              position: 'fixed',
-              top: position.top,
-              bottom: position.bottom,
-              left: position.left,
-              width: position.width,
-              zIndex: 60
-            }}
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-          >
-            {showSearch && (
-              <div className="relative border-b border-slate-100 bg-slate-50/70 p-2">
-                <Search
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  role="searchbox"
-                  aria-label="Filtrar opções"
-                  placeholder="Buscar opção…"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setHighlightedIndex(0);
-                  }}
-                  className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-7 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    aria-label="Limpar busca"
-                    onClick={() => setQuery('')}
-                    className="absolute right-3.5 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  >
-                    <X aria-hidden="true" className="size-3" />
-                  </button>
-                )}
-              </div>
-            )}
-
-            <ul
-              id={listboxId}
-              role="listbox"
-              aria-label={label ?? ariaLabel ?? 'Opções'}
-              style={{ maxHeight: position.maxHeight }}
-              className="divide-y divide-slate-100/80 overflow-y-auto py-1"
-            >
-              {filtered.map((option, idx) => {
-                const selected = option.value === currentValue;
-                const highlighted = idx === highlightedIndex;
-                const showGroupHeader =
-                  option.group && (idx === 0 || filtered[idx - 1]?.group !== option.group);
-                return (
-                  <Fragment key={`${option.value}:${idx}`}>
-                    {showGroupHeader && (
-                      <li
-                        role="presentation"
-                        className="px-3.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                      >
-                        {option.group}
-                      </li>
-                    )}
-                    <li role="option" aria-selected={selected} aria-disabled={option.disabled}>
-                      <button
-                        type="button"
-                        disabled={option.disabled}
-                        onMouseEnter={() => {
-                          if (!option.disabled) setHighlightedIndex(idx);
-                        }}
-                        onClick={() => selectOption(option)}
-                        className={cn(
-                          'flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors',
-                          option.disabled
-                            ? 'cursor-not-allowed text-slate-400'
-                            : selected
-                              ? 'bg-brand-50/80 font-medium text-brand-900'
-                              : highlighted
-                                ? 'bg-slate-50 text-slate-900'
-                                : 'text-slate-700 hover:bg-slate-50'
-                        )}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            'flex size-4 shrink-0 items-center justify-center',
-                            selected ? 'text-brand-600' : 'text-transparent'
-                          )}
-                        >
-                          <Check className="size-4" strokeWidth={2.5} />
-                        </span>
-                      </button>
-                    </li>
-                  </Fragment>
-                );
-              })}
-              {filtered.length === 0 && (
-                <li className="px-3.5 py-3 text-xs text-slate-500">Nenhuma opção encontrada.</li>
-              )}
-            </ul>
-          </div>,
-          portalTarget
-        )}
+      {open && position && portalTarget && (
+        <SelectPopover
+          portalTarget={portalTarget}
+          popoverRef={popoverRef}
+          searchRef={searchRef}
+          listboxId={listboxId}
+          ariaLabel={label ?? ariaLabel ?? 'Opções'}
+          position={position}
+          showSearch={showSearch}
+          query={query}
+          filtered={filtered}
+          currentValue={currentValue}
+          highlightedIndex={highlightedIndex}
+          onQueryChange={(nextQuery) => {
+            setQuery(nextQuery);
+            setHighlightedIndex(0);
+          }}
+          onHighlight={setHighlightedIndex}
+          onSelect={selectOption}
+          onKeyDown={handlePopoverKeyDown}
+        />
+      )}
     </div>
   );
 }

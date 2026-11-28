@@ -1,6 +1,9 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui';
 import { CalendarPage } from '@/features/calendar';
+
+export const metadata: Metadata = { title: 'Calendário' };
 
 export default function Page() {
   return (
