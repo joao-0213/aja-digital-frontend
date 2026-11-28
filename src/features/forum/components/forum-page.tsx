@@ -1,39 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
-import { HttpError } from '@/lib/http-client';
-import { defaultSessionStorage, removeSessionDraft } from '@/lib/session-draft-storage';
 import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
-import {
-  forumComposeDraftKeys,
-  readForumComposeDraft,
-  saveForumComposeDraft
-} from '../lib/forum-draft';
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
 import { forumKeys, useForumApi } from '../hooks/use-forum';
-import type { ForumAttachmentDto, ForumFilter, ForumTopicFields } from '../api';
-import { toErrorMessage } from '@/lib/errors';
-
-type LegacyForumAttachment = { id: string; name: string; mime: string; size: number };
-type ComposeDraft = {
-  title: string;
-  body: string;
-  tags: string;
-  reference: string;
-  targetSubject?: string;
-  subjectId?: string;
-  attachment?: ForumAttachmentDto | LegacyForumAttachment;
-  legacyAttachment?: LegacyForumAttachment;
-  pendingCreate?: { key: string; fields: ForumTopicFields };
-};
+import type { ForumFilter } from '../api';
 
 export function ForumPage() {
   const { user } = useSession();
@@ -60,34 +39,9 @@ function ForumPageContent() {
   const [classId, setClassId] = useState('all');
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(!!params.get('questao') || !!params.get('material'));
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [tags, setTags] = useState('');
-  const [reference, setReference] = useState(
-    params.get('material')
-      ? `material:${params.get('material')}`
-      : params.get('questao')
-        ? `question:${params.get('questao')}`
-        : ''
-  );
-  const [targetSubject, setTargetSubject] = useUrlFilterParam(params.get('disciplina') ?? '');
-  const [attachment, setAttachment] = useState<ForumAttachmentDto>();
-  const [legacyAttachment, setLegacyAttachment] = useState<LegacyForumAttachment>();
-  const [draftKey, setDraftKey] = useState('');
-  const [draftError, setDraftError] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [pendingCreate, setPendingCreate] = useState<ComposeDraft['pendingCreate']>();
-  const [fileInputVersion, setFileInputVersion] = useState(0);
   const materialId = params.get('material');
   const questionId = params.get('questao');
-  const context = materialId
-    ? `material:${materialId}`
-    : questionId
-      ? `question:${questionId}`
-      : 'new';
-  const composeKeys = user ? forumComposeDraftKeys(user.id, materialId, questionId) : undefined;
-  const composeKey = composeKeys?.current ?? '';
+  const requestedSubject = params.get('disciplina');
   const filters = useMemo<ForumFilter>(
     () => ({
       ...(classId !== 'all' ? { classId } : {}),
@@ -113,177 +67,34 @@ function ForumPageContent() {
   );
   const activeClasses = options.data?.classes ?? [];
   const visibleSubjects = options.data?.subjects ?? [];
+  const composerSubjects = useMemo(
+    () =>
+      activeSubjects
+        .filter((item) => classId === 'all' || item.classId === classId)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          classId: item.classId,
+          className: activeClasses.find((row) => row.id === item.classId)?.name
+        })),
+    [activeSubjects, activeClasses, classId]
+  );
+  const initialContext = useMemo(
+    () => ({
+      materialId,
+      questionId,
+      subjectId: requestedSubject ?? activeSubjects[0]?.id ?? ''
+    }),
+    [materialId, questionId, requestedSubject, activeSubjects]
+  );
   const canPublish =
     !!user && activeSubjects.some((item) => classId === 'all' || item.classId === classId);
-  const composition = useCallback(
-    () => ({
-      title,
-      body,
-      tags,
-      reference,
-      targetSubject,
-      ...(attachment ? { attachment } : legacyAttachment ? { attachment: legacyAttachment } : {})
-    }),
-    [title, body, tags, reference, targetSubject, attachment, legacyAttachment]
-  );
+  const handleClose = useCallback(() => setOpen(false), []);
+  const handlePublished = useCallback(() => {
+    setOpen(false);
+    void client.invalidateQueries(['forum']);
+  }, [client]);
 
-  useEffect(() => {
-    if (!targetSubject && activeSubjects[0]) setTargetSubject(activeSubjects[0].id);
-  }, [targetSubject, activeSubjects, setTargetSubject]);
-
-  // Drafts contain text and a staged-file ID only; the server remains the source of attachment bytes.
-  useEffect(() => {
-    if (!composeKey || draftKey === composeKey || typeof window === 'undefined') return;
-    const restored = readForumComposeDraft(defaultSessionStorage(), composeKey);
-    if (restored.error) {
-      setDraftError(restored.error);
-      return;
-    }
-    const saved = restored.value as ComposeDraft | null;
-    if (saved) {
-      setTitle(saved.title ?? '');
-      setBody(saved.body ?? '');
-      setTags(saved.tags ?? '');
-      setReference(saved.reference ?? '');
-      setTargetSubject(saved.targetSubject ?? saved.subjectId ?? targetSubject);
-      setPendingCreate(saved.pendingCreate);
-      const previousAttachment = saved.attachment ?? saved.legacyAttachment;
-      if (previousAttachment) {
-        const legacy = {
-          id: previousAttachment.id,
-          name: previousAttachment.name,
-          mime: previousAttachment.mime,
-          size: previousAttachment.size
-        };
-        setLegacyAttachment(legacy);
-        if ('downloadUrl' in previousAttachment)
-          void api
-            .readFile(previousAttachment.id)
-            .then((item) => {
-              setAttachment(item);
-              setLegacyAttachment(undefined);
-            })
-            .catch(() => {});
-      }
-    }
-    setDraftKey(composeKey);
-  }, [api, composeKey, draftKey, targetSubject, setTargetSubject]);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !composeKey || draftKey !== composeKey) return;
-    const failure = saveForumComposeDraft(defaultSessionStorage(), composeKey, {
-      ...composition(),
-      pendingCreate
-    });
-    setDraftError(failure ?? '');
-  }, [composeKey, draftKey, composition, pendingCreate]);
-
-  const chooseFile = async (file?: File) => {
-    if (!file || !targetSubject) return;
-    setBusy(true);
-    setError('');
-    try {
-      if (
-        file.size < 1 ||
-        file.size > 5 * 1024 * 1024 ||
-        !['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)
-      )
-        throw new Error('Escolha um PDF, PNG, JPEG ou WebP de até 5 MB.');
-      setAttachment(await api.upload(targetSubject, file, crypto.randomUUID()));
-      setLegacyAttachment(undefined);
-    } catch (cause) {
-      setError(toErrorMessage(cause, 'Não foi possível enviar o anexo.'));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const removeFile = async () => {
-    if (!attachment || busy) return;
-    setBusy(true);
-    try {
-      await api.discardFile(attachment.id);
-      setAttachment(undefined);
-      setFileInputVersion((current) => current + 1);
-    } catch (cause) {
-      setError(toErrorMessage(cause, 'Não foi possível remover o anexo.'));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const publish = async (event: FormEvent) => {
-    event.preventDefault();
-    setError('');
-    const subject = activeSubjects.find(
-      (item) => item.id === targetSubject && (classId === 'all' || item.classId === classId)
-    );
-    if (!subject) {
-      setError('Selecione uma disciplina ativa.');
-      return;
-    }
-    const target = reference
-      ? {
-          type: reference.startsWith('material:') ? ('material' as const) : ('question' as const),
-          id: reference.slice(reference.indexOf(':') + 1)
-        }
-      : null;
-    if (target && !target.id.trim()) {
-      setError('Confira a referência escolhida.');
-      return;
-    }
-    const fields: ForumTopicFields = pendingCreate?.fields ?? {
-      classId: subject.classId,
-      subjectId: subject.id,
-      title: title.trim(),
-      body: body.trim(),
-      tags: [
-        ...new Set(
-          tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean)
-        )
-      ].slice(0, 5),
-      target,
-      attachmentId: attachment?.id ?? null
-    };
-    const intent = pendingCreate ?? { key: crypto.randomUUID(), fields };
-    setPendingCreate(intent);
-    if (composeKey)
-      saveForumComposeDraft(defaultSessionStorage(), composeKey, {
-        ...composition(),
-        pendingCreate: intent
-      });
-    setBusy(true);
-    try {
-      await api.create(fields, intent.key);
-      if (composeKey) removeSessionDraft(composeKey);
-      setOpen(false);
-      setTitle('');
-      setBody('');
-      setTags('');
-      setReference('');
-      setAttachment(undefined);
-      setLegacyAttachment(undefined);
-      setPendingCreate(undefined);
-      setDraftKey('');
-      void client.invalidateQueries(['forum']);
-    } catch (cause) {
-      if (
-        cause instanceof HttpError &&
-        ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)
-      )
-        setPendingCreate(undefined);
-      setError(
-        toErrorMessage(
-          cause,
-          'Não foi possível publicar a pergunta. Tente novamente para conferir o resultado.'
-        )
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const requestedSubject = params.get('disciplina');
   const backHref = materialId
     ? `/materiais?id=${encodeURIComponent(materialId)}`
     : requestedSubject
@@ -294,6 +105,7 @@ function ForumPageContent() {
     : requestedSubject
       ? 'Voltar à disciplina'
       : 'Voltar ao painel';
+
   return (
     <>
       <LinkButton secondary href={backHref} className="mb-5">
@@ -303,13 +115,7 @@ function ForumPageContent() {
       <PageHeading
         title="Fórum de dúvidas"
         action={
-          <Button
-            onClick={() => {
-              setOpen(true);
-              setError('');
-            }}
-            disabled={!canPublish}
-          >
+          <Button onClick={() => setOpen(true)} disabled={!canPublish}>
             <Plus aria-hidden="true" className="size-4" />
             Nova pergunta
           </Button>
@@ -419,49 +225,12 @@ function ForumPageContent() {
             description="As dúvidas publicadas aparecerão aqui."
           />
         )}
-      {draftError && !open && (
-        <p role="alert" className="mt-4 text-sm text-rose-700">
-          {draftError}
-        </p>
-      )}
       <ForumComposerDialog
         open={open}
-        onClose={() => {
-          if (!busy) setOpen(false);
-        }}
-        subjects={activeSubjects
-          .filter((item) => classId === 'all' || item.classId === classId)
-          .map((item) => ({
-            id: item.id,
-            name: item.name,
-            classId: item.classId,
-            className: activeClasses.find((row) => row.id === item.classId)?.name
-          }))}
-        targetSubject={targetSubject}
-        onChangeSubject={(next) => {
-          setTargetSubject(next);
-          if (attachment) void removeFile();
-        }}
-        title={title}
-        onChangeTitle={setTitle}
-        body={body}
-        onChangeBody={setBody}
-        tags={tags}
-        onChangeTags={setTags}
-        reference={reference}
-        onClearReference={() => setReference('')}
-        attachment={attachment}
-        legacyAttachment={legacyAttachment}
-        onClearLegacyAttachment={() => setLegacyAttachment(undefined)}
-        fileInputVersion={fileInputVersion}
-        onChooseFile={(file) => void chooseFile(file)}
-        onRemoveFile={() => void removeFile()}
-        readFileContent={(id, inline) => api.readFileContent(id, inline)}
-        draftError={draftError}
-        error={error}
-        busy={busy}
-        hasPendingCreate={!!pendingCreate}
-        onSubmit={(event) => void publish(event)}
+        onClose={handleClose}
+        initialContext={initialContext}
+        subjects={composerSubjects}
+        onPublished={handlePublished}
       />
     </>
   );

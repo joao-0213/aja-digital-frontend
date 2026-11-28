@@ -1,19 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, ThumbsUp } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { HttpError } from '@/lib/http-client';
-import { defaultSessionStorage, removeSessionDraft } from '@/lib/session-draft-storage';
 import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, Textarea } from '@/components/ui';
 import { ErrorState } from '@/components/ui/error-state';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
-import { forumReplyDraftKey, readForumDraft, saveForumDraft } from '../lib/forum-draft';
 import { RichText } from '@/components/ui/rich-text';
 import { forumKeys, useForumApi } from '../hooks/use-forum';
+import { useForumReply } from '../hooks/use-forum-reply';
 import { ForumAttachments } from './forum-attachments';
 import { toErrorMessage } from '@/lib/errors';
 
@@ -33,16 +31,14 @@ function ForumThreadContent() {
     !!user && !!id
   );
   const topic = query.data;
-  const draftKey = user ? forumReplyDraftKey(user.id, id) : '';
-  const [body, setBody] = useState('');
-  const [pendingReply, setPendingReply] = useState<{ key: string; body: string }>();
-  const [loadedKey, setLoadedKey] = useState('');
-  const [draftError, setDraftError] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [withdrawTarget, setWithdrawTarget] = useState<
-    { kind: 'topic' } | { kind: 'reply'; replyId: string } | null
-  >(null);
+  const invalidateForum = useCallback(() => {
+    void client.invalidateQueries(['forum']);
+  }, [client]);
+  const replyState = useForumReply({
+    userId: user?.id,
+    topicId: id,
+    onInvalidate: invalidateForum
+  });
   const options = useHttpQuery(
     { sessionKey, key: ['forum', 'options'] },
     useCallback((signal) => api.options(signal), [api]),
@@ -56,35 +52,6 @@ function ForumThreadContent() {
       !!options.data?.subjects.find((row) => row.id === topic.subjectId)?.canManageContent);
   const canResolve = !!topic && (user?.id === topic.author.id || canManage);
 
-  useEffect(() => {
-    if (!draftKey || loadedKey === draftKey) return;
-    const restored = readForumDraft(defaultSessionStorage(), draftKey);
-    if (restored.error) {
-      setDraftError(restored.error);
-      return;
-    }
-    const text = restored.value ?? '';
-    try {
-      const saved = JSON.parse(text) as {
-        body?: string;
-        pendingReply?: { key: string; body: string };
-      };
-      if (saved && typeof saved === 'object' && typeof saved.body === 'string') {
-        setBody(saved.body);
-        setPendingReply(saved.pendingReply);
-      } else setBody(text);
-    } catch {
-      setBody(text);
-    }
-    setLoadedKey(draftKey);
-  }, [draftKey, loadedKey]);
-  useEffect(() => {
-    if (loadedKey === draftKey && draftKey)
-      setDraftError(
-        saveForumDraft(defaultSessionStorage(), draftKey, JSON.stringify({ body, pendingReply })) ??
-          ''
-      );
-  }, [body, draftKey, loadedKey, pendingReply]);
   // Read markers are server-owned and are set once for each unread topic.
   const hasTopic = !!topic;
   const topicRead = topic?.read;
@@ -97,52 +64,12 @@ function ForumThreadContent() {
           void client.invalidateQueries(['forum']);
         })
         .catch((cause) =>
-          setError(toErrorMessage(cause, 'Não foi possível marcar a conversa como lida.'))
+          replyState.setError(
+            toErrorMessage(cause, 'Não foi possível marcar a conversa como lida.')
+          )
         );
-  }, [api, client, id, hasTopic, topicRead, queryLoading]);
+  }, [api, client, id, hasTopic, topicRead, queryLoading, replyState.setError]);
 
-  const updateTopic = async (action: () => Promise<unknown>, clearReply = false) => {
-    if (busy) return;
-    setBusy(true);
-    setError('');
-    try {
-      await action();
-      if (clearReply) {
-        setBody('');
-        setPendingReply(undefined);
-        if (draftKey) removeSessionDraft(draftKey);
-      }
-      void client.invalidateQueries(['forum']);
-    } catch (cause) {
-      if (
-        clearReply &&
-        cause instanceof HttpError &&
-        ['forbidden', 'not-found', 'validation', 'conflict'].includes(cause.kind)
-      )
-        setPendingReply(undefined);
-      setError(
-        toErrorMessage(
-          cause,
-          'Não foi possível salvar a alteração. Tente novamente para conferir o resultado.'
-        )
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-  const submitReply = (event: FormEvent) => {
-    event.preventDefault();
-    if (!topic || !body.trim()) return;
-    const intent = pendingReply ?? { key: crypto.randomUUID(), body: body.trim() };
-    setPendingReply(intent);
-    if (draftKey)
-      saveForumDraft(
-        defaultSessionStorage(),
-        draftKey,
-        JSON.stringify({ body: intent.body, pendingReply: intent })
-      );
-    void updateTopic(() => api.reply(id, intent.body, intent.key), true);
-  };
   if (query.loading)
     return (
       <p role="status" className="text-sm text-slate-500">
@@ -246,8 +173,8 @@ function ForumThreadContent() {
           <Button
             className="mt-4 !text-rose-700 hover:!bg-rose-50"
             variant="ghost"
-            disabled={busy}
-            onClick={() => setWithdrawTarget({ kind: 'topic' })}
+            disabled={replyState.busy}
+            onClick={() => replyState.setWithdrawTarget({ kind: 'topic' })}
           >
             Retirar pergunta
           </Button>
@@ -288,9 +215,11 @@ function ForumThreadContent() {
                 variant="ghost"
                 aria-label="Votar positivamente"
                 aria-pressed={reply.votedByMe}
-                disabled={!activeClass || busy || reply.author.id === user?.id}
+                disabled={!activeClass || replyState.busy || reply.author.id === user?.id}
                 className={cn(reply.votedByMe && '!bg-brand-50 !text-brand-600')}
-                onClick={() => void updateTopic(() => api.vote(id, reply.id, !reply.votedByMe))}
+                onClick={() =>
+                  void replyState.updateTopic(() => api.vote(id, reply.id, !reply.votedByMe))
+                }
               >
                 <ThumbsUp aria-hidden="true" className="size-4" />
               </Button>
@@ -299,8 +228,8 @@ function ForumThreadContent() {
                 <Button
                   variant="ghost"
                   className="!text-rose-700 hover:!bg-rose-50"
-                  disabled={busy}
-                  onClick={() => setWithdrawTarget({ kind: 'reply', replyId: reply.id })}
+                  disabled={replyState.busy}
+                  onClick={() => replyState.setWithdrawTarget({ kind: 'reply', replyId: reply.id })}
                 >
                   Retirar resposta
                 </Button>
@@ -309,9 +238,9 @@ function ForumThreadContent() {
                 <Button
                   variant="ghost"
                   className="ml-auto"
-                  disabled={busy}
+                  disabled={replyState.busy}
                   onClick={() =>
-                    void updateTopic(() =>
+                    void replyState.updateTopic(() =>
                       api.solution(id, reply.accepted ? null : reply.id, topic.revision)
                     )
                   }
@@ -326,32 +255,36 @@ function ForumThreadContent() {
       </div>
       {activeClass ? (
         <Card className="mt-6">
-          <form onSubmit={submitReply}>
-            <fieldset disabled={busy || !!pendingReply} className="min-w-0">
+          <form onSubmit={(event) => replyState.submitReply(event, !!topic)}>
+            <fieldset disabled={replyState.busy || !!replyState.pendingReply} className="min-w-0">
               <Textarea
                 label="Sua resposta"
                 placeholder="Escreva sua resposta…"
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
+                value={replyState.body}
+                onChange={(event) => replyState.setBody(event.target.value)}
                 required
                 minLength={10}
                 rows={5}
                 className="text-base leading-7"
               />
-              {draftError && (
+              {replyState.draftError && (
                 <p role="alert" className="mt-3 text-sm text-rose-700">
-                  {draftError}
+                  {replyState.draftError}
                 </p>
               )}
             </fieldset>
-            {error && (
+            {replyState.error && (
               <p role="alert" className="mt-3 text-sm text-rose-700">
-                {error}
+                {replyState.error}
               </p>
             )}
             <div className="mt-4 flex justify-end">
-              <Button type="submit" disabled={!body.trim() || busy} loading={busy}>
-                {pendingReply ? 'Tentar publicar novamente' : 'Publicar resposta'}
+              <Button
+                type="submit"
+                disabled={!replyState.body.trim() || replyState.busy}
+                loading={replyState.busy}
+              >
+                {replyState.pendingReply ? 'Tentar publicar novamente' : 'Publicar resposta'}
               </Button>
             </div>
           </form>
@@ -359,43 +292,52 @@ function ForumThreadContent() {
       ) : (
         <p className="mt-6 text-sm text-slate-500">Esta turma está inativa.</p>
       )}
-      {error && !activeClass && (
+      {replyState.error && !activeClass && (
         <p role="alert" className="mt-4 text-sm text-rose-700">
-          {error}
+          {replyState.error}
         </p>
       )}
       <Dialog
-        open={!!withdrawTarget}
+        open={!!replyState.withdrawTarget}
         onClose={() => {
-          if (!busy) setWithdrawTarget(null);
+          if (!replyState.busy) replyState.setWithdrawTarget(null);
         }}
-        title={withdrawTarget?.kind === 'topic' ? 'Retirar pergunta?' : 'Retirar resposta?'}
+        title={
+          replyState.withdrawTarget?.kind === 'topic' ? 'Retirar pergunta?' : 'Retirar resposta?'
+        }
       >
-        {withdrawTarget && (
+        {replyState.withdrawTarget && (
           <>
             <p className="mb-5 text-sm leading-6 text-slate-600">
-              {withdrawTarget.kind === 'topic'
+              {replyState.withdrawTarget.kind === 'topic'
                 ? 'Retirar esta pergunta e suas respostas da consulta? O histórico permanece para auditoria.'
                 : 'Retirar esta resposta? A solução será desmarcada e o histórico será preservado.'}
             </p>
             <div className="flex flex-wrap justify-end gap-3">
-              <Button variant="secondary" disabled={busy} onClick={() => setWithdrawTarget(null)}>
+              <Button
+                variant="secondary"
+                disabled={replyState.busy}
+                onClick={() => replyState.setWithdrawTarget(null)}
+              >
                 Cancelar
               </Button>
               <Button
                 variant="danger"
-                loading={busy}
+                loading={replyState.busy}
                 onClick={async () => {
-                  const target = withdrawTarget;
-                  await updateTopic(() =>
+                  const target = replyState.withdrawTarget;
+                  if (!target) return;
+                  await replyState.updateTopic(() =>
                     target.kind === 'topic'
                       ? api.withdrawTopic(id, topic.revision)
                       : api.withdrawReply(id, target.replyId, topic.revision)
                   );
-                  setWithdrawTarget(null);
+                  replyState.setWithdrawTarget(null);
                 }}
               >
-                {withdrawTarget.kind === 'topic' ? 'Retirar pergunta' : 'Retirar resposta'}
+                {replyState.withdrawTarget.kind === 'topic'
+                  ? 'Retirar pergunta'
+                  : 'Retirar resposta'}
               </Button>
             </div>
           </>
