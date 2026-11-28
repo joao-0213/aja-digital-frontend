@@ -97,12 +97,12 @@ export function QuizSession({
         {q.attempt.questionOrder.map((id, position) => (
           <Button
             key={id}
+            size="sm"
             disabled={q.lockInputs || !!q.conflict}
             variant={q.index === position ? 'primary' : 'secondary'}
             aria-label={`Questão ${position + 1}${q.answers[id] !== undefined && q.answers[id] !== null ? ', respondida' : ', em branco'}`}
             onClick={() => q.setIndex(position)}
             className={cn(
-              '!min-h-10 !px-3',
               q.index !== position &&
                 q.answers[id] !== undefined &&
                 q.answers[id] !== null &&

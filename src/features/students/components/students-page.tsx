@@ -15,6 +15,7 @@ import {
   Input,
   LinkButton,
   PageHeading,
+  Pagination,
   Select,
   Skeleton,
   ErrorState
@@ -224,7 +225,7 @@ export function StudentsPage() {
         />
       ) : (
         <>
-          <Card className="!p-0 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <h2 className="px-5 pt-5 font-semibold">Alunos vinculados — {schoolClass.name}</h2>
             <div
               className="relative overflow-x-auto"
@@ -307,24 +308,13 @@ export function StudentsPage() {
               />
             )}
           </Card>
-          {students.data && students.data.total > students.data.pageSize && (
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <Button
-                variant="secondary"
-                disabled={page === 1}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                Anterior
-              </Button>
-              <span className="text-sm">Página {page}</span>
-              <Button
-                variant="secondary"
-                disabled={page * students.data.pageSize >= students.data.total}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                Próxima
-              </Button>
-            </div>
+          {students.data && (
+            <Pagination
+              className="mt-4"
+              page={page}
+              totalPages={Math.ceil(students.data.total / students.data.pageSize)}
+              onPageChange={setPage}
+            />
           )}
           {user?.role === 'admin' && (
             <Card className="mt-6">

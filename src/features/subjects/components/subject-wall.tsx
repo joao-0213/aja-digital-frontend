@@ -89,11 +89,7 @@ export function SubjectWall({ subject }: { subject: SubjectSummary }) {
                 <Pencil aria-hidden="true" className="size-4" />
                 Editar
               </Button>
-              <Button
-                variant="ghost"
-                className="!text-rose-700 hover:!bg-rose-50"
-                onClick={() => setWithdrawing(item)}
-              >
+              <Button variant="danger-ghost" onClick={() => setWithdrawing(item)}>
                 <Trash2 aria-hidden="true" className="size-4" />
                 Retirar
               </Button>

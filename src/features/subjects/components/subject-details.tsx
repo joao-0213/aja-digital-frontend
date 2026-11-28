@@ -12,10 +12,16 @@ import {
   Pencil,
   Plus
 } from 'lucide-react';
-import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
-import { RecordConflict } from '@/components/shared/record-conflict';
 import { useSession } from '@/providers/app-context';
-import { Button, Empty, ErrorState, LinkButton, Skeleton } from '@/components/ui';
+import { RecordConflict } from '@/components/shared/record-conflict';
+import {
+  Button,
+  Empty,
+  ErrorState,
+  LinkButton,
+  ResponsiveDisclosure,
+  Skeleton
+} from '@/components/ui';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
 import { HttpError } from '@/lib/http-client';

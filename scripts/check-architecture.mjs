@@ -100,6 +100,15 @@ export function checkArchitecture(root = defaultRoot) {
         errors.push(`${source}: elementos de UI não podem importar composições (${specifier}).`);
       }
       if (
+        !source.startsWith('src/components/ui/') &&
+        destination.startsWith('src/components/ui/') &&
+        destination !== 'src/components/ui/index.ts'
+      ) {
+        errors.push(
+          `${source}: importe componentes de UI apenas via @/components/ui (${specifier}).`
+        );
+      }
+      if (
         domain(target) &&
         domain(file) !== domain(target) &&
         !/^src\/features\/[^/]+\/index\.[cm]?[jt]sx?$/.test(destination)

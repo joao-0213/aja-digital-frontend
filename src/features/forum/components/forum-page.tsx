@@ -7,7 +7,16 @@ import { ArrowLeft, CheckCircle2, MessageSquare, Plus } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
-import { Avatar, Badge, Button, Empty, LinkButton, PageHeading } from '@/components/ui';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Empty,
+  ErrorState,
+  LinkButton,
+  PageHeading,
+  Skeleton
+} from '@/components/ui';
 import { countLabel, dateLabel } from '@/lib/utils';
 import { ForumComposerDialog } from './forum-composer';
 import { ForumFilters } from './forum-filters';
@@ -122,16 +131,9 @@ function ForumPageContent() {
         }
       />
       {options.error && (
-        <p role="alert" className="mb-4 text-sm text-rose-700">
-          {options.error.message}{' '}
-          <button
-            type="button"
-            onClick={options.retry}
-            className="font-bold underline underline-offset-4"
-          >
-            Tentar novamente
-          </button>
-        </p>
+        <div className="mb-4">
+          <ErrorState message={options.error.message} retry={options.retry} />
+        </div>
       )}
       <ForumFilters
         search={search}
@@ -146,23 +148,8 @@ function ForumPageContent() {
         subjects={visibleSubjects}
       />
       <div className="space-y-3">
-        {topics.loading && (
-          <p role="status" className="text-sm text-slate-500">
-            Carregando perguntas…
-          </p>
-        )}
-        {topics.error && (
-          <p role="alert" className="text-sm text-rose-700">
-            {topics.error.message}{' '}
-            <button
-              type="button"
-              onClick={topics.retry}
-              className="font-bold underline underline-offset-4"
-            >
-              Tentar novamente
-            </button>
-          </p>
-        )}
+        {topics.loading && <Skeleton />}
+        {topics.error && <ErrorState message={topics.error.message} retry={topics.retry} />}
         {(topics.data ?? [])
           .filter((topic) => filter !== 'unanswered' || topic.replies.length === 0)
           .map((topic) => {

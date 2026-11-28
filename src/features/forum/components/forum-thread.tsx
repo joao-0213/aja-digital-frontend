@@ -6,10 +6,20 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, ThumbsUp } from 'lucide-react';
 import { useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
-import { Avatar, Badge, Button, Card, Dialog, Empty, LinkButton, Textarea } from '@/components/ui';
-import { ErrorState } from '@/components/ui/error-state';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Empty,
+  ErrorState,
+  LinkButton,
+  RichText,
+  Skeleton,
+  Textarea
+} from '@/components/ui';
 import { cn, countLabel, dateLabel } from '@/lib/utils';
-import { RichText } from '@/components/ui/rich-text';
 import { forumKeys, useForumApi } from '../hooks/use-forum';
 import { useForumReply } from '../hooks/use-forum-reply';
 import { ForumAttachments } from './forum-attachments';
@@ -70,12 +80,7 @@ function ForumThreadContent() {
         );
   }, [api, client, id, hasTopic, topicRead, queryLoading, replyState.setError]);
 
-  if (query.loading)
-    return (
-      <p role="status" className="text-sm text-slate-500">
-        Carregando conversa…
-      </p>
-    );
+  if (query.loading) return <Skeleton />;
   if (query.error)
     return (
       <>
@@ -171,8 +176,8 @@ function ForumThreadContent() {
         )}
         {activeClass && (user?.id === topic.author.id || canManage) && (
           <Button
-            className="mt-4 !text-rose-700 hover:!bg-rose-50"
-            variant="ghost"
+            className="mt-4"
+            variant="danger-ghost"
             disabled={replyState.busy}
             onClick={() => replyState.setWithdrawTarget({ kind: 'topic' })}
           >
@@ -226,8 +231,7 @@ function ForumThreadContent() {
               <span className="text-sm font-semibold">{reply.voteCount}</span>
               {activeClass && (reply.author.id === user?.id || canManage) && (
                 <Button
-                  variant="ghost"
-                  className="!text-rose-700 hover:!bg-rose-50"
+                  variant="danger-ghost"
                   disabled={replyState.busy}
                   onClick={() => replyState.setWithdrawTarget({ kind: 'reply', replyId: reply.id })}
                 >

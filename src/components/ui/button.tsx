@@ -6,11 +6,13 @@ import { buttonStyles } from './button-styles';
 export function Button({
   children,
   variant = 'primary',
+  size = 'md',
   loading,
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost';
+  size?: 'md' | 'sm';
   loading?: boolean;
 }) {
   return (
@@ -20,11 +22,13 @@ export function Button({
       disabled={props.disabled || loading}
       className={cn(
         buttonStyles,
+        size === 'sm' && 'min-h-10 px-3',
         variant === 'primary' && 'bg-brand-600 text-white hover:bg-brand-700',
         variant === 'secondary' &&
           'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
         variant === 'ghost' && 'text-slate-600 hover:bg-slate-100',
         variant === 'danger' && 'bg-rose-600 text-white hover:bg-rose-700',
+        variant === 'danger-ghost' && 'text-rose-700 hover:bg-rose-50',
         className
       )}
     >

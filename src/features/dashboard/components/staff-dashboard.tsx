@@ -84,7 +84,7 @@ export function StaffDashboard() {
             aria-label="Indicadores"
             className="mb-6 grid grid-cols-3 gap-2 sm:mb-7 sm:gap-3"
           >
-            <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+            <Card padding="compact" className="flex min-w-0 flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
                   <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">
@@ -100,7 +100,7 @@ export function StaffDashboard() {
                 </p>
               </div>
             </Card>
-            <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+            <Card padding="compact" className="flex min-w-0 flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
                   <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">
@@ -124,7 +124,7 @@ export function StaffDashboard() {
               </Link>
             </Card>
             {isAdmin ? (
-              <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <Card padding="compact" className="flex min-w-0 flex-col justify-between">
                 <div>
                   <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
                     <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">
@@ -148,7 +148,7 @@ export function StaffDashboard() {
                 </Link>
               </Card>
             ) : (
-              <Card className="flex min-w-0 flex-col justify-between !p-3 sm:!p-6">
+              <Card padding="compact" className="flex min-w-0 flex-col justify-between">
                 <div>
                   <div className="flex items-start justify-between gap-1.5 sm:items-center sm:gap-2">
                     <p className="min-w-0 text-[11px] leading-tight text-slate-500 sm:text-sm">

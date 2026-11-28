@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, PanelLeftOpen, X } from 'lucide-react';
+import { AuthenticatedImage } from '@/components/shared/authenticated-image';
 import { useApp, useSession } from '@/providers/app-context';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { HttpError } from '@/lib/http-client';
@@ -14,12 +15,13 @@ import {
   ErrorState,
   LinkButton,
   PageHeading,
+  Pagination,
   Skeleton
 } from '@/components/ui';
 import { cn, countLabel } from '@/lib/utils';
 import { difficultyLabels } from '@/lib/labels';
 import type { BankQuestion, PracticeResult } from '../api';
-import { questionKeys, useQuestionFilesApi, useQuestionsApi } from '../hooks/use-questions';
+import { questionKeys, useQuestionsApi } from '../hooks/use-questions';
 import { emptyQuestionFilters, type QuestionFilterValue } from '../lib/question-filters';
 import { countActiveQuestionFilters, QuestionFilters } from './question-filters';
 import { QuestionPicker } from './question-picker';
@@ -291,27 +293,11 @@ export function QuestionBank() {
                   }
                 />
               )}
-              {pages > 1 && (
-                <div className="mt-6 flex items-center justify-center gap-3">
-                  <Button
-                    variant="secondary"
-                    disabled={page <= 1}
-                    onClick={() => changeUrl({ page: String(page - 1) })}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-slate-500">
-                    {page} / {pages}
-                  </span>
-                  <Button
-                    variant="secondary"
-                    disabled={page >= pages}
-                    onClick={() => changeUrl({ page: String(page + 1) })}
-                  >
-                    Próxima
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={page}
+                totalPages={pages}
+                onPageChange={(nextPage) => changeUrl({ page: String(nextPage) })}
+              />
             </>
           )}
         </div>
@@ -337,7 +323,7 @@ export function QuestionBank() {
                 <Badge>{detail.data.topic}</Badge>
               </div>
               <p className="mb-5 leading-7 [overflow-wrap:anywhere]">{detail.data.statement}</p>
-              {detail.data.image && <QuestionImage image={detail.data.image} />}
+              {detail.data.image && <AuthenticatedImage image={detail.data.image} />}
               <div className="space-y-2" role="radiogroup" aria-label="Alternativas">
                 {detail.data.options.map((option, index) => (
                   <label
@@ -409,39 +395,5 @@ export function QuestionBank() {
         )}
       </Dialog>
     </>
-  );
-}
-
-function QuestionImage({ image }: { image: { src: string; alt: string } }) {
-  const { sessionKey } = useSession();
-  const match = image.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
-  const fileId = match ? decodeURIComponent(match[1]) : '';
-  const files = useQuestionFilesApi();
-  const imageQuery = useHttpQuery(
-    { sessionKey, key: ['questions', 'image', fileId] },
-    useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),
-    !!fileId
-  );
-  const [url, setUrl] = useState('');
-  useEffect(() => {
-    if (!imageQuery.data) {
-      setUrl('');
-      return;
-    }
-    const objectUrl = URL.createObjectURL(imageQuery.data);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [imageQuery.data]);
-  if (!fileId)
-    return /^\/questions\/[A-Za-z0-9_-]+\.(?:svg|png|jpe?g|webp)$/.test(image.src) ? (
-      <img src={image.src} alt={image.alt} className="my-4 max-h-80 max-w-full" />
-    ) : null;
-  if (imageQuery.error)
-    return <ErrorState message={imageQuery.error.message} retry={() => void imageQuery.retry()} />;
-  if (imageQuery.loading) return <p role="status">Carregando imagem...</p>;
-  return url ? (
-    <img src={url} alt={image.alt} className="my-4 max-h-80 max-w-full" />
-  ) : (
-    <p role="status">Carregando imagem...</p>
   );
 }

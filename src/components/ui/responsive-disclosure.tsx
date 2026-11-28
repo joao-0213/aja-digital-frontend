@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button } from './button';
 import { cn } from '@/lib/utils';
 
 /** Keep supporting controls available without pushing content down on small screens. */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -12,14 +12,23 @@ import {
   ExternalLink,
   Pencil
 } from 'lucide-react';
-import { ResponsiveDisclosure } from '@/components/ui/responsive-disclosure';
-import { PublicationDate } from '@/components/ui/publication-date';
 import { useApp, useSession } from '@/providers/app-context';
-import { Badge, Button, Card, Empty, ErrorState, LinkButton, Skeleton } from '@/components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Empty,
+  ErrorState,
+  LinkButton,
+  PublicationDate,
+  ResponsiveDisclosure,
+  Skeleton
+} from '@/components/ui';
 import { brazilDateTimeLabel, cn } from '@/lib/utils';
 import { HttpError } from '@/lib/http-client';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
+import { useObjectUrl } from '@/hooks/use-object-url';
 import { materialKeys, useMaterialsApi } from '../hooks/use-materials';
 import { MaterialVideo } from './material-video';
 import { MaterialComposer } from './material-composer';
@@ -72,17 +81,13 @@ function ReaderContent({ id }: { id: string }) {
     useCallback((signal) => api.files.download(fileId, 'inline', signal), [api, fileId]),
     !!fileId
   );
-  const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
-  useEffect(() => {
-    if (!binary.data) return;
-    const pdfBlob =
-      binary.data.type === 'application/pdf'
-        ? binary.data
-        : new Blob([binary.data], { type: 'application/pdf' });
-    const url = URL.createObjectURL(pdfBlob);
-    setPreview({ blob: binary.data, url });
-    return () => URL.revokeObjectURL(url);
+  const pdfBlob = useMemo(() => {
+    if (!binary.data) return null;
+    return binary.data.type === 'application/pdf'
+      ? binary.data
+      : new Blob([binary.data], { type: 'application/pdf' });
   }, [binary.data]);
+  const fileUrl = useObjectUrl(pdfBlob) || undefined;
   const {
     isOpen: editing,
     open: openEditor,
@@ -138,7 +143,6 @@ function ReaderContent({ id }: { id: string }) {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const fileUrl = binary.data && preview?.blob === binary.data ? preview.url : undefined;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -219,7 +223,7 @@ function ReaderContent({ id }: { id: string }) {
           </ResponsiveDisclosure>
         </aside>
         <div className="min-w-0">
-          <Card className="!p-0 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             {material.kind === 'video' && (
               <MaterialVideo
                 key={`${material.id}:${material.videoUrl}`}

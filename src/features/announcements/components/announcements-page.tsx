@@ -138,8 +138,7 @@ export function AnnouncementsPage() {
                     Editar aviso
                   </Button>
                   <Button
-                    variant="ghost"
-                    className="!text-rose-700 hover:!bg-rose-50"
+                    variant="danger-ghost"
                     disabled={notices.loading}
                     onClick={() => setWithdrawing(item)}
                   >

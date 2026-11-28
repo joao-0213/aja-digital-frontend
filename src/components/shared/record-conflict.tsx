@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { brazilDateTimeLabel } from '@/lib/utils';
 
 export function RecordConflict({

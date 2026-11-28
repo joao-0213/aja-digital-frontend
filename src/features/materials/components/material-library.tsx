@@ -185,7 +185,7 @@ export function MaterialLibrary() {
           <p className="mb-3 text-sm text-slate-500">
             {countLabel(filtered.length, 'material encontrado', 'materiais encontrados')}
           </p>
-          <Card className="!p-0 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <ul className="divide-y divide-slate-100">
               {filtered.map((item) => {
                 const done = completedIds.has(item.id);

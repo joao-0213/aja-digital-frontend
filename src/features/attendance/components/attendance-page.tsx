@@ -176,7 +176,7 @@ export function AttendancePage() {
         </p>
       )}
       <div className="grid items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="!p-0 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <CalendarClock aria-hidden="true" className="size-4 text-brand-600" />

@@ -1,48 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { AuthenticatedImage } from '@/components/shared/authenticated-image';
 import { Badge, Button, Card, Empty } from '@/components/ui';
 import type { BankQuestion } from '@/features/questions';
-import { useHttpQuery } from '@/hooks/use-http-query';
 import { countLabel } from '@/lib/utils';
-import { useSession } from '@/providers/app-context';
 import type { AssessmentQuestionEntry, AssessmentSnapshot } from '../api';
-import { useAssessmentFilesApi } from '../hooks/use-assessments';
-
-function AssessmentQuestionImage({ image }: { image?: { src: string; alt: string } | null }) {
-  const { sessionKey } = useSession();
-  const match = image?.src.match(/^\/api\/v1\/files\/([^/]+)\/content$/);
-  let fileId = '';
-  try {
-    fileId = match ? decodeURIComponent(match[1]) : '';
-  } catch {
-    fileId = '';
-  }
-  const files = useAssessmentFilesApi();
-  const query = useHttpQuery(
-    { sessionKey, key: ['assessments', 'question-image', fileId] },
-    useCallback((signal) => files.download(fileId, 'inline', signal), [files, fileId]),
-    !!fileId
-  );
-  const [url, setUrl] = useState('');
-  useEffect(() => {
-    if (!query.data) {
-      setUrl('');
-      return;
-    }
-    const objectUrl = URL.createObjectURL(query.data);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [query.data]);
-  if (!image) return null;
-  if (!fileId)
-    return /^\/questions\/[A-Za-z0-9_-]+\.(?:svg|png|jpe?g|webp)$/.test(image.src) ? (
-      <img src={image.src} alt={image.alt} className="my-4 max-h-72 max-w-full" />
-    ) : null;
-  if (query.error || !url) return null;
-  return <img src={url} alt={image.alt} className="my-4 max-h-72 max-w-full" />;
-}
 
 export function AssessmentQuestionList({
   questions,
@@ -151,7 +114,7 @@ export function AssessmentQuestionList({
                 </div>
               </div>
               <p className="leading-7 [overflow-wrap:anywhere]">{question.statement}</p>
-              <AssessmentQuestionImage image={question.image} />
+              <AuthenticatedImage image={question.image} className="my-4 max-h-72 max-w-full" />
               <ol className="mt-4 space-y-2">
                 {question.options.map((option, optionIndex) => (
                   <li

@@ -42,7 +42,7 @@ export function WorkStaffView({
       />
       <ActivityConditions activity={activity} />
       <div className="grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <Card className="!p-0 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
             <h2 className="font-semibold">Entregas ({filtered.length})</h2>
             {totalEnrolled > filtered.length && (

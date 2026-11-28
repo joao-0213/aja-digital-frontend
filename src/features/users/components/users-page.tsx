@@ -12,6 +12,7 @@ import {
   Input,
   LinkButton,
   PageHeading,
+  Pagination,
   Select,
   Skeleton,
   ErrorState
@@ -125,7 +126,7 @@ export function UsersPage() {
           description="Altere o nome, e-mail, cargo ou situação pesquisada."
         />
       ) : (
-        <Card className="!p-0 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div
             className="overflow-x-auto"
             role="region"
@@ -216,8 +217,7 @@ export function UsersPage() {
                               </Button>
                             )}
                             <Button
-                              variant="ghost"
-                              className="!text-rose-700 hover:!bg-rose-50"
+                              variant="danger-ghost"
                               aria-label={`Excluir ${item.name}`}
                               onClick={() => open({ action: 'withdraw', record: item })}
                             >
@@ -234,26 +234,13 @@ export function UsersPage() {
           </div>
         </Card>
       )}
-      {query.data && query.data.total > query.data.pageSize && (
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <Button
-            variant="secondary"
-            disabled={page === 1 || query.loading}
-            onClick={() => setPage((value) => value - 1)}
-          >
-            Anterior
-          </Button>
-          <span className="text-sm text-slate-600">
-            Página {page} · {countLabel(query.data.total, 'usuário', 'usuários')}
-          </span>
-          <Button
-            variant="secondary"
-            disabled={page * query.data.pageSize >= query.data.total || query.loading}
-            onClick={() => setPage((value) => value + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
+      {query.data && (
+        <Pagination
+          className="mt-5"
+          page={page}
+          totalPages={Math.ceil(query.data.total / query.data.pageSize)}
+          onPageChange={setPage}
+        />
       )}
       {activeSelection && (
         <UserDialog

@@ -11,8 +11,8 @@ Inicie o Compose integrado no repositório backend e use `npm run dev` para abri
 | Responsabilidade | Localização |
 | --- | --- |
 | Rotas, metadados, Suspense e estados de carregamento/erro/404 | `src/app/` |
-| Controles sem regra de domínio | `src/components/ui/` |
-| Notificações e composições genéricas | `src/components/shared/` |
+| Controles sem regra de domínio (`Card`, `Button`, `InlineAlert`, `Pagination`, `Tabs` WAI-ARIA, etc., expostos via `@/components/ui`) | `src/components/ui/` |
+| Notificações, `AuthenticatedImage` e composições genéricas | `src/components/shared/` |
 | Navegação e shell autenticado | `src/components/layout/` |
 | Providers e sessão HTTP em memória | `src/components/providers.tsx`, `src/providers/` |
 | Hooks compartilhados sem regra de feature | `src/hooks/` |
@@ -21,7 +21,7 @@ Inicie o Compose integrado no repositório backend e use `npm run dev` para abri
 | Regras autoritativas, persistência, seed e arquivos privados | `server/` |
 | Regressões, contratos e suporte histórico isolado | `tests/`, `tests/support/legacy/` |
 
-Rotas importam entradas públicas de features. Dentro de uma feature, imports são internos (regras exclusivas ficam em `src/features/<domínio>/lib/`); entre features, use `@/features/<domínio>`. Hooks em `src/hooks/` reutilizam apenas `src/lib/`, `src/models/` e `src/providers/`, sem importar `src/features/` ou `src/app/` (hooks específicos vivem em `src/features/<domínio>/hooks/`). Em `src/models/`, os tipos ativos do cliente HTTP ficam separados dos tipos históricos (`src/models/legacy.ts`, `src/models/database.ts`), expostos apenas como `type` para compatibilidade; código em `src/` nunca importa `tests/support/legacy/`. Em `src/`, imports que atravessam camadas usam `@/` sem extensão; `./` e `../` ficam restritos à mesma feature, a `components/ui/`, `lib/`, `models/` ou à mesma pasta (exceção: módulos carregados diretamente pelo servidor Node, descobertos a partir de `server/`, mantêm imports relativos com extensão). Falhas e cancelamentos usam `toErrorMessage` e `isCancelledError` de `src/lib/errors.ts`. UI genérica não importa features, providers, rotas ou mocks. `npm run check:architecture` verifica as fronteiras estruturais (incluindo `import()` literal) e ciclos estáticos.
+Rotas importam entradas públicas de features. Dentro de uma feature, imports são internos (regras exclusivas ficam em `src/features/<domínio>/lib/`); entre features, use `@/features/<domínio>`. Hooks em `src/hooks/` reutilizam apenas `src/lib/`, `src/models/` e `src/providers/`, sem importar `src/features/` ou `src/app/` (hooks específicos vivem em `src/features/<domínio>/hooks/`). Em `src/models/`, os tipos ativos do cliente HTTP ficam separados dos tipos históricos (`src/models/legacy.ts`, `src/models/database.ts`), expostos apenas como `type` para compatibilidade; código em `src/` nunca importa `tests/support/legacy/`. Em `src/`, imports que atravessam camadas usam `@/` sem extensão; `./` e `../` ficam restritos à mesma feature, a `components/ui/`, `lib/`, `models/` ou à mesma pasta (exceção: módulos carregados diretamente pelo servidor Node, descobertos a partir de `server/`, mantêm imports relativos com extensão). Falhas e cancelamentos usam `toErrorMessage` e `isCancelledError` de `src/lib/errors.ts`. UI genérica não importa features, providers, rotas ou mocks; módulos fora de `src/components/ui/` importam primitivos apenas pelo barrel `@/components/ui`, enquanto dentro de `ui/` os imports continuam diretos. `useObjectUrl` (`src/hooks/use-object-url.ts`) e `AuthenticatedImage` (`src/components/shared/authenticated-image.tsx`) centralizam previews autenticados de imagens e PDFs com revogação segura de Blob URLs. `npm run check:architecture` verifica as fronteiras estruturais (incluindo `import()` literal) e ciclos estáticos.
 
 ## Sessão e estado do cliente
 

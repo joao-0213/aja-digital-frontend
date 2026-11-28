@@ -1,6 +1,6 @@
 'use client';
 
-import { Select } from '@/components/ui';
+import { Select, Tabs, type TabItem } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { deadlineParts } from '../lib/activity-list';
 
@@ -37,11 +37,7 @@ export function DeadlineColumn({
   );
 }
 
-export interface ActivityTab<T extends string> {
-  value: T;
-  label: string;
-  count?: number;
-}
+export type ActivityTab<T extends string> = TabItem<T>;
 
 export function ActivityTabs<T extends string>({
   ariaLabel,
@@ -62,42 +58,7 @@ export function ActivityTabs<T extends string>({
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:border-b sm:border-slate-200">
-      <div
-        role="tablist"
-        aria-label={ariaLabel}
-        className="flex flex-wrap gap-6 border-b border-slate-200 sm:border-b-0"
-      >
-        {tabs.map((tab) => {
-          const active = value === tab.value;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onChange(tab.value)}
-              className={cn(
-                '-mb-px inline-flex min-h-12 cursor-pointer items-center gap-2 border-b-2 px-1 py-3 text-sm font-semibold transition-colors',
-                active
-                  ? 'border-brand-600 text-brand-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-              )}
-            >
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
-                    active ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-600'
-                  )}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <Tabs ariaLabel={ariaLabel} tabs={tabs} value={value} onChange={onChange} />
       {filterSubjects.length > 1 && (
         <div className="w-full sm:w-64 sm:pb-2">
           <Select

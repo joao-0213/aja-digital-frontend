@@ -11,6 +11,7 @@ import {
   Input,
   LinkButton,
   PageHeading,
+  Pagination,
   Skeleton,
   ErrorState
 } from '@/components/ui';
@@ -131,8 +132,7 @@ export function ClassesPage() {
                   Editar
                 </Button>
                 <Button
-                  variant="ghost"
-                  className={item.active ? '!text-rose-700 hover:!bg-rose-50' : undefined}
+                  variant={item.active ? 'danger-ghost' : 'ghost'}
                   aria-label={`${item.active ? 'Inativar' : 'Reativar'} ${item.name}`}
                   onClick={() => openCommand(item.active ? 'close' : 'reopen', item)}
                 >
@@ -143,26 +143,13 @@ export function ClassesPage() {
           ))}
         </div>
       )}
-      {query.data && query.data.total > query.data.pageSize && (
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <Button
-            variant="secondary"
-            disabled={page === 1 || query.loading}
-            onClick={() => setPage((value) => value - 1)}
-          >
-            Anterior
-          </Button>
-          <span className="text-sm text-slate-600">
-            Página {page} · {countLabel(query.data.total, 'turma', 'turmas')}
-          </span>
-          <Button
-            variant="secondary"
-            disabled={page * query.data.pageSize >= query.data.total || query.loading}
-            onClick={() => setPage((value) => value + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
+      {query.data && (
+        <Pagination
+          className="mt-5"
+          page={page}
+          totalPages={Math.ceil(query.data.total / query.data.pageSize)}
+          onPageChange={setPage}
+        />
       )}
       {selection && (
         <ClassDialog

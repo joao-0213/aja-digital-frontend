@@ -409,3 +409,19 @@ test('architecture check requires @/ across layers and extensionless imports, ex
     !errors.some((error) => error.includes('src/lib/rule.ts') || error.includes('src/lib/ok.ts'))
   );
 });
+
+test('architecture check requires imports outside src/components/ui/ to go through @/components/ui barrel', async (t) => {
+  const root = await createTempWorkspace(t, {
+    'src/components/ui/button.tsx': 'export function Button() { return null; }\n',
+    'src/components/ui/index.ts': "export { Button } from './button';\n",
+    'src/components/shared/ok.tsx':
+      "import { Button } from '@/components/ui';\nexport const Ok = Button;\n",
+    'src/features/demo/bad.tsx':
+      "import { Button } from '@/components/ui/button';\nexport const Bad = Button;\n"
+  });
+
+  const { errors } = checkArchitecture(root);
+  assert.equal(errors.length, 1, errors.join('\n'));
+  assert.ok(errors[0].includes('src/features/demo/bad.tsx'));
+  assert.ok(errors[0].includes('@/components/ui'));
+});
