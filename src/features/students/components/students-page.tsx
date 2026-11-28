@@ -4,14 +4,13 @@ import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { useSession, useApp } from '@/providers/app-context';
+import { useSession } from '@/providers/app-context';
 import {
   Avatar,
   Badge,
   Button,
   Card,
   Check,
-  Dialog,
   Empty,
   Input,
   LinkButton,
@@ -20,10 +19,8 @@ import {
   Skeleton,
   ErrorState
 } from '@/components/ui';
-import { RecordConflict } from '@/components/shared/record-conflict';
 import { useHttpQuery } from '@/hooks/use-http-query';
 import { useEditableDialogSelection } from '@/hooks/use-editable-dialog-selection';
-import { useHttpEditor } from '@/hooks/use-http-editor';
 import { useUrlFilterParam } from '@/hooks/use-url-filter-param';
 import { brazilDateTimeLabel } from '@/lib/utils';
 import { aggregateAttendanceByStudent } from '../lib/attendance-summary';
@@ -32,134 +29,23 @@ import { useClassesApi } from '@/features/classes';
 import type { EnrollmentDto } from '../api';
 import { studentKeys, useStudentsApi } from '../hooks/use-students';
 import { BatchEnrollmentDialog } from './batch-enrollment-dialog';
+import { EnrollmentDialog, type EnrollmentCommandSelection } from './enrollment-dialog';
 
-type Selection = {
-  action: 'add' | 'cancel' | 'end';
-  record?: EnrollmentDto;
-  classId: string;
-  className: string;
-  intent: string;
-};
+type Selection =
+  | {
+      action: 'add';
+      classId: string;
+      className: string;
+      intent: string;
+    }
+  | EnrollmentCommandSelection;
+
 const labels: Record<string, string> = {
   active: 'Ativo',
   pending: 'Pendente',
   ended: 'Encerrado',
   cancelled: 'Cancelado'
 };
-
-function EnrollmentDialog({
-  selection,
-  close,
-  saved
-}: {
-  selection: Selection;
-  close: () => void;
-  saved: () => void;
-}) {
-  const { notify } = useApp();
-  const api = useStudentsApi();
-  const state = useHttpEditor<{ email: string }, EnrollmentDto>(
-    { email: selection.record?.email ?? '' },
-    selection.record?.revision ?? 0,
-    'students-fields'
-  );
-  const closeEditor = () => {
-    if (state.busy) return;
-    state.clear();
-    close();
-  };
-  const submit = async () => {
-    const ok = await state.editor.submit(
-      (_fields, revision) =>
-        api.command(
-          selection.record!.id,
-          selection.action as 'cancel' | 'end',
-          revision,
-          selection.intent
-        ),
-      selection.record ? () => api.readEnrollment(selection.record!.id) : undefined
-    );
-    if (ok) {
-      state.clear();
-      notify('Situação da matrícula atualizada. Histórico preservado.');
-      saved();
-    }
-  };
-  return (
-    <Dialog
-      open
-      onClose={closeEditor}
-      title={
-        selection.action === 'cancel'
-          ? 'Cancelar matrícula pendente?'
-          : 'Encerrar vínculo com a turma?'
-      }
-    >
-      <form
-        className="space-y-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <p className="text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
-          {selection.record?.email} · {selection.className}.{' '}
-          {selection.action === 'cancel'
-            ? 'O cadastro posterior não consumirá esta pendência.'
-            : 'O aluno perde o acesso à turma, inclusive em atividades abertas.'}{' '}
-          O histórico será preservado. Não há restauração automática.
-        </p>
-        {state.conflicted && (
-          <RecordConflict
-            author="Equipe administrativa"
-            updatedAt={state.latest?.updatedAt}
-            onReviewed={state.editor.acknowledge}
-          >
-            {state.latest ? (
-              <p>
-                {state.latest.email} · {labels[state.latest.status]} ·{' '}
-                {state.latest.className ?? selection.className}
-              </p>
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  void state.editor.review(() => api.readEnrollment(selection.record!.id))
-                }
-              >
-                Consultar versão atual
-              </Button>
-            )}
-          </RecordConflict>
-        )}
-        {state.error && (
-          <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
-            {state.error}
-          </p>
-        )}
-        {state.blocked && (
-          <p className="text-sm text-slate-600">
-            Feche esta janela e atualize a lista para conferir o que foi registrado antes de iniciar
-            outra operação.
-          </p>
-        )}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="secondary" disabled={state.busy} onClick={closeEditor}>
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            variant="danger"
-            loading={state.busy}
-            disabled={state.conflicted || state.blocked}
-          >
-            Confirmar
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
 
 export function StudentsPage() {
   const { sessionKey, user } = useSession();
@@ -238,12 +124,20 @@ export function StudentsPage() {
     );
   const visible = students.data?.items ?? [];
   const pending = enrollments.data?.items ?? [];
-  const open = (action: Selection['action'], record?: EnrollmentDto) => {
+  const openAdd = () => {
+    openSelection({
+      action: 'add',
+      classId,
+      className: schoolClass?.name ?? 'Turma indisponível',
+      intent: crypto.randomUUID()
+    });
+  };
+  const openCommand = (action: 'cancel' | 'end', record: EnrollmentDto) => {
     openSelection({
       action,
       record,
       classId,
-      className: schoolClass?.name ?? record?.className ?? 'Turma indisponível',
+      className: schoolClass?.name ?? record.className ?? 'Turma indisponível',
       intent: crypto.randomUUID()
     });
   };
@@ -263,7 +157,7 @@ export function StudentsPage() {
         title="Alunos"
         action={
           user?.role === 'admin' && (
-            <Button disabled={!schoolClass?.active || !!classes.error} onClick={() => open('add')}>
+            <Button disabled={!schoolClass?.active || !!classes.error} onClick={openAdd}>
               Adicionar aluno por e-mail
             </Button>
           )
@@ -394,7 +288,7 @@ export function StudentsPage() {
                               Ver perfil
                             </Link>
                             {user?.role === 'admin' && record?.status === 'active' && (
-                              <Button variant="ghost" onClick={() => open('end', record)}>
+                              <Button variant="ghost" onClick={() => openCommand('end', record)}>
                                 Encerrar vínculo
                               </Button>
                             )}
@@ -449,7 +343,7 @@ export function StudentsPage() {
                       </p>
                     </div>
                     {item.status === 'pending' && (
-                      <Button variant="secondary" onClick={() => open('cancel', item)}>
+                      <Button variant="secondary" onClick={() => openCommand('cancel', item)}>
                         Cancelar pendência
                       </Button>
                     )}
